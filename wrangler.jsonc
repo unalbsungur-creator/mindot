@@ -1,0 +1,18 @@
+{
+  // EPIC: Proper Cloudflare OpenNext Integration and Real Bundle Measurement.
+  // "main"/"assets" point at OpenNext's own generated output directory
+  // (.open-next/, produced by `npm run build:cf` — see package.json) rather
+  // than anything hand-written. "nodejs_compat" is required because the
+  // app's dependency graph (next-auth, drizzle-orm, postgres, @react-pdf/*)
+  // uses Node.js built-ins that only the Workers Node.js compat layer
+  // provides — Workers has no filesystem/node_modules at runtime, so this
+  // flag (not a bundler setting) is what makes those imports resolve at all.
+  "name": "mindot",
+  "compatibility_date": "2026-08-31",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": ".open-next/worker.js",
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  }
+}

@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // EPIC: Proper Cloudflare OpenNext Integration and Real Bundle
+    // Measurement — .open-next/ is OpenNext's generated Worker bundle
+    // output (server-function chunks, cache/asset copies), the same
+    // "never lint generated build output" category as .next/ above.
+    ".open-next/**",
+    ".wrangler/**",
   ]),
 ]);
 
