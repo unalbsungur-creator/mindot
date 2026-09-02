@@ -1,69 +1,65 @@
-import Image from "next/image";
+import { messageRepository } from "@/features/messages/repository";
+import type { Message } from "@/features/messages/types";
+import type { NoteData } from "@/features/notes/types";
+import { HOME_FIXED_MESSAGE_IDS } from "./_home/fixedMessages";
+import { HomeHero } from "./_home/HomeHero";
+import { MeaningStrip } from "./_home/MeaningStrip";
 
-export default function Home() {
+// EPIC: Ana Sayfa Dinamik Mesajları / Aktif Mesaj Sayacı — real database
+// data, refreshed periodically rather than on every single request (the
+// homepage doesn't need millisecond freshness, and this keeps the page
+// effectively static/cached the rest of the time — see the Performans
+// section of that EPIC).
+export const revalidate = 60;
+
+function toHeroNoteData(message: Message): NoteData {
+  return {
+    id: message.id,
+    content: message.content,
+    authorName: message.authorName,
+    templateId: message.templateId,
+    size: "sm",
+    rotation: message.rotation ?? 0,
+    // Inert for variant="static" — see HeroBrandComposition/Note.
+    position: { top: "0%", left: "0%" },
+    language: message.language,
+  };
+}
+
+/**
+ * EPIC: Ana Sayfadaki 4 Mesajın Yeni Yapısı. Two fixed messages (real,
+ * already-approved rows — see fixedMessages.ts) plus enough top-liked
+ * approved messages to reach 4 total, excluding the fixed ones so nothing
+ * duplicates. If a fixed message has since become unavailable (archived),
+ * its slot is silently absorbed into the dynamic count instead of leaving
+ * a gap or throwing — the same graceful-fallback spirit as the board's
+ * own reference-point protection.
+ */
+async function getHomeHeroNotes(): Promise<NoteData[]> {
+  const fixedResults = await Promise.all(HOME_FIXED_MESSAGE_IDS.map((id) => messageRepository.getById(id)));
+  const fixedMessages = fixedResults.filter((message): message is Message => message !== null && message.status === "approved");
+
+  const dynamicNeeded = 4 - fixedMessages.length;
+  const excludeIds = fixedMessages.map((message) => message.id);
+  const dynamicMessages = dynamicNeeded > 0 ? await messageRepository.listTopLikedApproved(excludeIds, dynamicNeeded) : [];
+
+  return [...fixedMessages, ...dynamicMessages].map(toHeroNoteData);
+}
+
+/**
+ * EPIC: MINDOT Ana Sayfa — Tek Sayfalık Final Landing Page. Exactly two
+ * sections — Header/Footer are rendered once, in the root layout, not
+ * here. Now fetches real data (this EPIC): the hero's 4 notes and the
+ * live active-message count, both from small, indexed, limited queries —
+ * never a full-table fetch-and-sort-in-JS.
+ */
+export default async function Home() {
+  const [heroNotes, activeCount] = await Promise.all([getHomeHeroNotes(), messageRepository.countApproved()]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <>
+      <HomeHero activeCount={activeCount} heroNotes={heroNotes} />
+      <MeaningStrip />
+    </>
   );
 }

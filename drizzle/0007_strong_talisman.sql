@@ -1,0 +1,2 @@
+CREATE TYPE "public"."invitation_email_status" AS ENUM('not_requested', 'sent', 'failed', 'not_configured');--> statement-breakpoint
+ALTER TABLE "invitations" ADD COLUMN "email_status" "invitation_email_status" DEFAULT 'not_requested' NOT NULL;

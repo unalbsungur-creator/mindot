@@ -1,26 +1,93 @@
 @import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import "../styles/tokens.css";
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-canvas: var(--mindot-canvas);
+  --color-surface: var(--mindot-surface);
+  --color-ink: var(--mindot-ink);
+  --color-ink-soft: var(--mindot-ink-soft);
+  --color-border: var(--mindot-border);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-navy: var(--mindot-navy);
+  --color-navy-soft: var(--mindot-navy-soft);
+  --color-orange: var(--mindot-orange);
+  --color-orange-soft: var(--mindot-orange-soft);
+  --color-orange-ink: var(--mindot-orange-ink);
+  --color-orange-tint: var(--mindot-orange-tint);
+
+  --color-paper-yellow: var(--mindot-paper-yellow);
+  --color-paper-cream: var(--mindot-paper-cream);
+  --color-paper-blue: var(--mindot-paper-blue);
+  --color-paper-pink: var(--mindot-paper-pink);
+  --color-paper-kraft: var(--mindot-paper-kraft);
+  --color-paper-white: var(--mindot-paper-white);
+  --color-paper-mint: var(--mindot-paper-mint);
+
+  --radius-sm: var(--mindot-radius-sm);
+  --radius-md: var(--mindot-radius-md);
+  --radius-lg: var(--mindot-radius-lg);
+  --radius-pill: var(--mindot-radius-pill);
+
+  --shadow-note: var(--mindot-shadow-note);
+  --shadow-note-hover: var(--mindot-shadow-note-hover);
+  --shadow-card: var(--mindot-shadow-card);
+
+  --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-fraunces);
+  --font-hand: var(--font-caveat);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+::selection {
+  background: var(--color-orange-tint);
+  color: var(--color-navy);
+}
+
+/* Onboarding modal's per-step content transition — see
+   features/onboarding/components/OnboardingModal.tsx. Applied only under
+   motion-safe: (Tailwind's prefers-reduced-motion guard). */
+@keyframes onboarding-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Homepage hero's dotted-D composition — a very slow, subtle breathing
+   glow behind the brand mark. Applied only under motion-safe: (see
+   HeroBrandComposition), same reduced-motion discipline as onboarding's
+   keyframe above. */
+@keyframes hero-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+}
+
+/* Very light float for the official circular MINDOT lockup image in the
+   hero/CTA composition — applied to the image's own wrapper, never to the
+   image's pixels/colors. Small amplitude and slow, same motion-safe:
+   discipline as the two keyframes above. */
+@keyframes hero-logo-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }

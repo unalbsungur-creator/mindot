@@ -1,0 +1,55 @@
+/* MINDOT design tokens — the single source of truth for color, radius,
+   shadow, motion, and z-index. Extend here, not with one-off values in
+   components. Mapped into Tailwind's theme in src/app/globals.css. */
+
+:root {
+  /* Brand — Master Brand system: MIND + DOT, official values */
+  --mindot-navy: #0d1b2a;
+  --mindot-navy-soft: #1c324a;
+  --mindot-orange: #ff6a00;
+  --mindot-orange-soft: #ff8c3d;
+  --mindot-orange-ink: #9a4400;
+  --mindot-orange-tint: #ffe1c7;
+
+  /* Surfaces & text */
+  --mindot-canvas: #f3efe4;
+  --mindot-surface: #fffdf8;
+  --mindot-ink: #201d18;
+  --mindot-ink-soft: #63594c;
+  --mindot-border: #e2d9c6;
+
+  /* Note paper tones */
+  --mindot-paper-yellow: #f7e08a;
+  --mindot-paper-cream: #f4ecd8;
+  --mindot-paper-blue: #cfe1e8;
+  --mindot-paper-pink: #f2d9d9;
+  --mindot-paper-kraft: #c9a877;
+  --mindot-paper-white: #fffdf9;
+  --mindot-paper-mint: #d3e6d6;
+
+  /* Radius */
+  --mindot-radius-sm: 0.25rem;
+  --mindot-radius-md: 0.5rem;
+  --mindot-radius-lg: 1rem;
+  --mindot-radius-pill: 999px;
+
+  /* Shadow */
+  --mindot-shadow-note: 0 1px 2px rgba(32, 29, 24, 0.08),
+    0 8px 16px -8px rgba(32, 29, 24, 0.18);
+  --mindot-shadow-note-hover: 0 4px 8px rgba(32, 29, 24, 0.1),
+    0 16px 28px -10px rgba(32, 29, 24, 0.24);
+  --mindot-shadow-card: 0 1px 2px rgba(32, 29, 24, 0.06),
+    0 4px 12px -4px rgba(32, 29, 24, 0.12);
+
+  /* Motion — apply via arbitrary values, e.g. duration-[var(--motion-base)] */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-fast: 150ms;
+  --motion-base: 250ms;
+  --motion-slow: 450ms;
+
+  /* Z-index scale — apply via arbitrary values, e.g. z-[var(--z-header)] */
+  --z-note: 10;
+  --z-note-hover: 20;
+  --z-header: 50;
+  --z-overlay: 100;
+}
