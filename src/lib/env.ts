@@ -42,6 +42,29 @@ export function requireRuntimeEnv(name: RuntimeEnvName): string {
     return value;
 }
 
+/**
+ * EPIC: Make Database Dependency Safe for Cloudflare Build. A cheap,
+ * non-throwing check for callers that must decide *whether* to touch the
+ * database at all before doing so — the one legitimate case today is
+ * app/page.tsx's homepage, which uses ISR (`export const revalidate`) and
+ * is therefore prerendered at `next build` time, when a deployment
+ * target's real DATABASE_URL may not exist yet (e.g. an initial
+ * Cloudflare build, before the production database is configured).
+ *
+ * This does NOT weaken `requireRuntimeEnv`/`getDb()` in any way — every
+ * route that genuinely requires the database (write, board, admin/*, me,
+ * moderation actions, etc.) still calls those directly and still throws
+ * exactly as before if DATABASE_URL is missing at the time a real request
+ * reaches them. This function only lets a caller check first, so it can
+ * skip the database entirely (never call `getDb()`, never attempt a
+ * connection) rather than initializing something that would immediately
+ * fail — see `B` in that EPIC's requirements: don't eagerly require the
+ * database unless the operation actually needs it.
+ */
+export function isDatabaseConfigured(): boolean {
+    return optionalEnv("DATABASE_URL") !== undefined;
+}
+
 function validAbsoluteUrl(value: string | undefined): URL | null {
     if (!value) return null;
     try {
