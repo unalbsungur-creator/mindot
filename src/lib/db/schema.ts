@@ -221,6 +221,74 @@ export const messageLikes = pgTable(
   ]
 );
 
+// EPIC 012: User Content Reporting — categories a reporter picks from,
+// grounded in the actual product terminology already used in
+// community-guidelines/terms (illegal content, harassment, spam, etc.),
+// not invented speculatively. "other" is the escape hatch for anything not
+// covered, paired with the free-text `details` field on the row itself.
+export const messageReportReasonEnum = pgEnum("message_report_reason", [
+  "spam",
+  "harassment",
+  "hate",
+  "sexual_content",
+  "violence",
+  "illegal",
+  "copyright",
+  "other",
+]);
+// A minimal, independent lifecycle — never confused with messageStatusEnum
+// above. A report's own status only ever describes whether an admin has
+// finished looking at *the report*; it has no bearing on, and is never
+// derived from, the reported message's own moderation status.
+export const messageReportStatusEnum = pgEnum("message_report_status", ["open", "resolved", "dismissed"]);
+
+/**
+ * EPIC 012: User Content Reporting — one row per report. Exactly one of
+ * `reporterId`/`anonymousReporterId` is set per row, the identical
+ * dedup shape `messageLikes` already established above (signed-in identity
+ * vs. this browser's client-generated localStorage id from
+ * src/lib/anonymousId.ts) — reused rather than inventing a second
+ * "who did this" pattern. The partial unique indexes below are the real
+ * "can't report the same message twice" boundary, enforced at the database
+ * level, not just a client-side disabled button.
+ *
+ * Filing a report never touches `messages.status` — see
+ * features/reports/actions.ts: this table is advisory input for an admin,
+ * exactly like AI pre-screening, never a publishing/removal decision on
+ * its own. `reviewedAt`/`reviewedBy` mirror `messages.moderatedAt`/
+ * `moderatedBy`'s shape for the same "who and when" audit purpose, kept as
+ * a separate pair of columns on this table (not reused from `messages`)
+ * since resolving/dismissing a *report* is a distinct action from
+ * approving/rejecting/archiving the *message* it's about.
+ */
+export const messageReports = pgTable(
+  "message_reports",
+  {
+    id: text("id").primaryKey(),
+    messageId: text("message_id")
+      .notNull()
+      .references(() => messages.id),
+    reporterId: text("reporter_id").references(() => users.id),
+    anonymousReporterId: text("anonymous_reporter_id"),
+    reason: messageReportReasonEnum("reason").notNull(),
+    details: text("details"),
+    status: messageReportStatusEnum("status").notNull().default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedBy: text("reviewed_by").references(() => users.id),
+  },
+  (table) => [
+    uniqueIndex("message_reports_message_reporter_idx")
+      .on(table.messageId, table.reporterId)
+      .where(sql`${table.reporterId} is not null`),
+    uniqueIndex("message_reports_message_anon_idx")
+      .on(table.messageId, table.anonymousReporterId)
+      .where(sql`${table.anonymousReporterId} is not null`),
+    index("message_reports_status_created_idx").on(table.status, table.createdAt),
+    index("message_reports_message_idx").on(table.messageId),
+  ]
+);
+
 // --- Memory / print / physical gift (EPIC 006) ---
 // See src/features/memories/ and "Memory preservation architecture" in
 // CLAUDE.md. A memory project always has exactly one `createdBy` (the

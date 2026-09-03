@@ -20,6 +20,7 @@ export function AdminNav() {
 
   const items = [
     { label: dictionary.moderation.title, href: "/admin/moderation" },
+    { label: dictionary.reportsAdmin.title, href: "/admin/reports" },
     { label: dictionary.invitationsAdmin.title, href: "/admin/invitations" },
     { label: dictionary.adminAccessCodes.title, href: "/admin/access-codes" },
     { label: dictionary.adminOrders.title, href: "/admin/orders" },

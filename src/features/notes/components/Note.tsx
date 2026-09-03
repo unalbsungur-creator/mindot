@@ -166,7 +166,7 @@ const decorationIcons: Record<NoteDecoration, ReactNode> = {
  * tooltip (see the `actions` rendering below), matching MINDOT's editorial
  * design language rather than reading as a placeholder/prototype control.
  */
-const actionIcons: Record<"save" | "share", ReactNode> = {
+const actionIcons: Record<"save" | "share" | "report", ReactNode> = {
   save: (
     <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-none stroke-current" strokeWidth={1.5} strokeLinejoin="round">
       <path d="M4 2.5h8a.5.5 0 01.5.5v10.5l-4.5-2.8-4.5 2.8V3a.5.5 0 01.5-.5Z" />
@@ -176,6 +176,15 @@ const actionIcons: Record<"save" | "share", ReactNode> = {
     <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-none stroke-current" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
       <path d="M8 10.5V2M8 2 5.2 4.8M8 2l2.8 2.8" />
       <path d="M3 8.5v4.2a.8.8 0 00.8.8h8.4a.8.8 0 00.8-.8V8.5" />
+    </svg>
+  ),
+  // EPIC 012: User Content Reporting — a plain outlined flag, the same
+  // quiet weight/stroke as save/share above so a report entry point never
+  // reads as more urgent or more prominent than "preserve"/"share" do.
+  report: (
+    <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-none stroke-current" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.5 1.5v13" />
+      <path d="M3.5 2.5h7l-1.6 2.5 1.6 2.5h-7Z" />
     </svg>
   ),
 };
@@ -209,12 +218,18 @@ interface NoteProps {
    *
    * `icon` picks a small glyph for the action's always-visible button —
    * `label` is still the button's real accessible name (`aria-label`) and
-   * also the text shown in the hover/focus-only tooltip. A closed,
-   * two-value vocabulary (not an arbitrary icon prop) because this stays a
-   * generic board primitive: it names *what kind* of secondary action this
-   * is, not which feature owns it.
+   * also the text shown in the hover/focus-only tooltip. A closed vocabulary
+   * (not an arbitrary icon prop) because this stays a generic board
+   * primitive: it names *what kind* of secondary action this is, not which
+   * feature owns it.
+   *
+   * EPIC 012: `onClick` is the report action's addition — a report opens a
+   * dialog rather than navigating, so it can't be `href`-only like
+   * preserve/share. Exactly one of `href`/`onClick` is expected per entry;
+   * the renderer below picks a `<Link>` or a plain `<button>` accordingly,
+   * same visual treatment either way.
    */
-  actions?: { href: string; label: string; icon: "save" | "share" }[];
+  actions?: { href?: string; onClick?: () => void; label: string; icon: "save" | "share" | "report" }[];
   /**
    * EPIC: Message Like System — optional and only ever passed by the real
    * board (InfiniteBoard), never by the write-flow preview, template
@@ -445,19 +460,35 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
         // — attachment/decoration/avatar/like — still need.
         <div className="absolute top-2 right-2 flex gap-1">
           {actions.map((action) => (
-            <div key={action.href} className="group/action relative">
-              <Link
-                href={action.href}
-                aria-label={action.label}
-                // Same fix as the like button above — without this, a mouse
-                // click here gets swallowed by InfiniteBoard's own
-                // pan-gesture handling on "world" notes before navigation
-                // fires (confirmed by real testing, not assumed).
-                onPointerDown={(event) => event.stopPropagation()}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-focus-within:opacity-100"
-              >
-                {actionIcons[action.icon]}
-              </Link>
+            <div key={action.href ?? action.label} className="group/action relative">
+              {action.onClick ? (
+                <button
+                  type="button"
+                  aria-label={action.label}
+                  onClick={action.onClick}
+                  // Same fix as the like button above — without this, a
+                  // click here gets swallowed by InfiniteBoard's own
+                  // pan-gesture handling on "world" notes before the click
+                  // ever registers (confirmed by real testing, not assumed).
+                  onPointerDown={(event) => event.stopPropagation()}
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-focus-within:opacity-100"
+                >
+                  {actionIcons[action.icon]}
+                </button>
+              ) : (
+                <Link
+                  href={action.href!}
+                  aria-label={action.label}
+                  // Same fix as the like button above — without this, a mouse
+                  // click here gets swallowed by InfiniteBoard's own
+                  // pan-gesture handling on "world" notes before navigation
+                  // fires (confirmed by real testing, not assumed).
+                  onPointerDown={(event) => event.stopPropagation()}
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-focus-within:opacity-100"
+                >
+                  {actionIcons[action.icon]}
+                </Link>
+              )}
               {/* Hover/focus-only label — `aria-hidden` because the link's
                   own `aria-label` above already carries this text as the
                   accessible name; this span is a purely visual affordance

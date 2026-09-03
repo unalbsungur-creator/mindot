@@ -144,6 +144,55 @@ export interface Dictionary {
     aiReasonLabel: string;
     aiNoCategories: string;
   };
+  /** EPIC 012: User Content Reporting — the public report dialog reachable from an approved message on the board. Reason labels are also reused by `reportsAdmin` below so the same 8-value vocabulary is never translated twice. */
+  report: {
+    actionLabel: string;
+    dialogTitle: string;
+    dialogSubtitle: string;
+    reasonLegend: string;
+    reasonSpam: string;
+    reasonHarassment: string;
+    reasonHate: string;
+    reasonSexualContent: string;
+    reasonViolence: string;
+    reasonIllegal: string;
+    reasonCopyright: string;
+    reasonOther: string;
+    detailsLabel: string;
+    detailsPlaceholder: string;
+    cancel: string;
+    submit: string;
+    submitting: string;
+    close: string;
+    successTitle: string;
+    successBody: string;
+    errorAlreadyReported: string;
+    errorNotFound: string;
+    errorGeneric: string;
+  };
+  /** EPIC 012: the admin report queue at /admin/reports. */
+  reportsAdmin: {
+    title: string;
+    subtitle: string;
+    emptyQueue: string;
+    reportedAtLabel: string;
+    reasonLabel: string;
+    detailsLabel: string;
+    noDetails: string;
+    reporterLabel: string;
+    reporterAnonymous: string;
+    messageStatusLabel: string;
+    messageMissing: string;
+    resolveAction: string;
+    resolving: string;
+    dismissAction: string;
+    dismissing: string;
+    archiveMessageAction: string;
+    archiving: string;
+    errorGeneric: string;
+    unauthorizedTitle: string;
+    unauthorizedBody: string;
+  };
   invitationsAdmin: {
     title: string;
     subtitle: string;

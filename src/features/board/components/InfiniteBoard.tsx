@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { getAnonymousId } from "@/lib/anonymousId";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { likeMessage } from "@/features/messages/like-actions";
+import { ReportDialog } from "@/features/reports/components/ReportDialog";
 import type { BoardTile } from "../types";
 import { useBoardCamera } from "../hooks/useBoardCamera";
 import { useTileCache } from "../hooks/useTileCache";
@@ -347,6 +348,11 @@ export function InfiniteBoard({
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [likeCountOverrides, setLikeCountOverrides] = useState<Record<string, number>>({});
 
+  // EPIC 012: one shared ReportDialog instance for the whole board, rather
+  // than one per note — `reportingMessageId` says which message the
+  // currently-open dialog (if any) is about; `null` means closed.
+  const [reportingMessageId, setReportingMessageId] = useState<string | null>(null);
+
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(LIKED_STORAGE_KEY);
@@ -450,6 +456,7 @@ export function InfiniteBoard({
                     actions={[
                       { href: `/memory/${message.id}`, label: dictionary.memory.preserveAction, icon: "save" },
                       { href: `/share/${message.id}`, label: dictionary.share.shareAction, icon: "share" },
+                      { onClick: () => setReportingMessageId(message.id), label: dictionary.report.actionLabel, icon: "report" },
                     ]}
                     like={{
                       count,
@@ -482,6 +489,12 @@ export function InfiniteBoard({
         onZoomIn={() => handleZoomButton(BUTTON_ZOOM_STEP)}
         onZoomOut={() => handleZoomButton(-BUTTON_ZOOM_STEP)}
         onReturnToCenter={handleReturnToCenter}
+      />
+
+      <ReportDialog
+        open={reportingMessageId !== null}
+        messageId={reportingMessageId}
+        onClose={() => setReportingMessageId(null)}
       />
     </div>
   );
