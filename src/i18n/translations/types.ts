@@ -81,6 +81,8 @@ export interface Dictionary {
     consentHeading: string;
     consentText: string;
     errorConsentRequired: string;
+    /** EPIC 013: shown both proactively (a suspended writer sees this before trying to submit) and reactively (submitMessage's own server-side re-check). Never mentions a reason — see CLAUDE.md's "User UX" section. */
+    errorAccountSuspended: string;
   };
   invite: {
     eyebrow: string;
@@ -189,6 +191,33 @@ export interface Dictionary {
     dismissing: string;
     archiveMessageAction: string;
     archiving: string;
+    errorGeneric: string;
+    unauthorizedTitle: string;
+    unauthorizedBody: string;
+  };
+  /** EPIC 013: the admin user management surface at /admin/users. Reuses `moderation.status*` for message-count labels rather than translating pending/approved/rejected/archived a second time. */
+  usersAdmin: {
+    title: string;
+    subtitle: string;
+    roleUser: string;
+    roleAdmin: string;
+    statusActive: string;
+    statusSuspended: string;
+    contentLabel: string;
+    suspendAction: string;
+    suspending: string;
+    unsuspendAction: string;
+    unsuspending: string;
+    suspendDialogTitle: string;
+    suspendDialogBody: string;
+    suspendReasonLabel: string;
+    suspendReasonPlaceholder: string;
+    suspendConfirm: string;
+    suspendCancel: string;
+    suspendedLabel: string;
+    reasonLabel: string;
+    noReason: string;
+    youLabel: string;
     errorGeneric: string;
     unauthorizedTitle: string;
     unauthorizedBody: string;

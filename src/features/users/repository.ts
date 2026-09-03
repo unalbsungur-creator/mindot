@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
 import { generatePublicId } from "./lib/identifiers";
@@ -25,6 +25,24 @@ export interface UserRepository {
   setPublicWallEnabled(userId: string, enabled: boolean): Promise<User | null>;
   /** EPIC 011: owner-only setting; `description` is already trimmed/length-capped by the caller (features/profile/actions.ts) — this just persists it. `null` clears it. */
   setPublicWallDescription(userId: string, description: string | null): Promise<User | null>;
+  /**
+   * EPIC 013: every user, for the admin management surface — small volume
+   * in practice (see /admin/users), same "no pagination abstraction until
+   * it's actually needed" precedent as the moderation/reports/invitations
+   * admin lists. Newest first, matching those same lists' convention.
+   */
+  listAll(): Promise<User[]>;
+  /**
+   * The real "can't double-suspend / can't race with itself" boundary: an
+   * atomic conditional `UPDATE ... WHERE id = ? AND status = 'active'`,
+   * same pattern as messageRepository.approve/reject/archive. Returns
+   * `null` if the account doesn't exist or is already suspended — the
+   * caller (features/users/moderation-actions.ts) doesn't need to
+   * distinguish those itself.
+   */
+  suspend(userId: string, adminId: string, reason: string | null): Promise<User | null>;
+  /** The inverse — atomic conditional `UPDATE ... WHERE status = 'suspended'`. Clears `statusReason` to null; see the schema doc comment for why. */
+  unsuspend(userId: string, adminId: string): Promise<User | null>;
 }
 
 /**
@@ -53,6 +71,10 @@ function toUser(row: typeof users.$inferSelect): User {
     publicId: row.publicId,
     publicWallEnabled: row.publicWallEnabled,
     publicWallDescription: row.publicWallDescription,
+    status: row.status,
+    statusReason: row.statusReason,
+    statusChangedAt: row.statusChangedAt?.toISOString() ?? null,
+    statusChangedBy: row.statusChangedBy,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -151,6 +173,34 @@ class DrizzleUserRepository implements UserRepository {
       .update(users)
       .set({ publicWallDescription: description, updatedAt: new Date() })
       .where(eq(users.id, userId))
+      .returning();
+    return row ? toUser(row) : null;
+  }
+
+  async listAll(): Promise<User[]> {
+    const db = getDb();
+    const rows = await db.select().from(users).orderBy(users.createdAt);
+    return rows.map(toUser);
+  }
+
+  async suspend(userId: string, adminId: string, reason: string | null): Promise<User | null> {
+    const db = getDb();
+    const now = new Date();
+    const [row] = await db
+      .update(users)
+      .set({ status: "suspended", statusReason: reason, statusChangedAt: now, statusChangedBy: adminId, updatedAt: now })
+      .where(and(eq(users.id, userId), eq(users.status, "active")))
+      .returning();
+    return row ? toUser(row) : null;
+  }
+
+  async unsuspend(userId: string, adminId: string): Promise<User | null> {
+    const db = getDb();
+    const now = new Date();
+    const [row] = await db
+      .update(users)
+      .set({ status: "active", statusReason: null, statusChangedAt: now, statusChangedBy: adminId, updatedAt: now })
+      .where(and(eq(users.id, userId), eq(users.status, "suspended")))
       .returning();
     return row ? toUser(row) : null;
   }

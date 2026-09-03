@@ -6,6 +6,7 @@ import { useLocale } from "@/i18n/LocaleProvider";
 
 interface WritePageContentProps {
   sessionUser: { name: string | null; email: string | null; image: string | null } | null;
+  isSuspended?: boolean;
 }
 
 /**
@@ -17,7 +18,7 @@ interface WritePageContentProps {
  * prompt, which is exactly the "login before writing" order that EPIC
  * deliberately reversed.
  */
-export function WritePageContent({ sessionUser }: WritePageContentProps) {
+export function WritePageContent({ sessionUser, isSuspended = false }: WritePageContentProps) {
   const { dictionary } = useLocale();
 
   return (
@@ -27,7 +28,7 @@ export function WritePageContent({ sessionUser }: WritePageContentProps) {
         <p className="text-ink-soft">{dictionary.write.subtitle}</p>
       </div>
       <div className="mx-auto max-w-3xl">
-        <WriteThoughtForm sessionUser={sessionUser} />
+        <WriteThoughtForm sessionUser={sessionUser} isSuspended={isSuspended} />
       </div>
     </PageContainer>
   );

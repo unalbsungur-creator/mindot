@@ -27,9 +27,18 @@ interface WriteThoughtFormProps {
    * required (they used to hide this whole component until authenticated).
    */
   sessionUser: { name: string | null; email: string | null; image: string | null } | null;
+  /**
+   * EPIC 013: `true` only when `sessionUser` is set AND that account's
+   * `status` is "suspended" (a fresh server-side read the page itself did
+   * — see WritePageContent/InvitePageContent). Purely a proactive UX
+   * signal so a suspended writer sees a clear message before even trying
+   * to submit, never the actual enforcement — `submitMessage` re-checks
+   * this itself from a fresh DB read regardless of what this prop says.
+   */
+  isSuspended?: boolean;
 }
 
-export function WriteThoughtForm({ invitationToken, sessionUser }: WriteThoughtFormProps) {
+export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = false }: WriteThoughtFormProps) {
   const { locale, dictionary } = useLocale();
   const defaultTemplateId = getActiveNoteTemplates()[0]?.id ?? "";
 
@@ -101,8 +110,8 @@ export function WriteThoughtForm({ invitationToken, sessionUser }: WriteThoughtF
   const charCount = [...content].length;
   const overLimit = charCount > MESSAGE_MAX_LENGTH;
   const hasContent = content.trim().length > 0 && !overLimit;
-  const canSubmit = hasContent && consentChecked && !isPending;
-  const canContinueToGoogle = hasContent && consentChecked;
+  const canSubmit = hasContent && consentChecked && !isPending && !isSuspended;
+  const canContinueToGoogle = hasContent && consentChecked && !isSuspended;
   const redirectTo = invitationToken ? `/invite/${invitationToken}` : "/write";
 
   const previewAuthor = isAnonymous
@@ -123,6 +132,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser }: WriteThoughtF
 
   const errorMessage: Record<SubmitMessageError, string> = {
     "auth-required": dictionary.write.signInRequired,
+    "account-suspended": dictionary.write.errorAccountSuspended,
     "consent-required": dictionary.write.errorConsentRequired,
     "empty-content": dictionary.write.errorEmpty,
     "too-long": dictionary.write.errorTooLong,
@@ -289,6 +299,16 @@ export function WriteThoughtForm({ invitationToken, sessionUser }: WriteThoughtF
             </Link>
           </div>
         </div>
+
+        {isSuspended && (
+          // EPIC 013: proactive, not the enforcement — submitMessage
+          // re-checks status itself from a fresh DB read regardless.
+          // Deliberately no mention of a reason or any other admin-only
+          // detail here — see CLAUDE.md's "User UX" section.
+          <p role="alert" className="text-sm text-red-600">
+            {dictionary.write.errorAccountSuspended}
+          </p>
+        )}
 
         {outcome && !outcome.ok && outcome.error && (
           <p role="alert" className="text-sm text-red-600">

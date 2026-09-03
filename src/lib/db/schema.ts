@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   index,
   integer,
@@ -19,6 +20,17 @@ import {
  */
 
 export const userRoleEnum = pgEnum("user_role", ["user", "admin"]);
+// EPIC 013: User Blocking / Suspension. Deliberately independent of
+// `userRoleEnum` above — role (user/admin) governs *permissions*, this
+// governs *submission eligibility*. A suspended admin keeps full admin
+// access (requireAdmin() only ever checks role); they just can't submit
+// new board content themselves either, same as any other suspended
+// account. Two values only — no "banned"/"restricted" tier was justified
+// by anything in this product: suspension already means exactly one thing
+// (blocks new message submission; existing approved content is
+// unaffected — see messages/actions.ts's submitMessage and CLAUDE.md's
+// "Suspension semantics" section for the full reasoning).
+export const userAccountStatusEnum = pgEnum("user_account_status", ["active", "suspended"]);
 export const invitationStatusEnum = pgEnum("invitation_status", ["active", "used", "revoked"]);
 // EPIC: E-mail Daveti — independent of `invitationStatusEnum` above: an
 // invitation can be "active" (usable) while its email delivery is
@@ -68,6 +80,21 @@ export const users = pgTable("users", {
   // other free-text column here, e.g. messages.content) — enforced
   // server-side in features/profile/actions.ts instead.
   publicWallDescription: text("public_wall_description"),
+  // EPIC 013: account-level submission eligibility — see
+  // `userAccountStatusEnum`'s own comment for why this is a separate
+  // concept from `role`. `statusReason`/`statusChangedAt`/`statusChangedBy`
+  // mirror `messages.moderatedAt`/`moderatedBy`'s shape exactly: the most
+  // recent status-changing action's audit trail, overwritten (not
+  // appended) by every subsequent suspend/unsuspend — a full history
+  // table was deliberately not built for this MVP (see the "Suspension
+  // reason" section of CLAUDE.md for why, and how this differs from the
+  // separately-scoped EPIC 014 message-moderation-reason work).
+  // `statusReason` is cleared to null on unsuspend, since a stale "why
+  // suspended" note is meaningless once the account is active again.
+  status: userAccountStatusEnum("status").notNull().default("active"),
+  statusReason: text("status_reason"),
+  statusChangedAt: timestamp("status_changed_at", { withTimezone: true }),
+  statusChangedBy: text("status_changed_by").references((): AnyPgColumn => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

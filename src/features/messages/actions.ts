@@ -5,6 +5,7 @@ import { invitationRepository } from "@/features/invitations/repository";
 import { getEffectiveStatus } from "@/features/invitations/types";
 import { getNoteTemplate, isTemplateAvailable } from "@/features/notes/config/templates";
 import { getModerationService } from "@/features/moderation/service";
+import { userRepository } from "@/features/users/repository";
 import { CONTENT_CONSENT_VERSION } from "./consent";
 import { messageRepository } from "./repository";
 import { MESSAGE_MAX_LENGTH, type Message } from "./types";
@@ -37,6 +38,7 @@ export interface SubmitMessageInput {
 
 export type SubmitMessageError =
   | "auth-required"
+  | "account-suspended"
   | "consent-required"
   | "empty-content"
   | "too-long"
@@ -62,6 +64,19 @@ export async function submitMessage(input: SubmitMessageInput): Promise<SubmitMe
   const session = await auth();
   if (!session?.user?.id) {
     return { ok: false, error: "auth-required" };
+  }
+
+  // EPIC 013: User Blocking / Suspension. Deliberately a fresh DB read, not
+  // `session.user.role`-style JWT-embedded state: a JWT only refreshes at
+  // sign-in, so trusting it here would mean a newly-suspended user could
+  // keep submitting for the rest of their existing session — the opposite
+  // of what "suspend this account right now" is supposed to mean. This is
+  // the single entry point every message-creation path goes through
+  // (`/write` and `/invite/[token]` both call this same function), so
+  // gating here covers both without a second check anywhere else.
+  const author = await userRepository.getById(session.user.id);
+  if (author?.status === "suspended") {
+    return { ok: false, error: "account-suspended" };
   }
 
   if (!input.consentAccepted || input.consentVersion !== CONTENT_CONSENT_VERSION) {

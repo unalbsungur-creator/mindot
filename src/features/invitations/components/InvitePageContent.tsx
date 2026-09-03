@@ -12,6 +12,7 @@ interface InvitePageContentProps {
   /** null means no invitation was found for this token at all. */
   status: InvitationStatus | null;
   sessionUser: { name: string | null; email: string | null; image: string | null } | null;
+  isSuspended?: boolean;
 }
 
 /**
@@ -23,7 +24,7 @@ interface InvitePageContentProps {
  * exactly the "login before writing" order "Mandatory content-
  * responsibility consent" in CLAUDE.md deliberately reversed.
  */
-export function InvitePageContent({ token, status, sessionUser }: InvitePageContentProps) {
+export function InvitePageContent({ token, status, sessionUser, isSuspended = false }: InvitePageContentProps) {
   const { dictionary } = useLocale();
 
   if (status === null) {
@@ -48,7 +49,7 @@ export function InvitePageContent({ token, status, sessionUser }: InvitePageCont
         {!sessionUser && <p className="text-ink-soft">{dictionary.invite.body}</p>}
       </div>
       <div className="mx-auto max-w-3xl">
-        <WriteThoughtForm invitationToken={token} sessionUser={sessionUser} />
+        <WriteThoughtForm invitationToken={token} sessionUser={sessionUser} isSuspended={isSuspended} />
       </div>
       {!sessionUser && (
         <p className="mx-auto max-w-sm pt-6 text-center text-xs text-ink-soft">{dictionary.invite.disclaimer}</p>
