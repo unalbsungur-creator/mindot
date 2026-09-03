@@ -1,6 +1,5 @@
 "use client";
 
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { WriteThoughtForm } from "@/features/messages/components/WriteThoughtForm";
 import { useLocale } from "@/i18n/LocaleProvider";
@@ -9,6 +8,15 @@ interface WritePageContentProps {
   sessionUser: { name: string | null; email: string | null; image: string | null } | null;
 }
 
+/**
+ * Always renders `WriteThoughtForm`, whether or not `sessionUser` is set —
+ * a signed-out visitor can compose their thought first and only reaches
+ * Google sign-in (gated by the mandatory consent checkbox) once they try
+ * to continue. See "Mandatory content-responsibility consent" in
+ * CLAUDE.md; this used to hide the whole form behind a bare sign-in
+ * prompt, which is exactly the "login before writing" order that EPIC
+ * deliberately reversed.
+ */
 export function WritePageContent({ sessionUser }: WritePageContentProps) {
   const { dictionary } = useLocale();
 
@@ -18,16 +26,9 @@ export function WritePageContent({ sessionUser }: WritePageContentProps) {
         <h1 className="font-display text-3xl font-medium text-navy sm:text-4xl">{dictionary.write.title}</h1>
         <p className="text-ink-soft">{dictionary.write.subtitle}</p>
       </div>
-      {sessionUser ? (
-        <div className="mx-auto max-w-3xl">
-          <WriteThoughtForm sessionUser={sessionUser} />
-        </div>
-      ) : (
-        <div className="flex flex-col items-center gap-4 pt-4 text-center">
-          <p className="text-ink-soft">{dictionary.write.signInRequired}</p>
-          <GoogleSignInButton redirectTo="/write" />
-        </div>
-      )}
+      <div className="mx-auto max-w-3xl">
+        <WriteThoughtForm sessionUser={sessionUser} />
+      </div>
     </PageContainer>
   );
 }

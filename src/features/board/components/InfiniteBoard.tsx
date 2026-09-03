@@ -448,8 +448,8 @@ export function InfiniteBoard({
                     note={tileToNoteData(message)}
                     variant="world"
                     actions={[
-                      { href: `/memory/${message.id}`, label: dictionary.memory.preserveAction },
-                      { href: `/share/${message.id}`, label: dictionary.share.shareAction },
+                      { href: `/memory/${message.id}`, label: dictionary.memory.preserveAction, icon: "save" },
+                      { href: `/share/${message.id}`, label: dictionary.share.shareAction, icon: "share" },
                     ]}
                     like={{
                       count,

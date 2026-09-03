@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { Note } from "@/features/notes/components/Note";
 import { TemplatePicker } from "@/features/notes/components/TemplatePicker";
 import { getActiveNoteTemplates } from "@/features/notes/config/templates";
@@ -11,11 +12,21 @@ import { cn } from "@/lib/cn";
 import { locales, localeLabels, type Locale } from "@/i18n/config";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { submitMessage, type SubmitMessageError } from "../actions";
+import { CONTENT_CONSENT_VERSION } from "../consent";
+import { consumeWriteDraft, saveWriteDraft } from "../lib/draftPersistence";
 import { MESSAGE_MAX_LENGTH } from "../types";
 
 interface WriteThoughtFormProps {
   invitationToken?: string;
-  sessionUser: { name: string | null; email: string | null; image: string | null };
+  /**
+   * `null` for a signed-out visitor — deliberate: the write UI (content,
+   * template, identity, language) is now shown *before* Google sign-in,
+   * not gated behind it, so a person can compose their thought first. See
+   * "Mandatory content-responsibility consent" in CLAUDE.md for why, and
+   * `WritePageContent`/`InvitePageContent` for the page-level change this
+   * required (they used to hide this whole component until authenticated).
+   */
+  sessionUser: { name: string | null; email: string | null; image: string | null } | null;
 }
 
 export function WriteThoughtForm({ invitationToken, sessionUser }: WriteThoughtFormProps) {
@@ -24,25 +35,85 @@ export function WriteThoughtForm({ invitationToken, sessionUser }: WriteThoughtF
 
   const [content, setContent] = useState("");
   const [templateId, setTemplateId] = useState(defaultTemplateId);
-  const [displayName, setDisplayName] = useState(sessionUser.name ?? "");
+  const [displayName, setDisplayName] = useState(sessionUser?.name ?? "");
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [language, setLanguage] = useState<Locale>(locale);
+  const [consentChecked, setConsentChecked] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [outcome, setOutcome] = useState<{ ok: boolean; error?: SubmitMessageError } | null>(null);
 
+  // Bridges a draft across the one full navigation this flow can't avoid:
+  // Google OAuth. See lib/draftPersistence.ts's doc comment for the full
+  // reasoning and for why this is a plain client-side localStorage bridge,
+  // not a new persistence system.
+  const isFirstPersistRunRef = useRef(true);
+
+  useEffect(() => {
+    // Deliberately an effect, not a `useState(() => consumeWriteDraft(...))`
+    // lazy initializer (react-hooks/set-state-in-effect would normally
+    // prefer that): this component is server-rendered (no `localStorage`
+    // there) before hydrating on the client, so computing initial state
+    // from `localStorage` during a lazy initializer would make the
+    // client's first render disagree with the server-rendered HTML — a
+    // real hydration mismatch on the textarea's controlled value, not a
+    // hypothetical one. Restoring after mount, once, is the correct
+    // trade-off here; the extra render this causes is a one-time cost
+    // for whichever writer is actually returning from a Google redirect.
+    const draft = consumeWriteDraft(invitationToken);
+    if (!draft) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setContent(draft.content);
+    setTemplateId(draft.templateId);
+    setIsAnonymous(draft.isAnonymous);
+    setDisplayName(draft.displayName);
+    setLanguage(draft.language);
+    // Only honored if it's still the current consent wording — a bumped
+    // CONTENT_CONSENT_VERSION means the writer must re-confirm under the
+    // new text, exactly as a fresh, un-ticked checkbox would.
+    setConsentChecked(draft.consentAccepted && draft.consentVersion === CONTENT_CONSENT_VERSION);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- restore is a one-time, mount-only read of whatever draft is currently in storage
+  }, []);
+
+  useEffect(() => {
+    // Skip the very first run: either there's nothing worth persisting yet,
+    // or the restore effect above is still mid-flight and this closure's
+    // `content`/etc. are still the pre-restore defaults — persisting them
+    // now would immediately clobber the draft we're trying to restore. The
+    // next run (triggered by that restore's own state updates, or by any
+    // real edit) always reflects current values correctly.
+    if (isFirstPersistRunRef.current) {
+      isFirstPersistRunRef.current = false;
+      return;
+    }
+    if (sessionUser) return; // already signed in — no OAuth redirect ahead, nothing to bridge
+    saveWriteDraft({
+      content,
+      templateId,
+      isAnonymous,
+      displayName,
+      language,
+      invitationToken,
+      consentAccepted: consentChecked,
+      consentVersion: CONTENT_CONSENT_VERSION,
+    });
+  }, [sessionUser, content, templateId, isAnonymous, displayName, language, consentChecked, invitationToken]);
+
   const charCount = [...content].length;
   const overLimit = charCount > MESSAGE_MAX_LENGTH;
-  const canSubmit = content.trim().length > 0 && !overLimit && !isPending;
+  const hasContent = content.trim().length > 0 && !overLimit;
+  const canSubmit = hasContent && consentChecked && !isPending;
+  const canContinueToGoogle = hasContent && consentChecked;
+  const redirectTo = invitationToken ? `/invite/${invitationToken}` : "/write";
 
   const previewAuthor = isAnonymous
     ? dictionary.write.previewAuthorFallback
-    : displayName.trim() || sessionUser.name || dictionary.write.previewAuthorFallback;
+    : displayName.trim() || sessionUser?.name || dictionary.write.previewAuthorFallback;
 
   const previewNote: NoteData = {
     id: "preview",
     content: content || dictionary.write.contentPlaceholder,
     authorName: previewAuthor,
-    authorImage: isAnonymous ? null : sessionUser.image,
+    authorImage: isAnonymous ? null : (sessionUser?.image ?? null),
     templateId,
     size: "md",
     rotation: -2,
@@ -52,6 +123,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser }: WriteThoughtF
 
   const errorMessage: Record<SubmitMessageError, string> = {
     "auth-required": dictionary.write.signInRequired,
+    "consent-required": dictionary.write.errorConsentRequired,
     "empty-content": dictionary.write.errorEmpty,
     "too-long": dictionary.write.errorTooLong,
     "invalid-template": dictionary.write.errorGeneric,
@@ -59,8 +131,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser }: WriteThoughtF
     "invitation-inactive": dictionary.write.errorGeneric,
   };
 
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
+  function handleSubmit() {
     if (!canSubmit) return;
 
     startTransition(async () => {
@@ -71,6 +142,8 @@ export function WriteThoughtForm({ invitationToken, sessionUser }: WriteThoughtF
         isAnonymous,
         language,
         invitationToken,
+        consentAccepted: consentChecked,
+        consentVersion: CONTENT_CONSENT_VERSION,
       });
       setOutcome({ ok: result.ok, error: result.error });
       if (result.ok) setContent("");
@@ -96,7 +169,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser }: WriteThoughtF
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <label htmlFor="content" className="text-sm font-medium text-navy">
             {dictionary.write.contentLabel}
@@ -121,7 +194,13 @@ export function WriteThoughtForm({ invitationToken, sessionUser }: WriteThoughtF
 
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium text-navy">{dictionary.write.templateLabel}</span>
-          <TemplatePicker value={templateId} onChange={setTemplateId} label={dictionary.write.templateLabel} />
+          <TemplatePicker
+            value={templateId}
+            onChange={setTemplateId}
+            label={dictionary.write.templateLabel}
+            standardLabel={dictionary.write.templateStandardLabel}
+            occasionLabel={dictionary.write.templateOccasionLabel}
+          />
         </div>
 
         <fieldset className="flex flex-col gap-2">
@@ -176,17 +255,59 @@ export function WriteThoughtForm({ invitationToken, sessionUser }: WriteThoughtF
           </select>
         </div>
 
+        {/* Mandatory content-responsibility consent — shown to every writer,
+            signed in or not, before either the Google sign-in button or the
+            submit button below becomes clickable. See "Mandatory
+            content-responsibility consent" in CLAUDE.md. A real, native
+            checkbox (never a styled div) with a clickable <label> and
+            focus-visible ring — accessibility requirements from that same
+            section, not a nice-to-have. */}
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-canvas p-5">
+          <span className="text-sm font-medium text-navy">{dictionary.write.consentHeading}</span>
+          <label htmlFor="content-consent" className="flex cursor-pointer items-start gap-3">
+            <input
+              id="content-consent"
+              type="checkbox"
+              checked={consentChecked}
+              onChange={(event) => setConsentChecked(event.target.checked)}
+              required
+              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-border accent-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+            />
+            <span className="text-sm leading-relaxed text-ink">{dictionary.write.consentText}</span>
+          </label>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-7 text-xs text-ink-soft">
+            <Link href="/terms" className="hover:text-navy hover:underline">
+              {dictionary.footer.terms}
+            </Link>
+            <span aria-hidden="true">·</span>
+            <Link href="/community-guidelines" className="hover:text-navy hover:underline">
+              {dictionary.footer.guidelines}
+            </Link>
+            <span aria-hidden="true">·</span>
+            <Link href="/privacy" className="hover:text-navy hover:underline">
+              {dictionary.footer.privacy}
+            </Link>
+          </div>
+        </div>
+
         {outcome && !outcome.ok && outcome.error && (
           <p role="alert" className="text-sm text-red-600">
             {errorMessage[outcome.error]}
           </p>
         )}
 
-        <Button type="submit" disabled={!canSubmit}>
-          {isPending ? dictionary.write.submitting : dictionary.write.submit}
-        </Button>
+        {sessionUser ? (
+          <Button type="button" onClick={handleSubmit} disabled={!canSubmit}>
+            {isPending ? dictionary.write.submitting : dictionary.write.submit}
+          </Button>
+        ) : (
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-sm text-ink-soft">{dictionary.write.signInRequired}</p>
+            <GoogleSignInButton redirectTo={redirectTo} disabled={!canContinueToGoogle} />
+          </div>
+        )}
         <p className="text-xs text-ink-soft">{dictionary.write.trustNote}</p>
-      </form>
+      </div>
 
       <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-canvas p-8">
         <span className="text-xs font-medium uppercase tracking-wide text-ink-soft">

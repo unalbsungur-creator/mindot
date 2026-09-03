@@ -152,6 +152,23 @@ export const messages = pgTable(
     aiModerationReason: text("ai_moderation_reason"),
     aiModerationConfidence: real("ai_moderation_confidence"),
     aiModeratedAt: timestamp("ai_moderated_at", { withTimezone: true }),
+    // EPIC: Consent Audit Persistence — a durable record that the writer
+    // accepted the content-responsibility consent (features/messages/
+    // consent.ts) at submission time, not just a same-request check that
+    // left no trace. `consentAccepted` defaults false (safe for any insert
+    // that doesn't set it, e.g. seed.ts's raw insert) so pre-existing rows
+    // and any future non-submitMessage insert are never misrepresented as
+    // consented. `consentVersion`/`consentAcceptedAt` are nullable and
+    // independent of each other only in the sense that both stay null
+    // together — messageRepository.create() is what enforces they're only
+    // ever set as a matched pair with a real server timestamp, never a
+    // client-supplied one. Never backfilled for rows that predate this
+    // column: whether an already-published message's author actually saw
+    // and accepted this exact consent text can't be reliably reconstructed,
+    // so the honest state for those rows is "not recorded," not "true."
+    consentAccepted: boolean("consent_accepted").notNull().default(false),
+    consentVersion: text("consent_version"),
+    consentAcceptedAt: timestamp("consent_accepted_at", { withTimezone: true }),
   },
   (table) => [
     // The public tile query: approved messages for one tile.

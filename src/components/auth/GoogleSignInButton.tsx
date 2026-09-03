@@ -27,15 +27,24 @@ const GoogleIcon = () => (
 /**
  * A <form action> bound to a Server Function — the Google redirect itself
  * needs no client JS, only the translated label does.
+ *
+ * `disabled` (optional, default `false`): when true, the submit button
+ * carries a real HTML `disabled` attribute — the browser refuses to submit
+ * the form at all (click or Enter), not just a CSS-dimmed appearance. Used
+ * by `WriteThoughtForm` to gate this button behind its mandatory
+ * content-responsibility consent checkbox (see CLAUDE.md) before OAuth can
+ * ever start; every other caller of this component is unaffected, since
+ * the prop defaults to enabled.
  */
-export function GoogleSignInButton({ redirectTo }: { redirectTo: string }) {
+export function GoogleSignInButton({ redirectTo, disabled = false }: { redirectTo: string; disabled?: boolean }) {
   const { dictionary } = useLocale();
 
   return (
     <form action={signInWithGoogle.bind(null, redirectTo)}>
       <button
         type="submit"
-        className="inline-flex h-11 items-center justify-center gap-2.5 rounded-pill border border-border bg-white px-6 text-sm font-medium text-ink shadow-card transition-colors hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+        disabled={disabled}
+        className="inline-flex h-11 items-center justify-center gap-2.5 rounded-pill border border-border bg-white px-6 text-sm font-medium text-ink shadow-card transition-colors hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:pointer-events-none disabled:opacity-50 disabled:hover:bg-white"
       >
         <GoogleIcon />
         {dictionary.invite.signInWithGoogle}

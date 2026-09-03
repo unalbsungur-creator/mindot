@@ -73,3 +73,48 @@ export function BrandLockup({ cell, tone, inkColor }: { cell: number; tone: Logo
     </div>
   );
 }
+
+/**
+ * EPIC: Premium Memory Print branding — level 1, "ana marka": the same
+ * dot mark as `BrandLockup`, just rendered very large and very faint,
+ * absolutely centered behind everything else on the canvas. Not a
+ * generic tiled/repeated watermark pattern — one large mark, so it reads
+ * as "this page's own quiet signature" rather than a stock-photo
+ * watermark stamped across the image. The caller is responsible for
+ * giving its container `position: "relative"` and placing this as the
+ * *first* child so normal paint order puts every other element on top.
+ */
+export function MemoryWatermark({ canvasWidth, tone }: { canvasWidth: number; tone: LogoTone }) {
+  const cell = canvasWidth * 0.075;
+  return (
+    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.009 }}>
+      <ShareBrandMark cell={cell} tone={tone === "inverted" ? "inverted" : "brand"} />
+    </div>
+  );
+}
+
+/**
+ * EPIC: Premium Memory Print branding — level 2, "yuvarlak mühür": a
+ * small circular seal in one corner, symbol-only (no wordmark) — the
+ * secondary, quieter brand mark a physical print's corner stamp would
+ * carry, distinct from the primary lockup already shown once elsewhere
+ * in the composition.
+ */
+export function MemorySeal({ size, tone, ringColor, backgroundColor }: { size: number; tone: LogoTone; ringColor: string; backgroundColor: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: backgroundColor,
+        boxShadow: `0 0 0 1px ${ringColor}`,
+      }}
+    >
+      <ShareBrandMark cell={size * 0.11} tone={tone} />
+    </div>
+  );
+}

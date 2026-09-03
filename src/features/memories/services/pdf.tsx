@@ -24,8 +24,6 @@ export async function generateMemoryPdf(project: MemoryProject): Promise<Buffer>
   const region = await resolveCaptureRegion(message, project.captureMode);
   const frameTemplateId = project.frameTemplateId ?? DEFAULT_FRAME_TEMPLATE_ID;
 
-  const buffer = await renderToBuffer(
-    <MemoryPdfDocument region={region} frameTemplateId={frameTemplateId} createdAt={new Date(project.createdAt)} />
-  );
+  const buffer = await renderToBuffer(<MemoryPdfDocument region={region} frameTemplateId={frameTemplateId} />);
   return buffer;
 }

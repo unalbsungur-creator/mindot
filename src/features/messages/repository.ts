@@ -1,7 +1,9 @@
 import { and, desc, eq, gte, lte, notInArray, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { messageLikes, messages } from "@/lib/db/schema";
-import { computePlacement } from "@/features/board/lib/placement";
+import { computePlacement, tileForSequence, type OccupantFootprint } from "@/features/board/lib/placement";
+import { estimateNoteFootprint } from "@/features/notes/lib/footprint";
+import { CONTENT_CONSENT_VERSION } from "./consent";
 import type { Message, NewMessageInput } from "./types";
 
 /**
@@ -141,6 +143,9 @@ function toMessage(row: typeof messages.$inferSelect): Message {
     aiModerationReason: row.aiModerationReason,
     aiModerationConfidence: row.aiModerationConfidence,
     aiModeratedAt: row.aiModeratedAt?.toISOString() ?? null,
+    consentAccepted: row.consentAccepted,
+    consentVersion: row.consentVersion,
+    consentAcceptedAt: row.consentAcceptedAt?.toISOString() ?? null,
   };
 }
 
@@ -154,6 +159,16 @@ class DrizzleMessageRepository implements MessageRepository {
   async create(input: NewMessageInput): Promise<Message> {
     const db = getDb();
     const now = new Date();
+    // The actual audit boundary, not just a pass-through of the caller's
+    // flag: consent only ever counts as accepted here if BOTH the caller
+    // says so AND the version matches this build's current consent text
+    // exactly — same "recompute the real condition at the write boundary"
+    // principle as approve()/redeem() elsewhere in this codebase, so a
+    // future caller that skips or weakens submitMessage's own check still
+    // can't produce a false "consent_accepted=true" audit row. The
+    // timestamp is this method's own server-side `now`, never anything the
+    // client could have supplied.
+    const consentIsValid = input.consentAccepted && input.consentVersion === CONTENT_CONSENT_VERSION;
     const [row] = await db
       .insert(messages)
       .values({
@@ -163,6 +178,9 @@ class DrizzleMessageRepository implements MessageRepository {
         createdAt: now,
         updatedAt: now,
         aiModeratedAt: input.aiModeratedAt ? new Date(input.aiModeratedAt) : null,
+        consentAccepted: consentIsValid,
+        consentVersion: consentIsValid ? CONTENT_CONSENT_VERSION : null,
+        consentAcceptedAt: consentIsValid ? now : null,
       })
       .returning();
     return toMessage(row);
@@ -222,8 +240,32 @@ class DrizzleMessageRepository implements MessageRepository {
 
   async approve(id: string, moderatorId: string): Promise<Message | null> {
     const db = getDb();
+    // content/templateId never change between "pending" and "approved", so
+    // reading them here (ahead of the atomic conditional UPDATE below,
+    // which remains the actual approval boundary) just to size this note's
+    // placement footprint can't introduce a race that matters — a
+    // concurrent double-approval still only ever succeeds once, via that
+    // UPDATE's `WHERE status = 'pending'`.
+    const current = await this.getById(id);
+    if (!current) return null;
+
     const sequence = await nextPlacementSequence(db);
-    const placement = computePlacement(sequence, id);
+    const { tileX, tileY } = tileForSequence(sequence);
+    // Real siblings already placed in the destination tile — collision
+    // checked against, not ignored, so a crowded tile degrades to the
+    // least-overlapping spot instead of stacking blindly. See
+    // placement.ts's module doc for why this was missing before.
+    const tileOccupants = await this.listApprovedByTile(tileX, tileY);
+    const occupants: OccupantFootprint[] = tileOccupants
+      .filter((m) => m.positionX !== null && m.positionY !== null && m.rotation !== null)
+      .map((m) => ({
+        positionX: m.positionX!,
+        positionY: m.positionY!,
+        rotation: m.rotation!,
+        ...estimateNoteFootprint(m.templateId, m.content),
+      }));
+    const footprint = estimateNoteFootprint(current.templateId, current.content);
+    const placement = computePlacement(sequence, id, footprint, occupants);
     const now = new Date();
 
     const [row] = await db

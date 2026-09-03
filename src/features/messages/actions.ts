@@ -5,6 +5,7 @@ import { invitationRepository } from "@/features/invitations/repository";
 import { getEffectiveStatus } from "@/features/invitations/types";
 import { getNoteTemplate, isTemplateAvailable } from "@/features/notes/config/templates";
 import { getModerationService } from "@/features/moderation/service";
+import { CONTENT_CONSENT_VERSION } from "./consent";
 import { messageRepository } from "./repository";
 import { MESSAGE_MAX_LENGTH, type Message } from "./types";
 
@@ -15,10 +16,28 @@ export interface SubmitMessageInput {
   isAnonymous: boolean;
   language: string;
   invitationToken?: string;
+  /**
+   * The content-responsibility consent `WriteThoughtForm` now requires
+   * before either the "Continue with Google" or the submit button is even
+   * clickable (see "Mandatory content-responsibility consent" in
+   * CLAUDE.md). Re-checked here too, not just trusted from the UI state
+   * that produced it — the same "don't rely on client-side disabled alone"
+   * principle already applied to `isAnonymous` (enforced server-side, not
+   * merely respected). Rejecting an invalid/stale consent here means the
+   * DB insert never happens at all — see the early return below. On
+   * success, this is also persisted as a durable audit record (`messages.
+   * consentAccepted`/`consentVersion`/`consentAcceptedAt`, EPIC: Consent
+   * Audit Persistence) — `messageRepository.create()` re-derives the
+   * actual stored values from a server-side timestamp rather than trusting
+   * this input verbatim; see its own comment.
+   */
+  consentAccepted: boolean;
+  consentVersion: string;
 }
 
 export type SubmitMessageError =
   | "auth-required"
+  | "consent-required"
   | "empty-content"
   | "too-long"
   | "invalid-template"
@@ -43,6 +62,10 @@ export async function submitMessage(input: SubmitMessageInput): Promise<SubmitMe
   const session = await auth();
   if (!session?.user?.id) {
     return { ok: false, error: "auth-required" };
+  }
+
+  if (!input.consentAccepted || input.consentVersion !== CONTENT_CONSENT_VERSION) {
+    return { ok: false, error: "consent-required" };
   }
 
   const content = input.content.trim();
@@ -91,6 +114,8 @@ export async function submitMessage(input: SubmitMessageInput): Promise<SubmitMe
     aiModerationReason: aiResult.reason,
     aiModerationConfidence: aiResult.confidence,
     aiModeratedAt: aiResult.moderatedAt,
+    consentAccepted: input.consentAccepted,
+    consentVersion: input.consentVersion,
   });
 
   return { ok: true, message };

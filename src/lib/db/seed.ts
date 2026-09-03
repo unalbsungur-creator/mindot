@@ -15,7 +15,8 @@ try {
 }
 
 import { randomUUID } from "node:crypto";
-import { computePlacement } from "../../features/board/lib/placement";
+import { computePlacement, tileForSequence, type OccupantFootprint } from "../../features/board/lib/placement";
+import { estimateNoteFootprint } from "../../features/notes/lib/footprint";
 import { devFallbackModerationService } from "../../features/moderation/providers/devFallback";
 import { generateAccessCode, generateOrderNumber } from "../../features/memories/lib/identifiers";
 import { getDb } from "./client";
@@ -259,34 +260,47 @@ async function main() {
     { seq: 121, content: "Todo pensamiento merece un lugar en el muro.", authorName: "a friend you haven't met", isAnonymous: false, showOnPersonalWall: false, language: "es", templateId: "polaroid" },
   ];
 
-  const approvedMessages = await Promise.all(
-    approvedSeeds.map(async ({ seq, ...rest }) => {
-      const id = randomUUID();
-      const placement = computePlacement(seq, id);
-      return {
-        id,
-        content: rest.content,
-        authorId: USER_ID,
-        authorName: rest.authorName,
-        isAnonymous: rest.isAnonymous,
-        showOnPersonalWall: rest.showOnPersonalWall,
-        language: rest.language,
-        templateId: rest.templateId,
-        invitationId: null,
-        status: "approved" as const,
-        tileX: placement.tileX,
-        tileY: placement.tileY,
-        positionX: placement.positionX,
-        positionY: placement.positionY,
-        rotation: placement.rotation,
-        createdAt: now,
-        updatedAt: now,
-        moderatedAt: now,
-        moderatedBy: ADMIN_ID,
-        ...(await aiFieldsFor(rest.content, rest.language)),
-      };
-    })
-  );
+  // Sequential (not Promise.all) so seq 120/121 — deliberately sharing a
+  // tile, see the comment above — resolve their positions collision-aware
+  // against each other, the same way messages/repository.ts's approve()
+  // does against real occupants already in a tile.
+  const occupantsByTile = new Map<string, OccupantFootprint[]>();
+  const approvedMessages = [];
+  for (const { seq, ...rest } of approvedSeeds) {
+    const id = randomUUID();
+    const footprint = estimateNoteFootprint(rest.templateId, rest.content);
+    const { tileX, tileY } = tileForSequence(seq);
+    const tileKey = `${tileX},${tileY}`;
+    const occupants = occupantsByTile.get(tileKey) ?? [];
+    const placement = computePlacement(seq, id, footprint, occupants);
+    occupantsByTile.set(tileKey, [
+      ...occupants,
+      { positionX: placement.positionX, positionY: placement.positionY, rotation: placement.rotation, ...footprint },
+    ]);
+
+    approvedMessages.push({
+      id,
+      content: rest.content,
+      authorId: USER_ID,
+      authorName: rest.authorName,
+      isAnonymous: rest.isAnonymous,
+      showOnPersonalWall: rest.showOnPersonalWall,
+      language: rest.language,
+      templateId: rest.templateId,
+      invitationId: null,
+      status: "approved" as const,
+      tileX: placement.tileX,
+      tileY: placement.tileY,
+      positionX: placement.positionX,
+      positionY: placement.positionY,
+      rotation: placement.rotation,
+      createdAt: now,
+      updatedAt: now,
+      moderatedAt: now,
+      moderatedBy: ADMIN_ID,
+      ...(await aiFieldsFor(rest.content, rest.language)),
+    });
+  }
 
   await db.insert(messages).values([...pendingMessages, ...rejectedMessages, ...approvedMessages]);
 

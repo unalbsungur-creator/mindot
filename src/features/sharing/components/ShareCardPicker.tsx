@@ -19,9 +19,11 @@ interface ShareCardPickerProps {
  * has one implementation of the Web Share API / download-fallback logic.
  * See "Web Share API + fallback" in CLAUDE.md.
  */
+const pickerFormats = shareFormats.filter((format) => format.showInPicker !== false);
+
 export function ShareCardPicker({ imageEndpoint, fileNamePrefix }: ShareCardPickerProps) {
   const { dictionary } = useLocale();
-  const [formatId, setFormatId] = useState(shareFormats[0].id);
+  const [formatId, setFormatId] = useState(pickerFormats[0].id);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState(false);
   const imageUrl = imageEndpoint(formatId);
@@ -64,7 +66,7 @@ export function ShareCardPicker({ imageEndpoint, fileNamePrefix }: ShareCardPick
   return (
     <div className="flex flex-col gap-4">
       <div className="flex gap-2">
-        {shareFormats.map((format) => (
+        {pickerFormats.map((format) => (
           <button
             key={format.id}
             type="button"

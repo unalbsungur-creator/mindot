@@ -34,6 +34,14 @@ export interface Message {
   aiModerationReason: string | null;
   aiModerationConfidence: number | null;
   aiModeratedAt: string | null;
+  // EPIC: Consent Audit Persistence — a durable record of the content-
+  // responsibility consent (features/messages/consent.ts), set only by
+  // messageRepository.create() with a server-side timestamp. Null/false on
+  // any row from before this existed, or from any insert that doesn't
+  // present a valid, current-version consent — never backfilled to true.
+  consentAccepted: boolean;
+  consentVersion: string | null;
+  consentAcceptedAt: string | null;
 }
 
 export type NewMessageInput = Pick<
@@ -51,6 +59,15 @@ export type NewMessageInput = Pick<
   | "aiModerationReason"
   | "aiModerationConfidence"
   | "aiModeratedAt"
->;
+> & {
+  /**
+   * Raw consent state as the caller believes it — messageRepository.create()
+   * independently re-derives whether this actually counts as a valid
+   * consent (accepted AND a current-version match) before writing anything,
+   * rather than trusting this flag verbatim. See create()'s own comment.
+   */
+  consentAccepted: boolean;
+  consentVersion: string;
+};
 
 export const MESSAGE_MAX_LENGTH = 280;

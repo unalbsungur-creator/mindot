@@ -11,4 +11,16 @@ export interface ShareFormat {
   name: string;
   width: number;
   height: number;
+  /**
+   * Whether `ShareCardPicker` should offer this format as a user-facing
+   * button. Defaults to `true` (Square/Story). The Memory Print master
+   * format sets this `false`: measured at ~6-7s to render (see
+   * shareFormats.ts), which is fine for an occasional, deliberate fetch
+   * but not for a public "just try clicking every button" picker with no
+   * loading-time expectation set — it stays reachable at
+   * `/api/share/note/[messageId]/print` (the route is generic over any
+   * registered format id) for a future, purpose-built download/purchase
+   * flow instead.
+   */
+  showInPicker?: boolean;
 }

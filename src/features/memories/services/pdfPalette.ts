@@ -9,6 +9,10 @@ export const PDF_COLORS = {
   navySoft: "#1c324a",
   orange: "#ff6a00",
   orangeSoft: "#ff8c3d",
+  // Added for the Memory Print share card's decoration icons (e.g. the
+  // "florals" motif's center dot), which need it — every other value here
+  // pre-dates that use and already mirrored tokens.css in full.
+  orangeInk: "#9a4400",
   canvas: "#f3efe4",
   surface: "#fffdf8",
   ink: "#201d18",

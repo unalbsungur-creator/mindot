@@ -55,6 +55,8 @@ export interface Dictionary {
     contentPlaceholder: string;
     characterCount: string;
     templateLabel: string;
+    templateStandardLabel: string;
+    templateOccasionLabel: string;
     nameLabel: string;
     namePlaceholder: string;
     anonymousLabel: string;
@@ -75,6 +77,10 @@ export interface Dictionary {
     identityNamedHint: string;
     writeAnotherButton: string;
     trustNote: string;
+    /** Mandatory content-responsibility consent, shown before either the Google sign-in button or the submit button becomes clickable — see "Mandatory content-responsibility consent" in CLAUDE.md. */
+    consentHeading: string;
+    consentText: string;
+    errorConsentRequired: string;
   };
   invite: {
     eyebrow: string;
@@ -319,6 +325,16 @@ export interface Dictionary {
     error: string;
     shareText: string;
     memoryShareHeading: string;
+    socialHeading: string;
+    socialFacebook: string;
+    socialInstagram: string;
+    socialTiktok: string;
+    socialInstagramHint: string;
+    socialTiktokHint: string;
+    premiumHeading: string;
+    premiumBody: string;
+    premiumDownloadButton: string;
+    premiumDownloadHint: string;
   };
   profile: {
     pageTitle: string;
