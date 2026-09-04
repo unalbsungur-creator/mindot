@@ -11,6 +11,7 @@ import { Note } from "@/features/notes/components/Note";
 import type { NoteData } from "@/features/notes/types";
 import { ShareCardPicker } from "@/features/sharing/components/ShareCardPicker";
 import { SocialShareActions } from "@/features/sharing/components/SocialShareActions";
+import { shareFormats } from "@/features/sharing/config/shareFormats";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { cn } from "@/lib/cn";
 
@@ -29,6 +30,12 @@ const scopeButtonClasses = (active: boolean) =>
 export function SharePageContent({ messageId, message, pageUrl }: SharePageContentProps) {
   const { dictionary } = useLocale();
   const [captureMode, setCaptureMode] = useState<MemoryCaptureMode>("note_only");
+  // EPIC 017: lifted out of ShareCardPicker (which otherwise owns this
+  // internally) specifically so SocialShareActions can share the exact
+  // format the user is currently previewing — previously hardcoded to
+  // "square" regardless of what was selected below, a real preview/shared
+  // output mismatch.
+  const [shareFormatId, setShareFormatId] = useState(shareFormats[0].id);
 
   if (!message) {
     return (
@@ -105,8 +112,18 @@ export function SharePageContent({ messageId, message, pageUrl }: SharePageConte
         {/* FREE: social share — a branded PNG anyone can generate, no sign-in, no cost. */}
         <div className="flex flex-col gap-4">
           <span className="text-sm font-medium text-navy">{dictionary.share.socialHeading}</span>
-          <ShareCardPicker imageEndpoint={imageEndpoint} fileNamePrefix="mindot-note" />
-          <SocialShareActions pageUrl={pageUrl} imageUrl={() => imageEndpoint("square")} fileNamePrefix="mindot-note" />
+          <ShareCardPicker
+            imageEndpoint={imageEndpoint}
+            fileNamePrefix="mindot-note"
+            formatId={shareFormatId}
+            onFormatChange={setShareFormatId}
+          />
+          <SocialShareActions
+            pageUrl={pageUrl}
+            imageUrl={() => imageEndpoint(shareFormatId)}
+            fileNamePrefix="mindot-note"
+            formatId={shareFormatId}
+          />
         </div>
 
         {/* PAID: the print-quality master — gated behind the existing

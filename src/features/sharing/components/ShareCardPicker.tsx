@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { cn } from "@/lib/cn";
@@ -11,6 +11,20 @@ interface ShareCardPickerProps {
   /** Builds the PNG endpoint URL for a given format id — the caller owns which subject (note vs. memory) and query params (e.g. `?mode=`) this points at. */
   imageEndpoint: (formatId: string) => string;
   fileNamePrefix: string;
+  /**
+   * EPIC 017: optional controlled format selection. Omit both this and
+   * `onFormatChange` for the original uncontrolled behavior (this
+   * component owns its own selected format, defaulting to the first
+   * picker format) — every existing caller (Memory outcome panels,
+   * personal-wall share) keeps working unchanged. Pass both when a sibling
+   * component needs to know/drive the same format the user is previewing
+   * here — see `SharePageContent`, which lifts this so its
+   * Facebook/Instagram/TikTok buttons always share the exact format
+   * currently shown in this picker's own preview, never a stale/hardcoded
+   * one.
+   */
+  formatId?: string;
+  onFormatChange?: (formatId: string) => void;
 }
 
 /**
@@ -22,15 +36,35 @@ interface ShareCardPickerProps {
  */
 const pickerFormats = shareFormats.filter((format) => format.showInPicker !== false);
 
-export function ShareCardPicker({ imageEndpoint, fileNamePrefix }: ShareCardPickerProps) {
+export function ShareCardPicker({
+  imageEndpoint,
+  fileNamePrefix,
+  formatId: controlledFormatId,
+  onFormatChange,
+}: ShareCardPickerProps) {
   const { dictionary } = useLocale();
-  const [formatId, setFormatId] = useState(pickerFormats[0].id);
+  const [internalFormatId, setInternalFormatId] = useState(pickerFormats[0].id);
+  const formatId = controlledFormatId ?? internalFormatId;
+  function selectFormat(id: string) {
+    if (onFormatChange) onFormatChange(id);
+    else setInternalFormatId(id);
+  }
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState(false);
   const imageUrl = imageEndpoint(formatId);
+  // EPIC 017: the real re-entrancy guard. `isBusy` (state) drives the
+  // button's `disabled` attribute for the UI, but two clicks fired close
+  // enough together both read the same stale `isBusy=false` closure before
+  // React commits the first click's `setIsBusy(true)` — confirmed via a
+  // real rapid-triple-click browser test producing three separate
+  // navigator.share calls. A ref is synchronous and shared across those
+  // closures immediately, so it actually blocks re-entry within the same
+  // tick, which state alone can't.
+  const busyRef = useRef(false);
 
   async function handleShareOrDownload() {
-    if (isBusy) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     setError(false);
     setIsBusy(true);
     try {
@@ -50,6 +84,7 @@ export function ShareCardPicker({ imageEndpoint, fileNamePrefix }: ShareCardPick
       // a normal download, same file, same content.
       downloadFile(file);
     } finally {
+      busyRef.current = false;
       setIsBusy(false);
     }
   }
@@ -61,7 +96,7 @@ export function ShareCardPicker({ imageEndpoint, fileNamePrefix }: ShareCardPick
           <button
             key={format.id}
             type="button"
-            onClick={() => setFormatId(format.id)}
+            onClick={() => selectFormat(format.id)}
             className={cn(
               "rounded-pill border px-3 py-1 text-xs font-medium transition-colors",
               formatId === format.id

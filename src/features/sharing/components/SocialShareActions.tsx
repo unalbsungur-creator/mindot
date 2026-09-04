@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { cn } from "@/lib/cn";
 import { downloadFile, fetchImageAsFile, shareFile, supportsFileShare } from "../lib/nativeFileShare";
@@ -8,9 +8,11 @@ import { downloadFile, fetchImageAsFile, shareFile, supportsFileShare } from "..
 interface SocialShareActionsProps {
   /** The absolute, real page URL for this thought — what Facebook's share dialog actually reads Open Graph tags from. */
   pageUrl: string;
-  /** The generated PNG's endpoint — the same real file every button hands off, one way or another. */
+  /** The generated PNG's endpoint — the same real file every button hands off, one way or another. Must reflect whatever format the caller currently has selected (see `formatId`) — never a hardcoded one. */
   imageUrl: () => string;
   fileNamePrefix: string;
+  /** EPIC 017: the format `imageUrl()` currently resolves to — used only to name the shared/downloaded file distinctly (e.g. `mindot-note-story.png`), matching `ShareCardPicker`'s own filename shape so a visitor sharing both formats never gets two files silently sharing one name. */
+  formatId: string;
 }
 
 /**
@@ -46,12 +48,18 @@ interface SocialShareActionsProps {
  *     page (requires the visitor's own TikTok login) that accepts a local
  *     file picker — download the file, then open that real page.
  */
-export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix }: SocialShareActionsProps) {
+export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix, formatId }: SocialShareActionsProps) {
   const { dictionary } = useLocale();
   const [nativeAvailable, setNativeAvailable] = useState(false);
   const [hint, setHint] = useState<"instagram" | "tiktok" | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState(false);
+  // EPIC 017: same real re-entrancy guard as ShareCardPicker — `isBusy`
+  // state drives the disabled UI, but a synchronous ref is what actually
+  // blocks a rapid double/triple-click from firing multiple concurrent
+  // native-share or download calls (confirmed via a real rapid-triple-click
+  // browser test before this fix: three navigator.share calls, not one).
+  const busyRef = useRef(false);
 
   useEffect(() => {
     // Browser-only capability check — see LocaleProvider/onboarding for the
@@ -66,14 +74,18 @@ export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix }: Social
   }
 
   async function handlePlatformClick(platform: "facebook" | "instagram" | "tiktok") {
-    if (isBusy) return;
+    // Single guard held for the whole click — native attempt AND a possible
+    // fallback — rather than two separate busy windows with a gap between
+    // them; see the `busyRef` comment above for why this needs to be a ref,
+    // not just the `isBusy` state read below.
+    if (busyRef.current) return;
+    busyRef.current = true;
     setError(false);
     setHint(null);
-
-    if (nativeAvailable) {
-      setIsBusy(true);
-      try {
-        const file = await fetchImageAsFile(imageUrl(), `${fileNamePrefix}.png`);
+    setIsBusy(true);
+    try {
+      if (nativeAvailable) {
+        const file = await fetchImageAsFile(imageUrl(), `${fileNamePrefix}-${formatId}.png`);
         if (!file) {
           setError(true);
           return;
@@ -87,19 +99,14 @@ export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix }: Social
         // "unsupported" at click time despite the mount-time probe passing
         // — fall through to this platform's own real fallback below rather
         // than leaving the visitor stuck.
-      } finally {
-        setIsBusy(false);
       }
-    }
 
-    if (platform === "facebook") {
-      openFacebookDialog();
-      return;
-    }
+      if (platform === "facebook") {
+        openFacebookDialog();
+        return;
+      }
 
-    setIsBusy(true);
-    try {
-      const file = await fetchImageAsFile(imageUrl(), `${fileNamePrefix}.png`);
+      const file = await fetchImageAsFile(imageUrl(), `${fileNamePrefix}-${formatId}.png`);
       if (!file) {
         setError(true);
         return;
@@ -112,6 +119,7 @@ export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix }: Social
       // Instagram: deliberately no window.open — see the component doc
       // comment above for why opening instagram.com isn't a real fallback.
     } finally {
+      busyRef.current = false;
       setIsBusy(false);
     }
   }
