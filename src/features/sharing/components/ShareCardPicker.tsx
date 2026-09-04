@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { cn } from "@/lib/cn";
 import { shareFormats } from "../config/shareFormats";
+import { downloadFile, fetchImageAsFile, shareFile } from "../lib/nativeFileShare";
 
 interface ShareCardPickerProps {
   /** Builds the PNG endpoint URL for a given format id — the caller owns which subject (note vs. memory) and query params (e.g. `?mode=`) this points at. */
@@ -29,35 +30,25 @@ export function ShareCardPicker({ imageEndpoint, fileNamePrefix }: ShareCardPick
   const imageUrl = imageEndpoint(formatId);
 
   async function handleShareOrDownload() {
+    if (isBusy) return;
     setError(false);
     setIsBusy(true);
     try {
-      const response = await fetch(imageUrl);
-      if (!response.ok) {
+      const file = await fetchImageAsFile(imageUrl, `${fileNamePrefix}-${formatId}.png`);
+      if (!file) {
         setError(true);
         return;
       }
-      const blob = await response.blob();
-      const file = new File([blob], `${fileNamePrefix}-${formatId}.png`, { type: "image/png" });
 
-      if (
-        typeof navigator !== "undefined" &&
-        typeof navigator.share === "function" &&
-        typeof navigator.canShare === "function" &&
-        navigator.canShare({ files: [file] })
-      ) {
-        await navigator.share({ files: [file], title: "MINDOT", text: dictionary.share.shareText });
+      const outcome = await shareFile(file, { title: "MINDOT", text: dictionary.share.shareText });
+      if (outcome === "shared" || outcome === "cancelled") return;
+      if (outcome === "failed") {
+        setError(true);
         return;
       }
-
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = objectUrl;
-      link.download = `${fileNamePrefix}-${formatId}.png`;
-      link.click();
-      URL.revokeObjectURL(objectUrl);
-    } catch {
-      // A user cancelling the native share sheet also lands here (AbortError) — not a real failure, so stay quiet rather than showing an error for a cancel.
+      // "unsupported": this browser can't take a file share — fall back to
+      // a normal download, same file, same content.
+      downloadFile(file);
     } finally {
       setIsBusy(false);
     }

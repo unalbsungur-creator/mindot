@@ -422,6 +422,7 @@ export const tr: Dictionary = {
     socialTiktok: "TikTok",
     socialInstagramHint: "Görsel indirildi — paylaşmak için Instagram'ı aç.",
     socialTiktokHint: "Görsel indirildi — yüklemek için TikTok'u aç.",
+    socialNativeShareHint: "Telefonunuzdaki paylaşım menüsü üzerinden Instagram, Facebook veya TikTok'u seçebilirsiniz.",
     premiumHeading: "Yüksek Kaliteli Memory Print",
     premiumBody: "Bu anı yüksek çözünürlükte sakla veya çerçevelemeye uygun bir çıktı olarak satın al.",
     premiumDownloadButton: "Yüksek Kaliteli İndir",

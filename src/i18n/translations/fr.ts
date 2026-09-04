@@ -420,6 +420,7 @@ export const fr: Dictionary = {
     socialTiktok: "TikTok",
     socialInstagramHint: "Image téléchargée — ouvre Instagram pour la partager.",
     socialTiktokHint: "Image téléchargée — ouvre TikTok pour la publier.",
+    socialNativeShareHint: "Vous pouvez choisir Instagram, Facebook ou TikTok dans le menu de partage de votre téléphone.",
     premiumHeading: "Memory Print haute qualité",
     premiumBody: "Conserve ce moment en haute résolution ou achète un tirage prêt à encadrer.",
     premiumDownloadButton: "Obtenir le téléchargement haute qualité",

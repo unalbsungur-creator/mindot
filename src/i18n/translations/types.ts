@@ -420,6 +420,8 @@ export interface Dictionary {
     socialTiktok: string;
     socialInstagramHint: string;
     socialTiktokHint: string;
+    /** EPIC 016: shown persistently under the Facebook/Instagram/TikTok row whenever this device supports native file sharing — sets expectation that pressing any of the three opens the phone's own share menu, not that platform's homepage. */
+    socialNativeShareHint: string;
     premiumHeading: string;
     premiumBody: string;
     premiumDownloadButton: string;

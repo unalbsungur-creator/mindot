@@ -1,60 +1,118 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { cn } from "@/lib/cn";
+import { downloadFile, fetchImageAsFile, shareFile, supportsFileShare } from "../lib/nativeFileShare";
 
 interface SocialShareActionsProps {
   /** The absolute, real page URL for this thought — what Facebook's share dialog actually reads Open Graph tags from. */
   pageUrl: string;
-  /** The generated PNG's endpoint — downloaded on the visitor's behalf before opening Instagram/TikTok, since neither platform accepts an arbitrary image from a third-party site over the web. */
+  /** The generated PNG's endpoint — the same real file every button hands off, one way or another. */
   imageUrl: () => string;
   fileNamePrefix: string;
 }
 
 /**
- * Real, honest platform hand-off — not a fake "posted for you" action. Only
- * Facebook has a genuine web share endpoint that accepts a URL
- * (`sharer.php`) and renders it using that page's own Open Graph tags
- * (`/share/[messageId]/opengraph-image.tsx` supplies those). Instagram and
- * TikTok have no equivalent for an arbitrary third-party website — their
- * own platforms only accept posts from their native apps or a registered
- * developer app — so for those two this downloads the branded image (the
- * same fetch-then-download path `ShareCardPicker` already uses) and opens
- * the platform's own site, with inline copy telling the visitor exactly
- * what just happened, rather than implying a one-click cross-post that
- * doesn't actually exist.
+ * EPIC 016: real, honest platform hand-off — not a fake "posted for you"
+ * action, and (as of this EPIC) no longer a button that just opens a
+ * platform's homepage either.
+ *
+ * On a device that can actually accept a file into the OS share sheet
+ * (`supportsFileShare()` — real feature detection, never a device/UA
+ * guess), all three buttons hand the real generated PNG to
+ * `navigator.share()`. Which app the visitor picks from that sheet
+ * (Facebook, Instagram, TikTok, Messages, anything else installed) is the
+ * OS's decision, not this component's — there is no web API that lets a
+ * site target one specific app, so the three buttons converge on the same
+ * call once native sharing is available. The persistent hint text below
+ * the row exists specifically so this isn't a surprise: it tells the
+ * visitor up front that pressing any of the three opens their phone's own
+ * share menu.
+ *
+ * On a device without file-share support (most desktop browsers today),
+ * each button falls back to the best *real* thing that platform supports:
+ *   - Facebook: `sharer.php?u=<page>` — a genuine, no-app-ID-required share
+ *     dialog that reads this page's own Open Graph tags. Still the
+ *     officially-functional legacy endpoint (Meta's newer `dialog/share`
+ *     requires an app ID this project doesn't have registered).
+ *   - Instagram: there is no web upload endpoint for a third-party site at
+ *     all (personal accounts have no public upload API, and Meta's Graph
+ *     API publishing path requires a Business/Creator account + app
+ *     review — irrelevant here). The only honest fallback is: download the
+ *     real file, tell the visitor plainly, and stop — never open
+ *     instagram.com and imply that helped.
+ *   - TikTok: `tiktok.com/upload` is a real, existing desktop web upload
+ *     page (requires the visitor's own TikTok login) that accepts a local
+ *     file picker — download the file, then open that real page.
  */
 export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix }: SocialShareActionsProps) {
   const { dictionary } = useLocale();
+  const [nativeAvailable, setNativeAvailable] = useState(false);
   const [hint, setHint] = useState<"instagram" | "tiktok" | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [error, setError] = useState(false);
 
-  function openFacebook() {
+  useEffect(() => {
+    // Browser-only capability check — see LocaleProvider/onboarding for the
+    // same "detect after mount, SSR-safe default" shape.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNativeAvailable(supportsFileShare());
+  }, []);
+
+  function openFacebookDialog() {
     const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}`;
     window.open(url, "_blank", "noopener,noreferrer,width=600,height=520");
   }
 
-  async function downloadThenOpen(platform: "instagram" | "tiktok") {
-    setIsBusy(true);
+  async function handlePlatformClick(platform: "facebook" | "instagram" | "tiktok") {
+    if (isBusy) return;
+    setError(false);
     setHint(null);
-    try {
-      const response = await fetch(imageUrl());
-      if (response.ok) {
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = objectUrl;
-        link.download = `${fileNamePrefix}.png`;
-        link.click();
-        URL.revokeObjectURL(objectUrl);
+
+    if (nativeAvailable) {
+      setIsBusy(true);
+      try {
+        const file = await fetchImageAsFile(imageUrl(), `${fileNamePrefix}.png`);
+        if (!file) {
+          setError(true);
+          return;
+        }
+        const outcome = await shareFile(file, { title: "MINDOT", text: dictionary.share.shareText });
+        if (outcome === "shared" || outcome === "cancelled") return;
+        if (outcome === "failed") {
+          setError(true);
+          return;
+        }
+        // "unsupported" at click time despite the mount-time probe passing
+        // — fall through to this platform's own real fallback below rather
+        // than leaving the visitor stuck.
+      } finally {
+        setIsBusy(false);
       }
-    } catch {
-      // Download failing here just means the visitor opens the platform without a pre-downloaded file — not worth a hard error for a convenience step.
+    }
+
+    if (platform === "facebook") {
+      openFacebookDialog();
+      return;
+    }
+
+    setIsBusy(true);
+    try {
+      const file = await fetchImageAsFile(imageUrl(), `${fileNamePrefix}.png`);
+      if (!file) {
+        setError(true);
+        return;
+      }
+      downloadFile(file);
+      setHint(platform);
+      if (platform === "tiktok") {
+        window.open("https://www.tiktok.com/upload", "_blank", "noopener,noreferrer");
+      }
+      // Instagram: deliberately no window.open — see the component doc
+      // comment above for why opening instagram.com isn't a real fallback.
     } finally {
       setIsBusy(false);
-      setHint(platform);
-      window.open(platform === "instagram" ? "https://www.instagram.com/" : "https://www.tiktok.com/upload", "_blank", "noopener,noreferrer");
     }
   }
 
@@ -75,22 +133,40 @@ export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix }: Social
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={openFacebook} className={cn(buttonClasses)}>
+        <button type="button" onClick={() => handlePlatformClick("facebook")} disabled={isBusy} className={cn(buttonClasses)}>
           <FacebookIcon />
           {dictionary.share.socialFacebook}
         </button>
-        <button type="button" onClick={() => downloadThenOpen("instagram")} disabled={isBusy} className={cn(buttonClasses)}>
+        <button type="button" onClick={() => handlePlatformClick("instagram")} disabled={isBusy} className={cn(buttonClasses)}>
           <InstagramIcon />
           {dictionary.share.socialInstagram}
         </button>
-        <button type="button" onClick={() => downloadThenOpen("tiktok")} disabled={isBusy} className={cn(buttonClasses)}>
+        <button type="button" onClick={() => handlePlatformClick("tiktok")} disabled={isBusy} className={cn(buttonClasses)}>
           <TiktokIcon />
           {dictionary.share.socialTiktok}
         </button>
       </div>
+
+      {/* `hint` is only ever set by the fallback branch actually running
+          (see handlePlatformClick) — checking that directly, rather than
+          the mount-time `nativeAvailable` flag, is deliberate: a click can
+          still fall through to the fallback path even when
+          `nativeAvailable` was true at mount, since `shareFile()` re-checks
+          `navigator.canShare` fresh at click time (the real, current
+          capability) rather than trusting a stale snapshot. */}
+      {nativeAvailable && !hint && !error && (
+        <p role="status" className="text-xs text-ink-soft">
+          {dictionary.share.socialNativeShareHint}
+        </p>
+      )}
       {hint && (
         <p role="status" className="text-xs text-ink-soft">
           {hint === "instagram" ? dictionary.share.socialInstagramHint : dictionary.share.socialTiktokHint}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="text-xs text-red-600">
+          {dictionary.share.error}
         </p>
       )}
     </div>
