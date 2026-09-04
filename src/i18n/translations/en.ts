@@ -402,6 +402,18 @@ export const en: Dictionary = {
     zoomOut: "Zoom out",
     returnToCenter: "Return to MINDOT center",
   },
+  boardDiscovery: {
+    searchLabel: "Search thoughts",
+    searchPlaceholder: "Search by word or phrase…",
+    fromLabel: "From",
+    toLabel: "To",
+    applyAction: "Search",
+    clearAction: "Clear",
+    activeHint: "Filters active",
+    noResults: "No thoughts match this search.",
+    loading: "Searching…",
+    error: "Something went wrong. Please try again.",
+  },
   like: {
     action: "Like this thought",
     liked: "You liked this",

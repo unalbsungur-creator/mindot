@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, lte, notInArray, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { messageLikes, messages } from "@/lib/db/schema";
 import { computePlacement, tileForSequence, type OccupantFootprint } from "@/features/board/lib/placement";
@@ -33,6 +33,25 @@ export interface MessageRepository {
    * year can be added without touching this method's callers.
    */
   listApprovedByTile(tileX: number, tileY: number, range?: { from?: Date; to?: Date }): Promise<Message[]>;
+  /**
+   * EPIC 021: board discovery — approved messages matching an optional
+   * keyword (case-insensitive substring over `content`) and/or an optional
+   * `createdAt` range, across every tile (not scoped to one, unlike
+   * `listApprovedByTile`). `status = "approved"` plus the date range reuses
+   * the existing `messages_status_created_idx (status, created_at)`
+   * exactly as `listApprovedByTile` already does; the keyword match itself
+   * is a plain `ILIKE`, which can't use that (or any) index for an
+   * infix/substring pattern — acceptable at this app's current message
+   * volume (see CLAUDE.md's own "small volume in practice" precedent for
+   * admin-facing queries; this is public-facing but the same reasoning
+   * applies at today's scale). A `pg_trgm` GIN index would be the correct
+   * follow-up if keyword search volume/row count ever became a real
+   * concern — deliberately not added now, since it isn't needed yet.
+   * `limit` bounds the result set the same way every other "small,
+   * capped, no pagination" list in this codebase already does (see
+   * `getPrivateArchive`/`getMemoryLibrary`).
+   */
+  searchApproved(options: { keyword?: string; from?: Date; to?: Date; limit: number }): Promise<Message[]>;
   /**
    * EPIC 014: `reason` is the acting admin's own optional written
    * justification — persisted in the same atomic conditional UPDATE as
@@ -247,6 +266,22 @@ class DrizzleMessageRepository implements MessageRepository {
       .from(messages)
       .where(and(...conditions))
       .orderBy(messages.createdAt);
+    return rows.map(toMessage);
+  }
+
+  async searchApproved(options: { keyword?: string; from?: Date; to?: Date; limit: number }): Promise<Message[]> {
+    const db = getDb();
+    const conditions = [eq(messages.status, "approved")];
+    if (options.keyword) conditions.push(ilike(messages.content, `%${options.keyword}%`));
+    if (options.from) conditions.push(gte(messages.createdAt, options.from));
+    if (options.to) conditions.push(lte(messages.createdAt, options.to));
+
+    const rows = await db
+      .select()
+      .from(messages)
+      .where(and(...conditions))
+      .orderBy(desc(messages.createdAt))
+      .limit(options.limit);
     return rows.map(toMessage);
   }
 

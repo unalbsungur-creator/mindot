@@ -48,3 +48,13 @@ export interface BoardTimeRange {
   from?: Date;
   to?: Date;
 }
+
+/**
+ * EPIC 021: board discovery filters — a keyword and/or a date range,
+ * either optional but at least one expected to be set by the caller (see
+ * `searchPublicMessages`'s own doc comment for why an all-empty call is
+ * refused rather than silently returning "the whole board").
+ */
+export interface BoardSearchFilters extends BoardTimeRange {
+  keyword?: string;
+}

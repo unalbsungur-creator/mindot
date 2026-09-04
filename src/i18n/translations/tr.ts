@@ -402,6 +402,18 @@ export const tr: Dictionary = {
     zoomOut: "Uzaklaştır",
     returnToCenter: "MINDOT merkezine dön",
   },
+  boardDiscovery: {
+    searchLabel: "Düşüncelerde ara",
+    searchPlaceholder: "Kelime veya ifadeyle ara…",
+    fromLabel: "Başlangıç",
+    toLabel: "Bitiş",
+    applyAction: "Ara",
+    clearAction: "Temizle",
+    activeHint: "Filtreler aktif",
+    noResults: "Bu aramayla eşleşen düşünce yok.",
+    loading: "Aranıyor…",
+    error: "Bir şeyler ters gitti. Lütfen tekrar dene.",
+  },
   like: {
     action: "Bu düşünceyi beğen",
     liked: "Beğendin",

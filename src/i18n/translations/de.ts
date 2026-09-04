@@ -400,6 +400,18 @@ export const de: Dictionary = {
     zoomOut: "Verkleinern",
     returnToCenter: "Zurück zur MINDOT-Mitte",
   },
+  boardDiscovery: {
+    searchLabel: "Gedanken durchsuchen",
+    searchPlaceholder: "Nach Wort oder Ausdruck suchen…",
+    fromLabel: "Von",
+    toLabel: "Bis",
+    applyAction: "Suchen",
+    clearAction: "Zurücksetzen",
+    activeHint: "Filter aktiv",
+    noResults: "Keine Gedanken entsprechen dieser Suche.",
+    loading: "Wird gesucht…",
+    error: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+  },
   like: {
     action: "Diesen Gedanken mögen",
     liked: "Dir gefällt das",

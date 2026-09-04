@@ -400,6 +400,19 @@ export interface Dictionary {
     zoomOut: string;
     returnToCenter: string;
   };
+  /** EPIC 021: /board's keyword/date discovery panel — a filter over the existing {from,to} + new keyword search, never a second board-rendering system. */
+  boardDiscovery: {
+    searchLabel: string;
+    searchPlaceholder: string;
+    fromLabel: string;
+    toLabel: string;
+    applyAction: string;
+    clearAction: string;
+    activeHint: string;
+    noResults: string;
+    loading: string;
+    error: string;
+  };
   like: {
     action: string;
     liked: string;

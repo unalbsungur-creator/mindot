@@ -13,6 +13,7 @@ import { useBoardCamera } from "../hooks/useBoardCamera";
 import { useTileCache } from "../hooks/useTileCache";
 import {
   clampZoom,
+  DEFAULT_ZOOM,
   TILE_PX,
   visibleTileRange,
   worldTransform,
@@ -67,10 +68,21 @@ function tileToNoteData(message: BoardTile["messages"][number]): NoteData {
 export function InfiniteBoard({
   initialTile,
   centerPoint,
+  focusPoint,
+  onFocusHandled,
 }: {
   initialTile?: BoardTile;
   /** Where "return to center" goes — see useBoardCamera's own doc comment. */
   centerPoint: { x: number; y: number };
+  /**
+   * EPIC 021: board discovery's "view on board" action — when set to a
+   * world-space point, the camera jumps there once (see the effect below),
+   * then `onFocusHandled()` clears it so the same point isn't re-applied
+   * on every unrelated re-render. `undefined`/`null` is a no-op — every
+   * existing pan/zoom/keyboard/URL-restore code path above is untouched.
+   */
+  focusPoint?: { x: number; y: number } | null;
+  onFocusHandled?: () => void;
 }) {
   const { dictionary } = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -321,6 +333,19 @@ export function InfiniteBoard({
     if (isGesturingRef.current) return;
     applyTransform(camera);
   }, [camera, viewport.width, viewport.height, applyTransform]);
+
+  // EPIC 021: board discovery's "view on board" jump — a one-shot camera
+  // move to a search result's coordinates, deliberately separate from
+  // resetToCenter/pan/zoom above so none of that existing logic needs to
+  // change. `onFocusHandled` is called synchronously in the same effect so
+  // this never re-fires for the same point.
+  useEffect(() => {
+    if (!focusPoint) return;
+    const next: Camera = { x: focusPoint.x, y: focusPoint.y, zoom: DEFAULT_ZOOM };
+    applyTransform(next);
+    setCamera(next);
+    onFocusHandled?.();
+  }, [focusPoint, applyTransform, setCamera, onFocusHandled]);
 
   // --- Empty-region hint: quiet, appears only after sustained emptiness ---
   const visibleMessageCount = useMemo(() => {

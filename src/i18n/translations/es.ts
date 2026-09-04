@@ -400,6 +400,18 @@ export const es: Dictionary = {
     zoomOut: "Alejar",
     returnToCenter: "Volver al centro de MINDOT",
   },
+  boardDiscovery: {
+    searchLabel: "Buscar pensamientos",
+    searchPlaceholder: "Buscar por palabra o frase…",
+    fromLabel: "Desde",
+    toLabel: "Hasta",
+    applyAction: "Buscar",
+    clearAction: "Borrar",
+    activeHint: "Filtros activos",
+    noResults: "Ningún pensamiento coincide con esta búsqueda.",
+    loading: "Buscando…",
+    error: "Algo salió mal. Inténtalo de nuevo.",
+  },
   like: {
     action: "Dar me gusta a este pensamiento",
     liked: "Te gusta esto",

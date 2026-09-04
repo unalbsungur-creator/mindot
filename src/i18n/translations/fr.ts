@@ -400,6 +400,18 @@ export const fr: Dictionary = {
     zoomOut: "Dézoomer",
     returnToCenter: "Retour au centre MINDOT",
   },
+  boardDiscovery: {
+    searchLabel: "Rechercher des pensées",
+    searchPlaceholder: "Rechercher par mot ou phrase…",
+    fromLabel: "Du",
+    toLabel: "Au",
+    applyAction: "Rechercher",
+    clearAction: "Effacer",
+    activeHint: "Filtres actifs",
+    noResults: "Aucune pensée ne correspond à cette recherche.",
+    loading: "Recherche…",
+    error: "Une erreur est survenue. Veuillez réessayer.",
+  },
   like: {
     action: "Aimer cette pensée",
     liked: "Vous aimez cette pensée",
