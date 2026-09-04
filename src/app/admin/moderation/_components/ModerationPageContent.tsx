@@ -11,9 +11,18 @@ interface ModerationPageContentProps {
   approved: Message[];
   archived: Message[];
   rejected: Message[];
+  /** EPIC 014: moderatedBy user id -> display name (or email fallback), resolved server-side. */
+  moderatorNameById: Record<string, string>;
 }
 
-export function ModerationPageContent({ authorized, pending, approved, archived, rejected }: ModerationPageContentProps) {
+export function ModerationPageContent({
+  authorized,
+  pending,
+  approved,
+  archived,
+  rejected,
+  moderatorNameById,
+}: ModerationPageContentProps) {
   const { dictionary } = useLocale();
 
   if (!authorized) {
@@ -40,7 +49,13 @@ export function ModerationPageContent({ authorized, pending, approved, archived,
         </h1>
         <p className="text-ink-soft">{dictionary.moderation.subtitle}</p>
       </div>
-      <ModerationQueue pending={pending} approved={approved} archived={archived} rejected={rejected} />
+      <ModerationQueue
+        pending={pending}
+        approved={approved}
+        archived={archived}
+        rejected={rejected}
+        moderatorNameById={moderatorNameById}
+      />
     </PageContainer>
   );
 }

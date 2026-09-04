@@ -124,6 +124,17 @@ export interface Dictionary {
     archiveConfirmBody: string;
     archiveConfirmCancel: string;
     archiveConfirmConfirm: string;
+    /** EPIC 014: reject previously had no confirm step at all — this adds one, mirroring archiveConfirm* naming exactly. */
+    rejectConfirmTitle: string;
+    rejectConfirmBody: string;
+    rejectConfirmCancel: string;
+    rejectConfirmConfirm: string;
+    /** EPIC 014: shared between the reject/archive dialogs' textarea and the card's own reason display. */
+    moderationReasonLabel: string;
+    moderationReasonPlaceholder: string;
+    moderatorLabel: string;
+    moderatedAtLabel: string;
+    noModerationReason: string;
     statusPending: string;
     statusApproved: string;
     statusRejected: string;

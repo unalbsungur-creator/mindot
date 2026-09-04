@@ -3,12 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/features/auth/auth";
 import { messageRepository } from "./repository";
+import type { Message } from "./types";
 
 export type ModerationError = "unauthorized" | "not-found" | "already-moderated";
 
 export interface ModerationResult {
   ok: boolean;
   error?: ModerationError;
+  /** EPIC 014: the updated row (moderatedAt/moderatedBy/moderationReason included) so the client can update its local view without a full refetch. */
+  message?: Message;
+  /** EPIC 014: the acting admin's own display name/email, resolved server-side from the session — never client-supplied. */
+  moderatorName?: string;
 }
 
 async function requireAdmin() {
@@ -17,22 +22,18 @@ async function requireAdmin() {
   return session.user;
 }
 
-export async function approveMessage(id: string): Promise<ModerationResult> {
-  const admin = await requireAdmin();
-  if (!admin) return { ok: false, error: "unauthorized" };
+const MAX_MODERATION_REASON_LENGTH = 1000;
 
-  const existing = await messageRepository.getById(id);
-  if (!existing) return { ok: false, error: "not-found" };
-  if (existing.status !== "pending") return { ok: false, error: "already-moderated" };
-
-  const updated = await messageRepository.approve(id, admin.id);
-  if (!updated) return { ok: false, error: "already-moderated" };
-
-  revalidatePath("/admin/moderation");
-  return { ok: true };
+/**
+ * EPIC 014: trims and caps the admin-authored reason, collapsing
+ * whitespace-only input to `null` — never persists a "reason" that's
+ * actually just spaces, and never trusts client-side trimming alone.
+ */
+function normalizeReason(reason: string | undefined): string | null {
+  return reason?.trim().slice(0, MAX_MODERATION_REASON_LENGTH) || null;
 }
 
-export async function rejectMessage(id: string): Promise<ModerationResult> {
+export async function approveMessage(id: string, reason?: string): Promise<ModerationResult> {
   const admin = await requireAdmin();
   if (!admin) return { ok: false, error: "unauthorized" };
 
@@ -40,11 +41,26 @@ export async function rejectMessage(id: string): Promise<ModerationResult> {
   if (!existing) return { ok: false, error: "not-found" };
   if (existing.status !== "pending") return { ok: false, error: "already-moderated" };
 
-  const updated = await messageRepository.reject(id, admin.id);
+  const updated = await messageRepository.approve(id, admin.id, normalizeReason(reason));
   if (!updated) return { ok: false, error: "already-moderated" };
 
   revalidatePath("/admin/moderation");
-  return { ok: true };
+  return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
+}
+
+export async function rejectMessage(id: string, reason?: string): Promise<ModerationResult> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: "unauthorized" };
+
+  const existing = await messageRepository.getById(id);
+  if (!existing) return { ok: false, error: "not-found" };
+  if (existing.status !== "pending") return { ok: false, error: "already-moderated" };
+
+  const updated = await messageRepository.reject(id, admin.id, normalizeReason(reason));
+  if (!updated) return { ok: false, error: "already-moderated" };
+
+  revalidatePath("/admin/moderation");
+  return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
 }
 
 /**
@@ -54,7 +70,7 @@ export async function rejectMessage(id: string): Promise<ModerationResult> {
  * boundary is still the repository's conditional UPDATE — this is defense
  * in depth, same shape as approve/reject above).
  */
-export async function archiveMessage(id: string): Promise<ModerationResult> {
+export async function archiveMessage(id: string, reason?: string): Promise<ModerationResult> {
   const admin = await requireAdmin();
   if (!admin) return { ok: false, error: "unauthorized" };
 
@@ -62,12 +78,12 @@ export async function archiveMessage(id: string): Promise<ModerationResult> {
   if (!existing) return { ok: false, error: "not-found" };
   if (existing.status !== "approved") return { ok: false, error: "already-moderated" };
 
-  const updated = await messageRepository.archive(id, admin.id);
+  const updated = await messageRepository.archive(id, admin.id, normalizeReason(reason));
   if (!updated) return { ok: false, error: "already-moderated" };
 
   revalidatePath("/admin/moderation");
   revalidatePath("/board");
-  return { ok: true };
+  return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
 }
 
 /**
@@ -88,7 +104,7 @@ export async function restoreMessage(id: string): Promise<ModerationResult> {
 
   revalidatePath("/admin/moderation");
   revalidatePath("/board");
-  return { ok: true };
+  return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
 }
 
 /**
@@ -109,5 +125,5 @@ export async function reconsiderMessage(id: string): Promise<ModerationResult> {
   if (!updated) return { ok: false, error: "already-moderated" };
 
   revalidatePath("/admin/moderation");
-  return { ok: true };
+  return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
 }

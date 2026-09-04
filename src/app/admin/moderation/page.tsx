@@ -1,5 +1,6 @@
 import { auth } from "@/features/auth/auth";
 import { messageRepository } from "@/features/messages/repository";
+import { userRepository } from "@/features/users/repository";
 import { ModerationPageContent } from "./_components/ModerationPageContent";
 
 export default async function ModerationPage() {
@@ -22,6 +23,23 @@ export default async function ModerationPage() {
       ])
     : [[], [], [], []];
 
+  // EPIC 014: resolve moderator display names for the "Moderated at" line —
+  // one batched lookup across all four lists, the same
+  // getByIds/getTile-batching pattern used everywhere else a set of user
+  // ids needs names (e.g. board authors). moderatedBy is an internal admin
+  // id, never rendered directly.
+  const moderatorIds = Array.from(
+    new Set(
+      [...pending, ...approved, ...archived, ...rejected]
+        .map((message) => message.moderatedBy)
+        .filter((id): id is string => id !== null)
+    )
+  );
+  const moderators = moderatorIds.length > 0 ? await userRepository.getByIds(moderatorIds) : [];
+  const moderatorNameById = Object.fromEntries(
+    moderators.map((moderator) => [moderator.id, moderator.name ?? moderator.email])
+  );
+
   return (
     <ModerationPageContent
       authorized={authorized}
@@ -29,6 +47,7 @@ export default async function ModerationPage() {
       approved={approved}
       archived={archived}
       rejected={rejected}
+      moderatorNameById={moderatorNameById}
     />
   );
 }

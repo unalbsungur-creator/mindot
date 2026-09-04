@@ -170,6 +170,21 @@ export const messages = pgTable(
     // "pending". Distinct from the AI fields below, which are advisory.
     moderatedAt: timestamp("moderated_at", { withTimezone: true }),
     moderatedBy: text("moderated_by").references(() => users.id),
+    // EPIC 014: the acting admin's own written justification for their most
+    // recent approve/reject/archive decision — optional, admin-authored,
+    // distinct from `aiModerationReason` (an AI pre-screen's advisory
+    // output, never a human's) and from `users.statusReason` (EPIC 013's
+    // account-suspension reason — a different entity, a different
+    // decision). Follows `moderatedAt`/`moderatedBy`'s own established
+    // shape exactly: the latest decision's reason only, overwritten (not
+    // appended) by every subsequent transition — restore()/reconsider()
+    // deliberately clear this to null rather than leaving a stale reason
+    // from a since-reversed decision attached to the message's new state.
+    // No separate audit-history table: the state machine already discards
+    // moderation history on every transition (moderatedAt/moderatedBy are
+    // themselves overwritten, not appended), so introducing history only
+    // for this one new field would be inconsistent, not more correct.
+    moderationReason: text("moderation_reason"),
     // AI pre-screen, recorded at submission time. Nullable so rows from
     // before this feature existed remain valid; never used to auto-publish
     // or auto-reject — see features/moderation and moderation-actions.ts.

@@ -78,6 +78,13 @@
       "when": 1788468354251,
       "tag": "0010_curved_captain_cross",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788514538199,
+      "tag": "0011_slim_outlaw_kid",
+      "breakpoints": true
     }
   ]
 }

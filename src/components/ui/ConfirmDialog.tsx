@@ -12,13 +12,26 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   confirmDisabled?: boolean;
+  /**
+   * EPIC 014: an optional reason textarea, rendered between `body` and the
+   * button row only when `reasonLabel` is provided — every existing caller
+   * that doesn't pass these props is completely unaffected (no textarea,
+   * identical layout to before). `onConfirm` still takes no arguments: the
+   * caller already owns `reasonValue` in its own state, so it reads that
+   * same value when `onConfirm` fires rather than receiving it back here.
+   */
+  reasonLabel?: string;
+  reasonPlaceholder?: string;
+  reasonValue?: string;
+  onReasonChange?: (value: string) => void;
 }
 
 /**
  * A small, generic confirm step — built on a native `<dialog>` for the
  * same reasons OnboardingModal already is (top-layer stacking, focus
  * trapping, Escape-to-close for free), just much simpler: one heading,
- * one body line, two buttons. Not a new admin design system — reuses the
+ * one body line, two buttons (plus an optional reason textarea — see
+ * `reasonLabel` above). Not a new admin design system — reuses the
  * existing `Button` component and the app's own surface/border tokens.
  * `open` is a controlled prop (showModal()/close() are imperative APIs,
  * so an effect bridges React state to them) so callers can reuse one
@@ -33,9 +46,14 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   confirmDisabled = false,
+  reasonLabel,
+  reasonPlaceholder,
+  reasonValue,
+  onReasonChange,
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const headingId = useId();
+  const reasonId = useId();
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -64,6 +82,22 @@ export function ConfirmDialog({
           {title}
         </h2>
         <p className="text-sm leading-relaxed text-ink-soft">{body}</p>
+        {reasonLabel && (
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={reasonId} className="text-sm font-medium text-navy">
+              {reasonLabel}
+            </label>
+            <textarea
+              id={reasonId}
+              value={reasonValue ?? ""}
+              onChange={(event) => onReasonChange?.(event.target.value)}
+              placeholder={reasonPlaceholder}
+              rows={3}
+              maxLength={1000}
+              className="w-full rounded-md border border-border bg-canvas p-2.5 text-sm text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
+            />
+          </div>
+        )}
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
             {cancelLabel}

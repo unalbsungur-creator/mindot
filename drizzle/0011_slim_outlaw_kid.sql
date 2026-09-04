@@ -1,0 +1,1 @@
+ALTER TABLE "messages" ADD COLUMN "moderation_reason" text;

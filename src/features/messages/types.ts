@@ -26,6 +26,11 @@ export interface Message {
   // Human moderation — the only thing that can move status out of "pending".
   moderatedAt: string | null;
   moderatedBy: string | null;
+  // EPIC 014: the admin's own written reason for their most recent
+  // approve/reject/archive decision. Optional; overwritten (not appended)
+  // by every subsequent transition, cleared to null by restore/reconsider.
+  // Never confuse with aiModerationReason (AI's own advisory output).
+  moderationReason: string | null;
   // AI pre-screen, recorded at submission time. Advisory only — never
   // publishes or rejects on its own. Null on rows from before this existed.
   aiModerationStatus: AiModerationDecision | null;

@@ -33,8 +33,14 @@ export interface MessageRepository {
    * year can be added without touching this method's callers.
    */
   listApprovedByTile(tileX: number, tileY: number, range?: { from?: Date; to?: Date }): Promise<Message[]>;
-  approve(id: string, moderatorId: string): Promise<Message | null>;
-  reject(id: string, moderatorId: string): Promise<Message | null>;
+  /**
+   * EPIC 014: `reason` is the acting admin's own optional written
+   * justification — persisted in the same atomic conditional UPDATE as
+   * the status transition itself, alongside moderatedAt/moderatedBy (no
+   * separate transaction needed; it's one UPDATE statement already).
+   */
+  approve(id: string, moderatorId: string, reason?: string | null): Promise<Message | null>;
+  reject(id: string, moderatorId: string, reason?: string | null): Promise<Message | null>;
   /**
    * Pulls a currently-approved message off the public board without
    * deleting it — an atomic conditional UPDATE (same pattern as
@@ -44,12 +50,15 @@ export interface MessageRepository {
    * positionY/rotation — those stay exactly as they were, so restore()
    * can bring the same message back to the same spot.
    */
-  archive(id: string, moderatorId: string): Promise<Message | null>;
+  archive(id: string, moderatorId: string, reason?: string | null): Promise<Message | null>;
   /**
    * The inverse of archive() — flips status back to "approved" without
    * ever recomputing placement (no new sequence number, no call to
    * computePlacement). Same message, same id, same coordinates: never a
-   * new row, never a duplicate.
+   * new row, never a duplicate. EPIC 014: no `reason` parameter — this is
+   * an undo of a prior decision, not a new one, so `moderationReason` is
+   * cleared to null rather than carrying the archived-state's stale
+   * reason forward onto the restored message.
    */
   restore(id: string, moderatorId: string): Promise<Message | null>;
   /** Archived messages, most recently archived first — the admin-only "Archived" view. */
@@ -60,7 +69,9 @@ export interface MessageRepository {
    * UPDATE pattern as approve/reject/archive/restore. A message reconsidered
    * this way has no placement yet (it was never approved), so it goes
    * through the normal approve() → computePlacement() path again if an
-   * admin approves it afterward — never a shortcut around that.
+   * admin approves it afterward — never a shortcut around that. EPIC 014:
+   * no `reason` parameter, same "this undoes a decision, it isn't one"
+   * reasoning as restore() — `moderationReason` is cleared to null.
    */
   reconsider(id: string, moderatorId: string): Promise<Message | null>;
   /**
@@ -137,6 +148,7 @@ function toMessage(row: typeof messages.$inferSelect): Message {
     updatedAt: row.updatedAt.toISOString(),
     moderatedAt: row.moderatedAt?.toISOString() ?? null,
     moderatedBy: row.moderatedBy,
+    moderationReason: row.moderationReason,
     aiModerationStatus: row.aiModerationStatus,
     aiModerationProvider: row.aiModerationProvider,
     aiModerationCategories: row.aiModerationCategories ?? [],
@@ -238,7 +250,7 @@ class DrizzleMessageRepository implements MessageRepository {
     return rows.map(toMessage);
   }
 
-  async approve(id: string, moderatorId: string): Promise<Message | null> {
+  async approve(id: string, moderatorId: string, reason: string | null = null): Promise<Message | null> {
     const db = getDb();
     // content/templateId never change between "pending" and "approved", so
     // reading them here (ahead of the atomic conditional UPDATE below,
@@ -279,6 +291,7 @@ class DrizzleMessageRepository implements MessageRepository {
         rotation: placement.rotation,
         moderatedAt: now,
         moderatedBy: moderatorId,
+        moderationReason: reason,
         updatedAt: now,
       })
       .where(and(eq(messages.id, id), eq(messages.status, "pending")))
@@ -287,23 +300,23 @@ class DrizzleMessageRepository implements MessageRepository {
     return row ? toMessage(row) : null;
   }
 
-  async reject(id: string, moderatorId: string): Promise<Message | null> {
+  async reject(id: string, moderatorId: string, reason: string | null = null): Promise<Message | null> {
     const db = getDb();
     const now = new Date();
     const [row] = await db
       .update(messages)
-      .set({ status: "rejected", moderatedAt: now, moderatedBy: moderatorId, updatedAt: now })
+      .set({ status: "rejected", moderatedAt: now, moderatedBy: moderatorId, moderationReason: reason, updatedAt: now })
       .where(and(eq(messages.id, id), eq(messages.status, "pending")))
       .returning();
     return row ? toMessage(row) : null;
   }
 
-  async archive(id: string, moderatorId: string): Promise<Message | null> {
+  async archive(id: string, moderatorId: string, reason: string | null = null): Promise<Message | null> {
     const db = getDb();
     const now = new Date();
     const [row] = await db
       .update(messages)
-      .set({ status: "archived", moderatedAt: now, moderatedBy: moderatorId, updatedAt: now })
+      .set({ status: "archived", moderatedAt: now, moderatedBy: moderatorId, moderationReason: reason, updatedAt: now })
       .where(and(eq(messages.id, id), eq(messages.status, "approved")))
       .returning();
     return row ? toMessage(row) : null;
@@ -314,7 +327,7 @@ class DrizzleMessageRepository implements MessageRepository {
     const now = new Date();
     const [row] = await db
       .update(messages)
-      .set({ status: "approved", moderatedAt: now, moderatedBy: moderatorId, updatedAt: now })
+      .set({ status: "approved", moderatedAt: now, moderatedBy: moderatorId, moderationReason: null, updatedAt: now })
       .where(and(eq(messages.id, id), eq(messages.status, "archived")))
       .returning();
     return row ? toMessage(row) : null;
@@ -325,7 +338,7 @@ class DrizzleMessageRepository implements MessageRepository {
     const now = new Date();
     const [row] = await db
       .update(messages)
-      .set({ status: "pending", moderatedAt: now, moderatedBy: moderatorId, updatedAt: now })
+      .set({ status: "pending", moderatedAt: now, moderatedBy: moderatorId, moderationReason: null, updatedAt: now })
       .where(and(eq(messages.id, id), eq(messages.status, "rejected")))
       .returning();
     return row ? toMessage(row) : null;
