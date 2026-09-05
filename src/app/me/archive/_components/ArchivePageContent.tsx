@@ -19,6 +19,22 @@ import { cn } from "@/lib/cn";
 interface ArchivePageContentProps {
   isSignedIn: boolean;
   messages: ArchiveMessage[];
+  page: number;
+  totalPages: number;
+}
+
+/**
+ * EPIC 024: preserves every existing query param (in practice, just
+ * `from`/`to`) while only touching `page` — so Prev/Next never disturbs
+ * the active date filter. `page` 1 drops the param entirely rather than
+ * writing `?page=1`, keeping the default URL clean.
+ */
+function pageHref(pathname: string, searchParams: URLSearchParams, page: number): string {
+  const next = new URLSearchParams(searchParams);
+  if (page <= 1) next.delete("page");
+  else next.set("page", String(page));
+  const qs = next.toString();
+  return qs ? `${pathname}?${qs}` : pathname;
 }
 
 function stateLabel(dictionary: Dictionary, state: ArchiveMessage["state"]): string {
@@ -35,7 +51,7 @@ function boardLinkFor(tile: { x: number; y: number }): string {
   return `/board?x=${centerX}&y=${centerY}&z=1`;
 }
 
-export function ArchivePageContent({ isSignedIn, messages: initialMessages }: ArchivePageContentProps) {
+export function ArchivePageContent({ isSignedIn, messages: initialMessages, page, totalPages }: ArchivePageContentProps) {
   const { dictionary } = useLocale();
   const searchParams = useSearchParams();
   const hasFilter = searchParams.has("from") || searchParams.has("to");
@@ -156,6 +172,32 @@ export function ArchivePageContent({ isSignedIn, messages: initialMessages }: Ar
             );
           })}
         </ul>
+      )}
+
+      {/* EPIC 024: reuses notifications.pagination* — the wording ("Previous"/
+          "Next"/"{page} / {total}") is fully generic, not notification-specific,
+          matching CLAUDE.md's existing precedent of reusing dictionary strings
+          across features rather than duplicating identical copy under a new key. */}
+      {totalPages > 1 && (
+        <nav aria-label={dictionary.archive.pageTitle} className="flex items-center justify-between gap-4 pt-2 text-sm">
+          {page > 1 ? (
+            <Link href={pageHref("/me/archive", searchParams, page - 1)} className="font-medium text-navy hover:text-orange">
+              {dictionary.notifications.paginationPrev}
+            </Link>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+          <span className="text-ink-soft">
+            {dictionary.notifications.paginationLabel.replace("{page}", String(page)).replace("{total}", String(totalPages))}
+          </span>
+          {page < totalPages ? (
+            <Link href={pageHref("/me/archive", searchParams, page + 1)} className="font-medium text-navy hover:text-orange">
+              {dictionary.notifications.paginationNext}
+            </Link>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+        </nav>
       )}
     </PageContainer>
   );

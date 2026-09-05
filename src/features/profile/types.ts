@@ -39,11 +39,18 @@ export interface PersonalWallNote {
  * this case, at the repository level, not just filtered afterward.
  * "ok": the wall is enabled; `notes` may still be empty (a distinct empty
  * state from "disabled" — see PublicWallContent).
+ *
+ * EPIC 024: `total` is the count of every wall-eligible message matching
+ * the current (optional) date range, independent of `notes.length` (which
+ * reflects only the current page) — always computed when status is "ok",
+ * even by callers that don't paginate (e.g. the share-card/OG-image/
+ * metadata call sites), since it's one cheap extra count query and keeping
+ * the shape uniform avoids a second, conditional variant of this type.
  */
 export type PublicWallResult =
   | { status: "not-found" }
   | { status: "disabled"; profile: PublicProfile }
-  | { status: "ok"; profile: PublicProfile; description: string | null; notes: PersonalWallNote[] };
+  | { status: "ok"; profile: PublicProfile; description: string | null; notes: PersonalWallNote[]; total: number };
 
 export type ArchiveMessageState = "pending" | "published" | "not_published";
 
@@ -72,6 +79,17 @@ export interface ArchiveMessage {
 export interface TimeRange {
   from?: Date;
   to?: Date;
+}
+
+/**
+ * EPIC 024: the private archive's paginated read shape — same
+ * `{items, total}` convention `NotificationPage` already established, so
+ * `/me/archive` can page past the old flat 60-item ceiling (now the page
+ * size, not a limit).
+ */
+export interface ArchivePage {
+  items: ArchiveMessage[];
+  total: number;
 }
 
 export type DigitalStatus = "not_applicable" | "waiting" | "granted";

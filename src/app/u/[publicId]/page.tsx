@@ -6,6 +6,14 @@ import { PublicWallContent } from "./_components/PublicWallContent";
 export const dynamic = "force-dynamic";
 
 const EXCERPT_MAX_CHARS = 120;
+// EPIC 024: same page-size convention as /me/archive — the old flat
+// PERSONAL_WALL_LIMIT (60) becomes the page size, not a ceiling.
+const PAGE_SIZE = 60;
+
+function parsePage(raw: string | undefined): number {
+  const parsed = Number.parseInt(raw ?? "1", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
 
 /**
  * Privacy-safe by construction: built entirely from getPublicWall, which
@@ -53,7 +61,22 @@ export default async function PublicWallPage({ params, searchParams }: PageProps
   const { publicId } = await params;
   const sp = await searchParams;
   const range = parseTimeRangeParams(sp);
-  const wall = await getPublicWall(publicId, range);
+  const requestedPage = parsePage(typeof sp.page === "string" ? sp.page : undefined);
 
-  return <PublicWallContent publicId={publicId} wall={wall} />;
+  const firstAttempt = await getPublicWall(publicId, range, { limit: PAGE_SIZE, offset: (requestedPage - 1) * PAGE_SIZE });
+
+  // Only the "ok" branch has pagination to clamp — "not-found"/"disabled"
+  // never queried messages at all, so there's nothing to page through.
+  if (firstAttempt.status !== "ok") {
+    return <PublicWallContent publicId={publicId} wall={firstAttempt} page={1} totalPages={1} />;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(firstAttempt.total / PAGE_SIZE));
+  const page = Math.min(requestedPage, totalPages);
+  const wall =
+    page === requestedPage
+      ? firstAttempt
+      : await getPublicWall(publicId, range, { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
+
+  return <PublicWallContent publicId={publicId} wall={wall} page={page} totalPages={totalPages} />;
 }

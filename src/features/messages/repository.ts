@@ -128,8 +128,14 @@ export interface MessageRepository {
    * read path (EPIC 009). Never filtered by anonymity: a message stays in
    * the owner's own archive regardless of how it's shown publicly. Newest
    * first, like a personal inbox of what you've submitted.
+   *
+   * EPIC 024: `offset` is additive and optional (defaults to 0) — every
+   * existing caller that only passes `range`/`limit` is unaffected.
    */
-  listByAuthor(authorId: string, options?: { range?: { from?: Date; to?: Date }; limit?: number }): Promise<Message[]>;
+  listByAuthor(
+    authorId: string,
+    options?: { range?: { from?: Date; to?: Date }; limit?: number; offset?: number }
+  ): Promise<Message[]>;
   /**
    * One author's PUBLIC messages only — filtered in the query itself
    * (`status = "approved" AND is_anonymous = false`), never by fetching
@@ -137,8 +143,27 @@ export interface MessageRepository {
    * personal wall (/me, /u/[publicId]) — see "Public personal wall
    * architecture" in CLAUDE.md. Oldest first, so a wall reads like a
    * timeline and the wall-curation algorithm samples a stable order.
+   *
+   * EPIC 024: `offset` is additive and optional (defaults to 0), same as
+   * `listByAuthor` above.
    */
-  listPublicByAuthor(authorId: string, options?: { range?: { from?: Date; to?: Date }; limit?: number }): Promise<Message[]>;
+  listPublicByAuthor(
+    authorId: string,
+    options?: { range?: { from?: Date; to?: Date }; limit?: number; offset?: number }
+  ): Promise<Message[]>;
+  /**
+   * EPIC 024: total messages matching exactly `listByAuthor`'s own filter
+   * (author + optional range, every status) with no `limit`/`offset` —
+   * the private archive's pagination `total`. Mirrors `listByAuthor`'s
+   * condition-building so the two can never silently drift apart.
+   */
+  countByAuthorInRange(authorId: string, range?: { from?: Date; to?: Date }): Promise<number>;
+  /**
+   * EPIC 024: total messages matching exactly `listPublicByAuthor`'s own
+   * filter (author + approved + named + wall-visible + optional range) —
+   * the public wall's pagination `total`.
+   */
+  countPublicByAuthorInRange(authorId: string, range?: { from?: Date; to?: Date }): Promise<number>;
   /**
    * EPIC 011: toggles one message's personal-wall curation flag. An atomic
    * conditional UPDATE — `authorId`, `status = "approved"`, and
@@ -494,7 +519,10 @@ class DrizzleMessageRepository implements MessageRepository {
     return rows.map(toMessage);
   }
 
-  async listByAuthor(authorId: string, options?: { range?: { from?: Date; to?: Date }; limit?: number }): Promise<Message[]> {
+  async listByAuthor(
+    authorId: string,
+    options?: { range?: { from?: Date; to?: Date }; limit?: number; offset?: number }
+  ): Promise<Message[]> {
     const db = getDb();
     const conditions = [eq(messages.authorId, authorId)];
     if (options?.range?.from) conditions.push(gte(messages.createdAt, options.range.from));
@@ -505,11 +533,15 @@ class DrizzleMessageRepository implements MessageRepository {
       .from(messages)
       .where(and(...conditions))
       .orderBy(desc(messages.createdAt))
-      .limit(options?.limit ?? 1000);
+      .limit(options?.limit ?? 1000)
+      .offset(options?.offset ?? 0);
     return rows.map(toMessage);
   }
 
-  async listPublicByAuthor(authorId: string, options?: { range?: { from?: Date; to?: Date }; limit?: number }): Promise<Message[]> {
+  async listPublicByAuthor(
+    authorId: string,
+    options?: { range?: { from?: Date; to?: Date }; limit?: number; offset?: number }
+  ): Promise<Message[]> {
     const db = getDb();
     const conditions = [
       eq(messages.authorId, authorId),
@@ -527,8 +559,40 @@ class DrizzleMessageRepository implements MessageRepository {
       .from(messages)
       .where(and(...conditions))
       .orderBy(messages.createdAt)
-      .limit(options?.limit ?? 1000);
+      .limit(options?.limit ?? 1000)
+      .offset(options?.offset ?? 0);
     return rows.map(toMessage);
+  }
+
+  async countByAuthorInRange(authorId: string, range?: { from?: Date; to?: Date }): Promise<number> {
+    const db = getDb();
+    const conditions = [eq(messages.authorId, authorId)];
+    if (range?.from) conditions.push(gte(messages.createdAt, range.from));
+    if (range?.to) conditions.push(lte(messages.createdAt, range.to));
+
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(and(...conditions));
+    return row?.count ?? 0;
+  }
+
+  async countPublicByAuthorInRange(authorId: string, range?: { from?: Date; to?: Date }): Promise<number> {
+    const db = getDb();
+    const conditions = [
+      eq(messages.authorId, authorId),
+      eq(messages.status, "approved"),
+      eq(messages.isAnonymous, false),
+      eq(messages.showOnPersonalWall, true),
+    ];
+    if (range?.from) conditions.push(gte(messages.createdAt, range.from));
+    if (range?.to) conditions.push(lte(messages.createdAt, range.to));
+
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(and(...conditions));
+    return row?.count ?? 0;
   }
 
   async setShowOnPersonalWall(id: string, authorId: string, value: boolean): Promise<Message | null> {

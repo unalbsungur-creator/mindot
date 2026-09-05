@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { PageContainer } from "@/components/layout/PageContainer";
 import type { PublicWallResult } from "@/features/profile/types";
@@ -10,6 +12,17 @@ import { useLocale } from "@/i18n/LocaleProvider";
 interface PublicWallContentProps {
   publicId: string;
   wall: PublicWallResult;
+  page: number;
+  totalPages: number;
+}
+
+/** EPIC 024: same param-preserving link builder ArchivePageContent uses — keeps any existing `from`/`to` intact, only touches `page`. */
+function pageHref(pathname: string, searchParams: URLSearchParams, page: number): string {
+  const next = new URLSearchParams(searchParams);
+  if (page <= 1) next.delete("page");
+  else next.set("page", String(page));
+  const qs = next.toString();
+  return qs ? `${pathname}?${qs}` : pathname;
 }
 
 /** Shared skeleton for the two "nothing to show" states below — same layout, different copy. */
@@ -30,8 +43,9 @@ function WallMessagePanel({ title, body, image }: { title: string; body: string;
   );
 }
 
-export function PublicWallContent({ publicId, wall }: PublicWallContentProps) {
+export function PublicWallContent({ publicId, wall, page, totalPages }: PublicWallContentProps) {
   const { dictionary } = useLocale();
+  const searchParams = useSearchParams();
 
   if (wall.status === "not-found") {
     return <WallMessagePanel title={dictionary.publicWall.notFoundTitle} body={dictionary.publicWall.notFoundBody} />;
@@ -66,6 +80,29 @@ export function PublicWallContent({ publicId, wall }: PublicWallContentProps) {
       </div>
 
       <WallNotes notes={wall.notes} profile={wall.profile} emptyMessage={dictionary.publicWall.emptyMessage} />
+
+      {/* EPIC 024: same generic notifications.pagination* reuse as ArchivePageContent — see its own comment for why. */}
+      {totalPages > 1 && (
+        <nav aria-label={wall.profile.displayName} className="flex items-center justify-between gap-4 text-sm">
+          {page > 1 ? (
+            <Link href={pageHref(`/u/${publicId}`, searchParams, page - 1)} className="font-medium text-navy hover:text-orange">
+              {dictionary.notifications.paginationPrev}
+            </Link>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+          <span className="text-ink-soft">
+            {dictionary.notifications.paginationLabel.replace("{page}", String(page)).replace("{total}", String(totalPages))}
+          </span>
+          {page < totalPages ? (
+            <Link href={pageHref(`/u/${publicId}`, searchParams, page + 1)} className="font-medium text-navy hover:text-orange">
+              {dictionary.notifications.paginationNext}
+            </Link>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+        </nav>
+      )}
 
       {wall.notes.length > 0 && (
         <div className="mx-auto flex w-full max-w-sm flex-col gap-2">

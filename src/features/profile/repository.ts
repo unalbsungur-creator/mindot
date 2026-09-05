@@ -4,7 +4,7 @@ import { digitalAccessCodeRepository, memoryRepository, physicalOrderRepository 
 import { messageRepository } from "@/features/messages/repository";
 import type { Message } from "@/features/messages/types";
 import { userRepository } from "@/features/users/repository";
-import type { ArchiveMessage, MemoryLibraryItem, PersonalWallNote, PublicWallResult, TimeRange } from "./types";
+import type { ArchiveMessage, ArchivePage, MemoryLibraryItem, PersonalWallNote, PublicWallResult, TimeRange } from "./types";
 
 const PERSONAL_WALL_LIMIT = 60;
 const ARCHIVE_LIMIT = 60;
@@ -28,9 +28,22 @@ function toPersonalWallNote(message: Message): PersonalWallNote {
  * (the owner's own preview) and `/u/[publicId]` (the public page) — same
  * function, same guarantee, so there's only one place this rule can drift.
  * Returns `null` for an unknown/unassigned publicId so callers can 404.
+ *
+ * EPIC 024: `page` is optional and additive — every existing caller that
+ * omits it (the `/me` preview, the share-card/OG-image routes below) keeps
+ * getting exactly the first `PERSONAL_WALL_LIMIT` notes it always has,
+ * unchanged. Only `getPublicWall`'s actual page-render path passes it.
  */
-export async function getPersonalWallByUserId(userId: string, range?: TimeRange): Promise<PersonalWallNote[]> {
-  const messages = await messageRepository.listPublicByAuthor(userId, { range, limit: PERSONAL_WALL_LIMIT });
+export async function getPersonalWallByUserId(
+  userId: string,
+  range?: TimeRange,
+  page?: { limit: number; offset: number }
+): Promise<PersonalWallNote[]> {
+  const messages = await messageRepository.listPublicByAuthor(userId, {
+    range,
+    limit: page?.limit ?? PERSONAL_WALL_LIMIT,
+    offset: page?.offset ?? 0,
+  });
   return messages.map(toPersonalWallNote);
 }
 
@@ -41,16 +54,26 @@ export async function getPersonalWallByUserId(userId: string, range?: TimeRange)
  * reaches `getPersonalWallByUserId` at all: the message query simply never
  * runs, at this layer, not filtered out afterward — see "Personal wall
  * visibility" in CLAUDE.md.
+ *
+ * EPIC 024: `page` is optional and additive, same as `getPersonalWallByUserId`
+ * above — `generateMetadata` and the wall-share-card route both call this
+ * with no `page`, getting the same first-`PERSONAL_WALL_LIMIT`-notes
+ * behavior they always have. `total` is always computed (one cheap extra
+ * count query) regardless of whether the caller paginates, so the return
+ * shape never has to vary by caller.
  */
-export async function getPublicWall(publicId: string, range?: TimeRange): Promise<PublicWallResult> {
+export async function getPublicWall(publicId: string, range?: TimeRange, page?: { limit: number; offset: number }): Promise<PublicWallResult> {
   const user = await userRepository.getByPublicId(publicId);
   if (!user) return { status: "not-found" };
 
   const profile = { publicId: user.publicId ?? publicId, displayName: user.name ?? "MINDOT", image: user.image };
   if (!user.publicWallEnabled) return { status: "disabled", profile };
 
-  const notes = await getPersonalWallByUserId(user.id, range);
-  return { status: "ok", profile, description: user.publicWallDescription, notes };
+  const [notes, total] = await Promise.all([
+    getPersonalWallByUserId(user.id, range, page),
+    messageRepository.countPublicByAuthorInRange(user.id, range),
+  ]);
+  return { status: "ok", profile, description: user.publicWallDescription, notes, total };
 }
 
 /**
@@ -58,18 +81,28 @@ export async function getPublicWall(publicId: string, range?: TimeRange): Promis
  * only. The caller is responsible for having already verified the
  * session belongs to `userId` (every page/action in features/profile
  * does this the same way every other authenticated feature does).
+ *
+ * EPIC 024: `page` is optional — omitting it preserves the exact previous
+ * behavior (the first `ARCHIVE_LIMIT` messages, no total). `ARCHIVE_LIMIT`
+ * is now a page *size*, not a ceiling: `/me/archive` always passes `page`
+ * and reads `total` to compute how many pages exist.
  */
-export async function getPrivateArchive(userId: string, range?: TimeRange): Promise<ArchiveMessage[]> {
-  // Sequential, not Promise.all: two independent single-row-set queries on
-  // one user's own data — negligible latency difference either way, and
+export async function getPrivateArchive(userId: string, range?: TimeRange, page?: { limit: number; offset: number }): Promise<ArchivePage> {
+  // Sequential, not Promise.all: independent single-row-set queries on one
+  // user's own data — negligible latency difference either way, and
   // sequential avoids any risk of connection-pool contention on whatever
   // Postgres-compatible backend this runs against.
-  const messages = await messageRepository.listByAuthor(userId, { range, limit: ARCHIVE_LIMIT });
+  const messages = await messageRepository.listByAuthor(userId, {
+    range,
+    limit: page?.limit ?? ARCHIVE_LIMIT,
+    offset: page?.offset ?? 0,
+  });
+  const total = await messageRepository.countByAuthorInRange(userId, range);
   const memoryProjects = await memoryRepository.listByCreator(userId);
 
   const memoryProjectIdByMessageId = new Map(memoryProjects.map((project) => [project.messageId, project.id]));
 
-  return messages.map((message) => ({
+  const items: ArchiveMessage[] = messages.map((message) => ({
     id: message.id,
     content: message.content,
     templateId: message.templateId,
@@ -81,6 +114,8 @@ export async function getPrivateArchive(userId: string, range?: TimeRange): Prom
     tile: message.tileX !== null && message.tileY !== null ? { x: message.tileX, y: message.tileY } : null,
     showOnPersonalWall: message.showOnPersonalWall,
   }));
+
+  return { items, total };
 }
 
 /**
