@@ -12,7 +12,7 @@ npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3200](http://localhost:3200).
 
 ## Manual testing entry point
 
@@ -137,13 +137,13 @@ Google Cloud Console:
 
    | Environment | Authorized JavaScript origin | Authorized redirect URI |
    | --- | --- | --- |
-   | Local development | `http://localhost:3000` | `http://localhost:3000/api/auth/callback/google` |
+   | Local development | `http://localhost:3200` | `http://localhost:3200/api/auth/callback/google` |
    | Production | `https://mind-ot.com` | `https://mind-ot.com/api/auth/callback/google` |
 
    (Local development's origin/port follows whatever `NEXT_PUBLIC_APP_URL`/
-   `AUTH_URL` you actually set in `.env.local` — `http://localhost:3000` is
-   this repo's own default in `.env.example`, not an assumption; if you run
-   `npm run dev -p <other-port>` or similar, use that port instead.)
+   `AUTH_URL` you actually set in `.env.local` — `http://localhost:3200` is
+   this repo's own default in `.env.example`, matching `npm run dev`'s own
+   pinned port; if you override the port, use that port instead.)
 3. Keep localhost, staging, and production as separate OAuth clients with
    explicit origins; avoid wildcard redirect URIs.
 4. Verify `AUTH_URL` and `NEXT_PUBLIC_APP_URL` match the public origin for

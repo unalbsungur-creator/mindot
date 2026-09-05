@@ -92,7 +92,7 @@ export function getAppUrl(): URL {
     return (
         validAbsoluteUrl(optionalEnv("NEXT_PUBLIC_APP_URL")) ??
         validAbsoluteUrl(optionalEnv("AUTH_URL")) ??
-        new URL(process.env.NODE_ENV === "production" ? PRODUCTION_SITE_URL : "http://localhost:3000")
+        new URL(process.env.NODE_ENV === "production" ? PRODUCTION_SITE_URL : "http://localhost:3200")
     );
 }
 
