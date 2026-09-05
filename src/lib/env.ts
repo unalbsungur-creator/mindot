@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { PRODUCTION_SITE_URL } from "./siteConfig";
 
 /**
@@ -94,6 +95,50 @@ export function getAppUrl(): URL {
         validAbsoluteUrl(optionalEnv("AUTH_URL")) ??
         new URL(process.env.NODE_ENV === "production" ? PRODUCTION_SITE_URL : "http://localhost:3200")
     );
+}
+
+/**
+ * EPIC 025: the origin the CURRENT request actually arrived on — read from
+ * that request's own `Host`/forwarded headers, never a statically
+ * configured value. This is deliberately a *different* function from
+ * `getAppUrl()`, not a change to it: `getAppUrl()` remains the canonical,
+ * static site origin every non-request-scoped consumer (`robots.ts`,
+ * `sitemap.ts`, JSON-LD, root `metadataBase`) should keep using — those
+ * must always declare the one true public domain, regardless of which
+ * host a particular request happened to use. This function exists only
+ * for the opposite, narrower need: a page whose job is to reflect *how
+ * the visitor actually reached it* (see `/share/[messageId]`, where the
+ * generated Facebook-share URL must match whatever host is actually
+ * serving the page a phone on the same LAN just requested — a local dev
+ * machine has no single "canonical" LAN address, so `getAppUrl()`'s
+ * static fallback can never be correct for that case).
+ *
+ * `x-forwarded-host`/`x-forwarded-proto` take priority over the plain
+ * `host` header, since this project's actual deployment target
+ * (Cloudflare, via `@opennextjs/cloudflare`) sets those to the real
+ * public-facing values through its proxy — the same precedence
+ * `getAppUrl()`'s own doc comment already establishes between
+ * `NEXT_PUBLIC_APP_URL` and `AUTH_URL` for "prefer the more
+ * specifically-intended source." Protocol defaults to `"http"` only when
+ * no `x-forwarded-proto` is present — true for a direct, unproxied `next
+ * dev` connection (this project never terminates TLS locally) — rather
+ * than guessing `"https"`, so a local/LAN request is never misrepresented
+ * as secure. Returns `null` (never throws) when no host header is present
+ * at all, or when called outside a request context — the caller is
+ * expected to fall back to `getAppUrl()` in that case, exactly as
+ * `getAppUrl()` itself falls back to a hardcoded value when its own env
+ * vars are unset.
+ */
+export async function getRequestOrigin(): Promise<URL | null> {
+    try {
+        const headerList = await headers();
+        const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
+        if (!host) return null;
+        const protocol = headerList.get("x-forwarded-proto") ?? "http";
+        return validAbsoluteUrl(`${protocol}://${host}`);
+    } catch {
+        return null;
+    }
 }
 
 export function getAuthRuntimeConfig() {
