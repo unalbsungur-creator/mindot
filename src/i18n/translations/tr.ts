@@ -48,6 +48,7 @@ export const tr: Dictionary = {
     signedInAs: "Şu hesapla giriş yapıldı:",
     signOut: "Çıkış yap",
     adminSectionsLabel: "Yönetici bölümleri",
+    adminNavPendingCountLabel: "bekliyor",
   },
   write: {
     title: "Bir şeyler bırak",

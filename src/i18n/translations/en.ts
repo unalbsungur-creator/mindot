@@ -48,6 +48,7 @@ export const en: Dictionary = {
     signedInAs: "Signed in as",
     signOut: "Sign out",
     adminSectionsLabel: "Admin sections",
+    adminNavPendingCountLabel: "pending",
   },
   write: {
     title: "Leave something behind",

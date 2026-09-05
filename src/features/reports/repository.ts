@@ -32,6 +32,8 @@ export interface ReportRepository {
   resolve(id: string, adminId: string): Promise<MessageReport | null>;
   /** The inverse decision — an admin decided no action was needed. Same atomic conditional shape as resolve(). */
   dismiss(id: string, adminId: string): Promise<MessageReport | null>;
+  /** EPIC 022: total currently-open reports — a single aggregate query, AdminNav's Reports badge. */
+  countOpen(): Promise<number>;
 }
 
 function toReport(row: typeof messageReports.$inferSelect): MessageReport {
@@ -98,6 +100,15 @@ class DrizzleReportRepository implements ReportRepository {
       .where(and(eq(messageReports.id, id), eq(messageReports.status, "open")))
       .returning();
     return row ? toReport(row) : null;
+  }
+
+  async countOpen(): Promise<number> {
+    const db = getDb();
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messageReports)
+      .where(eq(messageReports.status, "open"));
+    return row?.count ?? 0;
   }
 }
 

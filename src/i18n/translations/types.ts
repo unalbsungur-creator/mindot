@@ -47,6 +47,8 @@ export interface Dictionary {
     signedInAs: string;
     signOut: string;
     adminSectionsLabel: string;
+    /** EPIC 022: accessible trailing word after a numeric AdminNav badge count (e.g. "5 pending") — the visible digit is aria-hidden, this is what a screen reader actually announces alongside it. Reused for both the Moderation (pending messages) and Reports (open reports) badges rather than two separate words. */
+    adminNavPendingCountLabel: string;
   };
   write: {
     title: string;

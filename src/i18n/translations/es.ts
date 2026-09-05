@@ -46,6 +46,7 @@ export const es: Dictionary = {
     signedInAs: "Sesión iniciada como",
     signOut: "Cerrar sesión",
     adminSectionsLabel: "Secciones de administración",
+    adminNavPendingCountLabel: "pendiente",
   },
   write: {
     title: "Deja algo atrás",

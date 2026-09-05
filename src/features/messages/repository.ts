@@ -105,6 +105,8 @@ export interface MessageRepository {
   like(messageId: string, identity: { userId?: string; anonymousId?: string }): Promise<{ ok: boolean; likeCount: number; alreadyLiked: boolean }>;
   /** Total currently-approved (live, unarchived) messages — a single aggregate query, the homepage's active-message counter. */
   countApproved(): Promise<number>;
+  /** EPIC 022: total currently-pending messages — a single aggregate query, AdminNav's Moderation badge. */
+  countPending(): Promise<number>;
   /**
    * Approved messages ordered by like count (ties broken by createdAt,
    * oldest first, for determinism), excluding the given ids. Deliberately
@@ -448,6 +450,15 @@ class DrizzleMessageRepository implements MessageRepository {
       .select({ count: sql<number>`count(*)::int` })
       .from(messages)
       .where(eq(messages.status, "approved"));
+    return row?.count ?? 0;
+  }
+
+  async countPending(): Promise<number> {
+    const db = getDb();
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(eq(messages.status, "pending"));
     return row?.count ?? 0;
   }
 

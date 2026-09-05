@@ -46,6 +46,7 @@ export const fr: Dictionary = {
     signedInAs: "Connecté en tant que",
     signOut: "Se déconnecter",
     adminSectionsLabel: "Sections admin",
+    adminNavPendingCountLabel: "en attente",
   },
   write: {
     title: "Laissez quelque chose derrière vous",
