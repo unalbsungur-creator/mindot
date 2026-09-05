@@ -13,7 +13,10 @@ export default function robots(): MetadataRoute.Robots {
             // `robots: { index: false, follow: false }` in src/app/me/layout.tsx.
             // This list is a courtesy to well-behaved crawlers, not the
             // access-control boundary — that stays server-side auth() checks.
-            disallow: ["/admin/", "/api/", "/invite/", "/me", "/memory/", "/share/", "/write"],
+            // "/notifications" (EPIC 023) — same courtesy-only shape as "/me"
+            // above: it independently sets robots: {index:false} in its own
+            // layout.tsx; the real boundary is auth() there, not this list.
+            disallow: ["/admin/", "/api/", "/invite/", "/me", "/memory/", "/notifications", "/share/", "/write"],
         },
         sitemap: new URL("/sitemap.xml", getAppUrl()).toString(),
         host: getAppUrl().origin,

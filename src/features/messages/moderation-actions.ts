@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/features/auth/auth";
+import { notifyMessageApproved, notifyMessageRejected } from "@/features/notifications/events";
 import { messageRepository } from "./repository";
 import type { Message } from "./types";
 
@@ -44,6 +45,11 @@ export async function approveMessage(id: string, reason?: string): Promise<Moder
   const updated = await messageRepository.approve(id, admin.id, normalizeReason(reason));
   if (!updated) return { ok: false, error: "already-moderated" };
 
+  // EPIC 023: fired only after the state transition above has already
+  // committed — see events.ts's own doc comment for why a notification
+  // failure never unwinds or fails this action.
+  await notifyMessageApproved(updated);
+
   revalidatePath("/admin/moderation");
   return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
 }
@@ -58,6 +64,8 @@ export async function rejectMessage(id: string, reason?: string): Promise<Modera
 
   const updated = await messageRepository.reject(id, admin.id, normalizeReason(reason));
   if (!updated) return { ok: false, error: "already-moderated" };
+
+  await notifyMessageRejected(updated);
 
   revalidatePath("/admin/moderation");
   return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };

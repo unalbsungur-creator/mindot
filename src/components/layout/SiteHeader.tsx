@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DotCtaButton } from "@/components/ui/DotCtaButton";
+import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { PageContainer } from "./PageContainer";
@@ -173,6 +174,8 @@ export function SiteHeader() {
               {dictionary.nav.admin}
             </Button>
           )}
+          {/* EPIC 023: visible only once a signed-in session is known — same gate as the /me avatar link right after it. */}
+          {user && <NotificationBell />}
           {user && (
             <Link
               href="/me"

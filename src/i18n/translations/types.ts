@@ -542,6 +542,35 @@ export interface Dictionary {
     notFoundBody: string;
     loadingTitle: string;
   };
+  /** EPIC 023: NotificationBell (header dropdown) + the /notifications full-history page. Per-notification copy is derived from its `type` via `typeMessageApproved`/etc. below, never stored pre-rendered — see schema.ts's notificationTypeEnum comment. */
+  notifications: {
+    bellLabel: string;
+    panelTitle: string;
+    /** sr-only trailing word after a numeric unread count, same pattern as common.adminNavPendingCountLabel. */
+    unreadCountLabel: string;
+    /** sr-only per-item marker so unread/read state isn't conveyed by color alone. */
+    unreadBadgeLabel: string;
+    markAsRead: string;
+    markAllAsRead: string;
+    markingAllAsRead: string;
+    viewAllLink: string;
+    emptyTitle: string;
+    emptyBody: string;
+    loading: string;
+    error: string;
+    retry: string;
+    typeMessageApproved: string;
+    typeMessageRejected: string;
+    typeReportResolved: string;
+    typeReportDismissed: string;
+    pageTitle: string;
+    pageSubtitle: string;
+    signInRequiredBody: string;
+    paginationPrev: string;
+    paginationNext: string;
+    /** "{page}" and "{total}" tokens replaced manually, same convention as write.characterCount's "{count} / {max}". */
+    paginationLabel: string;
+  };
   legal: {
     lastReviewed: string;
     reviewNotice: string;

@@ -53,6 +53,21 @@ export const messageStatusEnum = pgEnum("message_status", ["pending", "approved"
 // messageStatusEnum: this is advisory input for the admin, never a
 // publishing decision on its own.
 export const aiModerationDecisionEnum = pgEnum("ai_moderation_decision", ["safe", "review", "blocked"]);
+// EPIC 023: In-App Notifications — one value per V1 event that can produce a
+// notification (see features/notifications/events.ts). Deliberately not
+// open-ended free text: a strongly-typed, enum-backed set the client's
+// dictionary maps to localized copy, the same "enum in the DB, label from
+// the dictionary" pattern messageStatusEnum/messageReportReasonEnum etc.
+// already use — never a pre-rendered, English-only string stored server-side
+// (see CLAUDE.md's "Internationalization": interface language is a
+// client-side concern, so notification copy is derived from `type` via the
+// dictionary at render time, not frozen into one language at write time).
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "message_approved",
+  "message_rejected",
+  "report_resolved",
+  "report_dismissed",
+]);
 
 export const users = pgTable("users", {
   // Google's stable "sub" claim — the same value next-auth puts in the JWT
@@ -415,3 +430,41 @@ export const physicalOrders = pgTable("physical_orders", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// EPIC 023: In-App Notifications — one row per (recipient, event). See
+// features/notifications/ for the repository/actions/event-integration and
+// "Notifications" in CLAUDE.md for the full architecture writeup. Deliberately
+// minimal: no title/body text columns (see notificationTypeEnum's own comment
+// above for why — content is derived client-side from `type`), no delivery
+// channel/status columns (in-app only, V1), no read-receipt history beyond
+// the single `readAt` timestamp every other "moderated"-style entity in this
+// schema already uses for its own single most-recent state change.
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    recipientUserId: text("recipient_user_id")
+      .notNull()
+      .references(() => users.id),
+    type: notificationTypeEnum("type").notNull(),
+    // Exactly one of these is populated per V1 event type — messageId alone
+    // for message_approved/message_rejected, both for report_resolved/
+    // report_dismissed (a report is always about a message). No CHECK
+    // constraint enforcing that pairing: both are optional context a reader
+    // can follow, not something a query branches on.
+    messageId: text("message_id").references(() => messages.id),
+    reportId: text("report_id").references(() => messageReports.id),
+    // Precomputed at creation time from already-public destinations only
+    // (see events.ts) — never a route invented for this feature. Null means
+    // safely non-clickable, not a broken link.
+    targetUrl: text("target_url"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // The full-history page's only read path: one recipient, newest first.
+    index("notifications_recipient_created_idx").on(table.recipientUserId, table.createdAt),
+    // countUnreadForUser / markAllAsRead's WHERE: one recipient, unread only.
+    index("notifications_recipient_read_idx").on(table.recipientUserId, table.readAt),
+  ]
+);

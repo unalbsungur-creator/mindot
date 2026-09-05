@@ -85,6 +85,13 @@
       "when": 1788514538199,
       "tag": "0011_slim_outlaw_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788596508537,
+      "tag": "0012_fuzzy_terror",
+      "breakpoints": true
     }
   ]
 }

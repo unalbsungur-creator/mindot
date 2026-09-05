@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/features/auth/auth";
 import { getPublicMessageById } from "@/features/board/repository";
+import { messageRepository } from "@/features/messages/repository";
+import { notifyReportDismissed, notifyReportResolved } from "@/features/notifications/events";
 import { reportRepository } from "./repository";
 import { REPORT_REASONS, type ReportReason } from "./types";
 
@@ -117,6 +119,12 @@ export async function resolveReport(id: string): Promise<ReportReviewResult> {
   const updated = await reportRepository.resolve(id, admin.id);
   if (!updated) return { ok: false, error: "already-reviewed" };
 
+  // EPIC 023: fired only after the resolve above has already committed.
+  // notifyReportResolved is itself a no-op for an anonymous reporter (no
+  // persistent identity to address) — see events.ts.
+  const message = await messageRepository.getById(updated.messageId);
+  await notifyReportResolved(updated, message);
+
   revalidatePath("/admin/reports");
   return { ok: true };
 }
@@ -127,6 +135,9 @@ export async function dismissReport(id: string): Promise<ReportReviewResult> {
 
   const updated = await reportRepository.dismiss(id, admin.id);
   if (!updated) return { ok: false, error: "already-reviewed" };
+
+  const message = await messageRepository.getById(updated.messageId);
+  await notifyReportDismissed(updated, message);
 
   revalidatePath("/admin/reports");
   return { ok: true };
