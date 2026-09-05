@@ -82,6 +82,7 @@ export const fr: Dictionary = {
       "Je confirme être responsable du contenu que je m'apprête à partager, disposer des droits et autorisations nécessaires pour le partager, et comprendre les conséquences juridiques de sa publication. J'accepte les Conditions d'utilisation et les Règles de la communauté de MINDOT.",
     errorConsentRequired: "Merci de cocher la case de consentement avant de continuer.",
     errorAccountSuspended: "Vous ne pouvez pas partager de nouveau contenu pour le moment.",
+    errorRateLimited: "Vous envoyez trop vite — réessayez dans quelques minutes.",
   },
   invite: {
     eyebrow: "Une invitation personnelle",
@@ -176,6 +177,7 @@ export const fr: Dictionary = {
     successTitle: "Signalement reçu",
     successBody: "Nous avons transmis cette pensée à notre équipe pour examen.",
     errorAlreadyReported: "Vous avez déjà signalé cette pensée.",
+    errorRateLimited: "Vous avez envoyé trop de signalements — réessayez dans quelques minutes.",
     errorNotFound: "Cette pensée ne peut plus être signalée.",
     errorGeneric: "Une erreur est survenue. Veuillez réessayer.",
   },

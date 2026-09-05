@@ -133,6 +133,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
   const errorMessage: Record<SubmitMessageError, string> = {
     "auth-required": dictionary.write.signInRequired,
     "account-suspended": dictionary.write.errorAccountSuspended,
+    "rate-limited": dictionary.write.errorRateLimited,
     "consent-required": dictionary.write.errorConsentRequired,
     "empty-content": dictionary.write.errorEmpty,
     "too-long": dictionary.write.errorTooLong,

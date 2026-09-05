@@ -108,6 +108,14 @@ export interface MessageRepository {
   /** EPIC 022: total currently-pending messages — a single aggregate query, AdminNav's Moderation badge. */
   countPending(): Promise<number>;
   /**
+   * EPIC 018: how many messages this author has created in the last
+   * `windowMinutes` — the real data `submitMessage`'s rate-limit check
+   * reads server-side, before any new row is inserted. Uses the existing
+   * `messages_author_created_idx` (authorId, createdAt); no new index
+   * needed for this query shape.
+   */
+  countRecentByAuthor(authorId: string, windowMinutes: number): Promise<number>;
+  /**
    * Approved messages ordered by like count (ties broken by createdAt,
    * oldest first, for determinism), excluding the given ids. Deliberately
    * does NOT filter to `likeCount > 0` — with too few liked messages this
@@ -459,6 +467,16 @@ class DrizzleMessageRepository implements MessageRepository {
       .select({ count: sql<number>`count(*)::int` })
       .from(messages)
       .where(eq(messages.status, "pending"));
+    return row?.count ?? 0;
+  }
+
+  async countRecentByAuthor(authorId: string, windowMinutes: number): Promise<number> {
+    const db = getDb();
+    const since = new Date(Date.now() - windowMinutes * 60_000);
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(and(eq(messages.authorId, authorId), gte(messages.createdAt, since)));
     return row?.count ?? 0;
   }
 

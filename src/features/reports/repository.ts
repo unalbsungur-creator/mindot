@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { messageReports } from "@/lib/db/schema";
 import { messageRepository } from "@/features/messages/repository";
@@ -32,6 +32,15 @@ export interface ReportRepository {
   resolve(id: string, adminId: string): Promise<MessageReport | null>;
   /** The inverse decision — an admin decided no action was needed. Same atomic conditional shape as resolve(). */
   dismiss(id: string, adminId: string): Promise<MessageReport | null>;
+  /**
+   * EPIC 018: how many reports this identity (signed-in reporterId, or an
+   * anonymous visitor's client-generated id) has filed in the last
+   * `windowMinutes`, across every message — the real data
+   * `reportMessage`'s rate-limit check reads server-side, before any new
+   * row is inserted. No dedicated (reporterId, createdAt) index exists;
+   * see the EPIC report for why one wasn't added.
+   */
+  countRecentByIdentity(identity: { reporterId: string | null; anonymousReporterId: string | null }, windowMinutes: number): Promise<number>;
   /** EPIC 022: total currently-open reports — a single aggregate query, AdminNav's Reports badge. */
   countOpen(): Promise<number>;
 }
@@ -100,6 +109,22 @@ class DrizzleReportRepository implements ReportRepository {
       .where(and(eq(messageReports.id, id), eq(messageReports.status, "open")))
       .returning();
     return row ? toReport(row) : null;
+  }
+
+  async countRecentByIdentity(
+    identity: { reporterId: string | null; anonymousReporterId: string | null },
+    windowMinutes: number
+  ): Promise<number> {
+    const db = getDb();
+    const since = new Date(Date.now() - windowMinutes * 60_000);
+    const identityFilter = identity.reporterId
+      ? eq(messageReports.reporterId, identity.reporterId)
+      : eq(messageReports.anonymousReporterId, identity.anonymousReporterId ?? "");
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messageReports)
+      .where(and(identityFilter, gte(messageReports.createdAt, since)));
+    return row?.count ?? 0;
   }
 
   async countOpen(): Promise<number> {

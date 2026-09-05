@@ -84,6 +84,7 @@ export const tr: Dictionary = {
       "Paylaşacağım içeriğin sorumluluğunun bana ait olduğunu, bu içeriği paylaşmak için gerekli hak ve izinlere sahip olduğumu ve içeriğin yayınlanmasının doğurabileceği hukuki sonuçları kabul ettiğimi onaylıyorum. Kullanım Koşulları ve Topluluk İlkeleri'ni kabul ediyorum.",
     errorConsentRequired: "Devam etmeden önce onay kutusunu işaretlemen gerekiyor.",
     errorAccountSuspended: "Şu anda yeni içerik paylaşamazsın.",
+    errorRateLimited: "Çok hızlı gönderim yapıyorsun — birkaç dakika sonra tekrar dene.",
   },
   invite: {
     eyebrow: "Kişisel bir davet",
@@ -178,6 +179,7 @@ export const tr: Dictionary = {
     successTitle: "Bildirimin alındı",
     successBody: "Bu düşünceyi incelemesi için ekibimize ilettik.",
     errorAlreadyReported: "Bu düşünceyi zaten bildirmişsin.",
+    errorRateLimited: "Çok fazla bildirim gönderdin — birkaç dakika sonra tekrar dene.",
     errorNotFound: "Bu düşünce artık bildirilebilir değil.",
     errorGeneric: "Bir şeyler ters gitti. Lütfen tekrar dene.",
   },

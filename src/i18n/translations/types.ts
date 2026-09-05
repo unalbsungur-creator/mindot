@@ -85,6 +85,8 @@ export interface Dictionary {
     errorConsentRequired: string;
     /** EPIC 013: shown both proactively (a suspended writer sees this before trying to submit) and reactively (submitMessage's own server-side re-check). Never mentions a reason — see CLAUDE.md's "User UX" section. */
     errorAccountSuspended: string;
+    /** EPIC 018: submitMessage's server-side rate-limit rejection — a real writer composing several notes in one sitting should never see this; it's tuned for a clear velocity outlier. */
+    errorRateLimited: string;
   };
   invite: {
     eyebrow: string;
@@ -184,6 +186,8 @@ export interface Dictionary {
     errorAlreadyReported: string;
     errorNotFound: string;
     errorGeneric: string;
+    /** EPIC 018: reportMessage's server-side rate-limit rejection. */
+    errorRateLimited: string;
   };
   /** EPIC 012: the admin report queue at /admin/reports. */
   reportsAdmin: {

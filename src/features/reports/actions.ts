@@ -8,7 +8,16 @@ import { REPORT_REASONS, type ReportReason } from "./types";
 
 const MAX_DETAILS_LENGTH = 500;
 
-export type ReportMessageError = "not-found" | "invalid-reason" | "already-reported" | "no-identity";
+export type ReportMessageError = "not-found" | "invalid-reason" | "already-reported" | "no-identity" | "rate-limited";
+
+// EPIC 018: filing a report never touches messages.status (see the doc
+// comment below), so unrestricted report volume can't remove content on
+// its own — but it can still waste an admin's time or be used to try to
+// pressure removal by sheer volume. Generous enough that someone
+// genuinely reporting several different bad posts in one browsing session
+// is never blocked.
+const REPORT_RATE_LIMIT_MAX = 10;
+const REPORT_RATE_LIMIT_WINDOW_MINUTES = 10;
 
 export interface ReportMessageResult {
   ok: boolean;
@@ -48,6 +57,16 @@ export async function reportMessage(input: {
 
   if (!reporterId && !anonymousReporterId) {
     return { ok: false, error: "no-identity" };
+  }
+
+  // EPIC 018: identity resolved above the same way likeMessage/reportMessage
+  // already did — signed-in session always wins over a client-supplied
+  // anonymousId — so this reads the real, server-resolved identity, never
+  // anything the client claims. Checked before any further validation or
+  // DB read below, and before the DB insert.
+  const recentCount = await reportRepository.countRecentByIdentity({ reporterId, anonymousReporterId }, REPORT_RATE_LIMIT_WINDOW_MINUTES);
+  if (recentCount >= REPORT_RATE_LIMIT_MAX) {
+    return { ok: false, error: "rate-limited" };
   }
 
   if (!REPORT_REASONS.includes(input.reason)) {

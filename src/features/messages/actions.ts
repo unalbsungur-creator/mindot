@@ -39,12 +39,23 @@ export interface SubmitMessageInput {
 export type SubmitMessageError =
   | "auth-required"
   | "account-suspended"
+  | "rate-limited"
   | "consent-required"
   | "empty-content"
   | "too-long"
   | "invalid-template"
   | "invitation-invalid"
   | "invitation-inactive";
+
+// EPIC 018: a real submission-velocity cap, server-side, before any DB
+// insert — closes the one gap the moderation/suspension arc (013-015)
+// never covered: nothing stopped a single (even legitimate, unsuspended)
+// account from flooding the moderation queue. Generous enough that a
+// writer composing several notes in one sitting (e.g. birthday cards for
+// multiple people) is never blocked — five in ten minutes is well beyond
+// normal single-person usage.
+const SUBMIT_RATE_LIMIT_MAX = 5;
+const SUBMIT_RATE_LIMIT_WINDOW_MINUTES = 10;
 
 export interface SubmitMessageResult {
   ok: boolean;
@@ -77,6 +88,14 @@ export async function submitMessage(input: SubmitMessageInput): Promise<SubmitMe
   const author = await userRepository.getById(session.user.id);
   if (author?.status === "suspended") {
     return { ok: false, error: "account-suspended" };
+  }
+
+  // EPIC 018: same "fresh read, before any write" discipline as the
+  // suspension check above — session.user.id, never a client-supplied
+  // identity, and this happens before the DB insert, not after.
+  const recentCount = await messageRepository.countRecentByAuthor(session.user.id, SUBMIT_RATE_LIMIT_WINDOW_MINUTES);
+  if (recentCount >= SUBMIT_RATE_LIMIT_MAX) {
+    return { ok: false, error: "rate-limited" };
   }
 
   if (!input.consentAccepted || input.consentVersion !== CONTENT_CONSENT_VERSION) {

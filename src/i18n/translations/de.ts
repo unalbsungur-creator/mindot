@@ -82,6 +82,7 @@ export const de: Dictionary = {
       "Ich bestätige, dass ich für den Inhalt, den ich teilen möchte, verantwortlich bin, dass ich über die erforderlichen Rechte und Genehmigungen dafür verfüge und dass mir die rechtlichen Folgen der Veröffentlichung bewusst sind. Ich stimme den Nutzungsbedingungen und den Community-Richtlinien von MINDOT zu.",
     errorConsentRequired: "Bitte aktiviere das Zustimmungsfeld, bevor du fortfährst.",
     errorAccountSuspended: "Du kannst gerade keine neuen Inhalte teilen.",
+    errorRateLimited: "Du sendest zu schnell — versuche es in ein paar Minuten erneut.",
   },
   invite: {
     eyebrow: "Eine persönliche Einladung",
@@ -176,6 +177,7 @@ export const de: Dictionary = {
     successTitle: "Meldung erhalten",
     successBody: "Wir haben diesen Gedanken zur Prüfung an unser Team weitergeleitet.",
     errorAlreadyReported: "Du hast diesen Gedanken bereits gemeldet.",
+    errorRateLimited: "Du hast zu viele Meldungen gesendet — versuche es in ein paar Minuten erneut.",
     errorNotFound: "Dieser Gedanke kann nicht mehr gemeldet werden.",
     errorGeneric: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
   },

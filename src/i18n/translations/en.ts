@@ -84,6 +84,7 @@ export const en: Dictionary = {
       "I confirm that I am responsible for the content I'm about to share, that I have the necessary rights and permissions to share it, and that I understand the legal consequences of publishing it. I agree to MINDOT's Terms of Service and Community Guidelines.",
     errorConsentRequired: "Please check the consent box before continuing.",
     errorAccountSuspended: "You can't share new content right now.",
+    errorRateLimited: "You're sending too quickly — try again in a few minutes.",
   },
   invite: {
     eyebrow: "A personal invitation",
@@ -178,6 +179,7 @@ export const en: Dictionary = {
     successTitle: "Report received",
     successBody: "We've sent this thought to our team for review.",
     errorAlreadyReported: "You've already reported this thought.",
+    errorRateLimited: "You've sent too many reports — try again in a few minutes.",
     errorNotFound: "This thought can no longer be reported.",
     errorGeneric: "Something went wrong. Please try again.",
   },

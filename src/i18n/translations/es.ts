@@ -82,6 +82,7 @@ export const es: Dictionary = {
       "Confirmo que soy responsable del contenido que voy a compartir, que cuento con los derechos y permisos necesarios para compartirlo, y que entiendo las consecuencias legales de su publicación. Acepto las Condiciones de uso y las Normas de la comunidad de MINDOT.",
     errorConsentRequired: "Marca la casilla de consentimiento antes de continuar.",
     errorAccountSuspended: "Ahora mismo no puedes compartir contenido nuevo.",
+    errorRateLimited: "Estás enviando demasiado rápido — inténtalo de nuevo en unos minutos.",
   },
   invite: {
     eyebrow: "Una invitación personal",
@@ -176,6 +177,7 @@ export const es: Dictionary = {
     successTitle: "Denuncia recibida",
     successBody: "Hemos enviado este pensamiento a nuestro equipo para su revisión.",
     errorAlreadyReported: "Ya has denunciado este pensamiento.",
+    errorRateLimited: "Has enviado demasiadas denuncias — inténtalo de nuevo en unos minutos.",
     errorNotFound: "Este pensamiento ya no se puede denunciar.",
     errorGeneric: "Algo salió mal. Inténtalo de nuevo.",
   },

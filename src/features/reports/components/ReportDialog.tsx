@@ -24,6 +24,7 @@ function reasonLabel(dictionary: Dictionary, reason: ReportReason): string {
 function errorMessage(dictionary: Dictionary, error: ReportMessageError | undefined): string {
   if (error === "already-reported") return dictionary.report.errorAlreadyReported;
   if (error === "not-found") return dictionary.report.errorNotFound;
+  if (error === "rate-limited") return dictionary.report.errorRateLimited;
   return dictionary.report.errorGeneric;
 }
 
