@@ -195,6 +195,8 @@ export const tr: Dictionary = {
     reporterAnonymous: "Anonim",
     messageStatusLabel: "Düşünce durumu",
     messageMissing: "Bu düşünce artık mevcut değil.",
+    reportedUserLabel: "Raporlanan kullanıcı",
+    viewUserAction: "Kullanıcıyı görüntüle",
     resolveAction: "İncelendi olarak işaretle",
     resolving: "İşaretleniyor…",
     dismissAction: "Reddet",

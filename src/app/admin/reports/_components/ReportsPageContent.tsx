@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +12,7 @@ import { archiveMessage } from "@/features/messages/moderation-actions";
 import type { MessageStatus } from "@/features/messages/types";
 import { dismissReport, resolveReport } from "@/features/reports/actions";
 import type { ReportQueueItem, ReportReason } from "@/features/reports/types";
+import { SuspendDialog } from "@/features/users/components/SuspendDialog";
 import { useLocale } from "@/i18n/LocaleProvider";
 import type { Dictionary } from "@/i18n/translations";
 import { cn } from "@/lib/cn";
@@ -18,6 +20,7 @@ import { cn } from "@/lib/cn";
 interface ReportsPageContentProps {
   authorized: boolean;
   items: ReportQueueItem[];
+  currentUserId: string | null;
 }
 
 function reasonLabel(dictionary: Dictionary, reason: ReportReason): string {
@@ -45,7 +48,7 @@ function messageStatusLabel(dictionary: Dictionary, status: MessageStatus): stri
   }[status];
 }
 
-export function ReportsPageContent({ authorized, items: initialItems }: ReportsPageContentProps) {
+export function ReportsPageContent({ authorized, items: initialItems, currentUserId }: ReportsPageContentProps) {
   const { dictionary } = useLocale();
   const [items, setItems] = useState(initialItems);
 
@@ -72,6 +75,23 @@ export function ReportsPageContent({ authorized, items: initialItems }: ReportsP
     );
   }
 
+  // EPIC 019: the same reported user can appear on more than one open
+  // report (several messages, or several reporters of the same message) —
+  // this updates every card showing that user, not just the one the
+  // suspend action was triggered from. Deliberately never touches
+  // `item.report.status` here: suspending a user and resolving/dismissing
+  // a report remain two independent actions on two independent state
+  // machines, exactly as required.
+  function updateReportedUserStatus(userId: string, status: "active" | "suspended") {
+    setItems((current) =>
+      current.map((item) =>
+        item.reportedUser?.id === userId
+          ? { ...item, reportedUser: { ...item.reportedUser, status } }
+          : item
+      )
+    );
+  }
+
   return (
     <PageContainer className="py-16">
       <div className="mx-auto flex max-w-3xl flex-col gap-2 pb-8">
@@ -87,9 +107,11 @@ export function ReportsPageContent({ authorized, items: initialItems }: ReportsP
             <ReportCard
               key={item.report.id}
               item={item}
+              currentUserId={currentUserId}
               onResolved={() => removeItem(item.report.id)}
               onDismissed={() => removeItem(item.report.id)}
               onMessageArchived={() => updateMessageStatus(item.report.id, "archived")}
+              onUserSuspended={(userId) => updateReportedUserStatus(userId, "suspended")}
             />
           ))}
         </div>
@@ -100,18 +122,23 @@ export function ReportsPageContent({ authorized, items: initialItems }: ReportsP
 
 function ReportCard({
   item,
+  currentUserId,
   onResolved,
   onDismissed,
   onMessageArchived,
+  onUserSuspended,
 }: {
   item: ReportQueueItem;
+  currentUserId: string | null;
   onResolved: () => void;
   onDismissed: () => void;
   onMessageArchived: () => void;
+  onUserSuspended: (userId: string) => void;
 }) {
   const { dictionary } = useLocale();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState(false);
+  const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
 
   const previewNote: NoteData | null = item.message
     ? {
@@ -126,6 +153,7 @@ function ReportCard({
       }
     : null;
   const template = item.message ? getNoteTemplate(item.message.templateId) : null;
+  const reportedUser = item.reportedUser;
 
   function handleResolve() {
     setError(false);
@@ -200,6 +228,33 @@ function ReportCard({
           {dictionary.reportsAdmin.reportedAtLabel} {new Date(item.report.createdAt).toLocaleString()}
         </p>
 
+        {/* EPIC 019: report → suspend bridge. `item.reportedUser` is the
+            message's real author (messages.authorId), resolved server-side
+            in getOpenReportQueue() — never confused with reporterLabel
+            above, which is who *filed* the report. Suspending here goes
+            through the exact same suspendUser() Server Action / SuspendDialog
+            as /admin/users; this card never calls anything new. */}
+        {reportedUser && (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-canvas/60 p-2.5">
+            <span className="text-xs text-ink-soft">
+              <span className="font-medium text-navy">{dictionary.reportsAdmin.reportedUserLabel}: </span>
+              {reportedUser.name ?? reportedUser.email}
+            </span>
+            <Link href={`/admin/users?highlight=${reportedUser.id}`} className="text-xs font-medium text-orange-ink hover:underline">
+              {dictionary.reportsAdmin.viewUserAction}
+            </Link>
+            {reportedUser.id === currentUserId ? (
+              <span className="text-xs text-ink-soft">{dictionary.usersAdmin.youLabel}</span>
+            ) : reportedUser.status === "suspended" ? (
+              <Badge className="normal-case border-red-200 bg-red-50 text-red-700">{dictionary.usersAdmin.statusSuspended}</Badge>
+            ) : (
+              <Button size="sm" variant="ghost" onClick={() => setSuspendDialogOpen(true)}>
+                {dictionary.usersAdmin.suspendAction}
+              </Button>
+            )}
+          </div>
+        )}
+
         <div className="mt-auto flex flex-wrap items-center gap-3 pt-1">
           <Button size="sm" onClick={handleResolve} disabled={isPending}>
             {isPending ? dictionary.reportsAdmin.resolving : dictionary.reportsAdmin.resolveAction}
@@ -220,6 +275,18 @@ function ReportCard({
           {error && <span className="text-xs text-red-600">{dictionary.reportsAdmin.errorGeneric}</span>}
         </div>
       </div>
+
+      {reportedUser && (
+        <SuspendDialog
+          open={suspendDialogOpen}
+          userId={reportedUser.id}
+          onClose={() => setSuspendDialogOpen(false)}
+          onSuspended={() => {
+            setSuspendDialogOpen(false);
+            onUserSuspended(reportedUser.id);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -202,6 +202,9 @@ export interface Dictionary {
     reporterAnonymous: string;
     messageStatusLabel: string;
     messageMissing: string;
+    /** EPIC 019: report → suspend bridge — the reported message's real author, distinct from reporterLabel above (who filed the report, almost always a different person). Suspend/unsuspend button text and dialog reuse usersAdmin.* directly, not duplicated here. */
+    reportedUserLabel: string;
+    viewUserAction: string;
     resolveAction: string;
     resolving: string;
     dismissAction: string;

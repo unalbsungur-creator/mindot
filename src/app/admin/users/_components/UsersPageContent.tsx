@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, useTransition, type MouseEvent } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { suspendUser, unsuspendUser } from "@/features/users/moderation-actions";
+import { SuspendDialog } from "@/features/users/components/SuspendDialog";
+import { unsuspendUser } from "@/features/users/moderation-actions";
 import type { User } from "@/features/users/types";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { cn } from "@/lib/cn";
@@ -31,6 +33,13 @@ interface UsersPageContentProps {
 export function UsersPageContent({ authorized, items: initialItems, currentUserId }: UsersPageContentProps) {
   const { dictionary } = useLocale();
   const [items, setItems] = useState(initialItems);
+  // EPIC 019: the report → suspend bridge's "View user" link lands here
+  // with `?highlight=<userId>` so the admin doesn't have to search the
+  // list by name/email — same `useSearchParams()` pattern already used by
+  // TimeRangeFilter, purely a client-side scroll/highlight cue over data
+  // this page already fetched under its own `authorized` check; it grants
+  // nothing and mutates nothing on its own.
+  const highlightId = useSearchParams().get("highlight");
 
   if (!authorized) {
     return (
@@ -60,6 +69,7 @@ export function UsersPageContent({ authorized, items: initialItems, currentUserI
             key={row.user.id}
             row={row}
             isSelf={row.user.id === currentUserId}
+            isHighlighted={row.user.id === highlightId}
             onSuspended={(reason) => updateUser(row.user.id, { status: "suspended", statusReason: reason })}
             onUnsuspended={() => updateUser(row.user.id, { status: "active", statusReason: null })}
           />
@@ -72,11 +82,13 @@ export function UsersPageContent({ authorized, items: initialItems, currentUserI
 function UserRowCard({
   row,
   isSelf,
+  isHighlighted,
   onSuspended,
   onUnsuspended,
 }: {
   row: UserRow;
   isSelf: boolean;
+  isHighlighted: boolean;
   onSuspended: (reason: string | null) => void;
   onUnsuspended: () => void;
 }) {
@@ -84,6 +96,11 @@ function UserRowCard({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isHighlighted) cardRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [isHighlighted]);
 
   const { user, messageCounts } = row;
   const isSuspended = user.status === "suspended";
@@ -101,7 +118,13 @@ function UserRowCard({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+    <div
+      ref={cardRef}
+      className={cn(
+        "flex flex-col gap-3 rounded-lg border border-border bg-surface p-4",
+        isHighlighted && "ring-2 ring-orange"
+      )}
+    >
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium text-navy">{user.name ?? user.email}</span>
         <span className="text-xs text-ink-soft">{user.email}</span>
@@ -157,106 +180,5 @@ function UserRowCard({
         }}
       />
     </div>
-  );
-}
-
-function SuspendDialog({
-  open,
-  userId,
-  onClose,
-  onSuspended,
-}: {
-  open: boolean;
-  userId: string;
-  onClose: () => void;
-  onSuspended: (reason: string | null) => void;
-}) {
-  const { dictionary } = useLocale();
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const headingId = useId();
-  const reasonId = useId();
-  const [reason, setReason] = useState("");
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
-
-  useEffect(() => {
-    if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setReason("");
-      setError(false);
-    }
-  }, [open]);
-
-  function handleBackdropClick(event: MouseEvent<HTMLDialogElement>) {
-    if (event.target === dialogRef.current && !isPending) onClose();
-  }
-
-  function handleConfirm() {
-    setError(false);
-    startTransition(async () => {
-      const result = await suspendUser(userId, reason);
-      if (!result.ok) {
-        setError(true);
-        return;
-      }
-      onSuspended(reason.trim() || null);
-    });
-  }
-
-  return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby={headingId}
-      onCancel={(event) => {
-        event.preventDefault();
-        if (!isPending) onClose();
-      }}
-      onClick={handleBackdropClick}
-      className="m-auto w-[calc(100%-2rem)] max-w-sm rounded-lg border border-border bg-surface p-0 shadow-card backdrop:bg-navy/50 backdrop:backdrop-blur-sm"
-    >
-      <div className="flex flex-col gap-4 p-5 sm:p-6">
-        <h2 id={headingId} className="font-display text-lg font-medium text-navy">
-          {dictionary.usersAdmin.suspendDialogTitle}
-        </h2>
-        <p className="text-sm leading-relaxed text-ink-soft">{dictionary.usersAdmin.suspendDialogBody}</p>
-
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={reasonId} className="text-sm font-medium text-navy">
-            {dictionary.usersAdmin.suspendReasonLabel}
-          </label>
-          <textarea
-            id={reasonId}
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder={dictionary.usersAdmin.suspendReasonPlaceholder}
-            rows={3}
-            maxLength={500}
-            className="w-full rounded-md border border-border bg-canvas p-2.5 text-sm text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
-          />
-        </div>
-
-        {error && (
-          <p role="alert" className="text-sm text-red-600">
-            {dictionary.usersAdmin.errorGeneric}
-          </p>
-        )}
-
-        <div className="flex justify-end gap-2 pt-1">
-          <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={isPending}>
-            {dictionary.usersAdmin.suspendCancel}
-          </Button>
-          <Button type="button" size="sm" onClick={handleConfirm} disabled={isPending}>
-            {isPending ? dictionary.usersAdmin.suspending : dictionary.usersAdmin.suspendConfirm}
-          </Button>
-        </div>
-      </div>
-    </dialog>
   );
 }

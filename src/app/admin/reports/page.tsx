@@ -13,5 +13,5 @@ export default async function ReportsPage() {
   // admin status independently regardless of what a client sends.
   const items = authorized ? await getOpenReportQueue() : [];
 
-  return <ReportsPageContent authorized={authorized} items={items} />;
+  return <ReportsPageContent authorized={authorized} items={items} currentUserId={session?.user?.id ?? null} />;
 }

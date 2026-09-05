@@ -193,6 +193,8 @@ export const fr: Dictionary = {
     reporterAnonymous: "Anonyme",
     messageStatusLabel: "Statut de la pensée",
     messageMissing: "Cette pensée n'existe plus.",
+    reportedUserLabel: "Utilisateur signalé",
+    viewUserAction: "Voir l'utilisateur",
     resolveAction: "Marquer comme examiné",
     resolving: "Marquage…",
     dismissAction: "Rejeter",

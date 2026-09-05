@@ -154,6 +154,12 @@ export async function getOpenReportQueue(): Promise<ReportQueueItem[]> {
   for (const report of reports) {
     const message = await messageRepository.getById(report.messageId);
     const reporter = report.reporterId ? await userRepository.getById(report.reporterId) : null;
+    // EPIC 019: the message's real owner — resolved the same way `reporter`
+    // above already is (one more sequential `getById`, consistent with
+    // this function's own documented "small admin-facing volume, no
+    // batched join" tradeoff). Never derived from anything the client
+    // sends; always the server's own read of `message.authorId`.
+    const reportedUser = message ? await userRepository.getById(message.authorId) : null;
 
     items.push({
       report,
@@ -166,10 +172,14 @@ export async function getOpenReportQueue(): Promise<ReportQueueItem[]> {
             authorName: message.authorName,
             isAnonymous: message.isAnonymous,
             status: message.status,
+            authorId: message.authorId,
           }
         : null,
       reporterKind: report.reporterId ? "user" : "anonymous",
       reporterName: reporter ? (reporter.name ?? reporter.email) : null,
+      reportedUser: reportedUser
+        ? { id: reportedUser.id, name: reportedUser.name, email: reportedUser.email, status: reportedUser.status }
+        : null,
     });
   }
 

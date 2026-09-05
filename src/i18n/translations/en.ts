@@ -195,6 +195,8 @@ export const en: Dictionary = {
     reporterAnonymous: "Anonymous",
     messageStatusLabel: "Message status",
     messageMissing: "This message no longer exists.",
+    reportedUserLabel: "Reported user",
+    viewUserAction: "View user",
     resolveAction: "Mark reviewed",
     resolving: "Marking…",
     dismissAction: "Dismiss",

@@ -1,3 +1,5 @@
+import type { UserAccountStatus } from "@/features/users/types";
+
 export type ReportReason = "spam" | "harassment" | "hate" | "sexual_content" | "violence" | "illegal" | "copyright" | "other";
 export type ReportStatus = "open" | "resolved" | "dismissed";
 
@@ -52,6 +54,16 @@ export interface ReportQueueItem {
     authorName: string;
     isAnonymous: boolean;
     status: string;
+    /**
+     * EPIC 019: the message's real owner (`messages.authorId`), never a
+     * synthesized "anonymous author id" — `isAnonymous` above only ever
+     * controls *public* display, exactly as it does everywhere else in
+     * this codebase. Admins already see full author identity in the
+     * moderation queue regardless of anonymity; this is the same existing
+     * privilege, just also surfaced here so a report can be traced to the
+     * account that could be suspended for it.
+     */
+    authorId: string;
   } | null;
   /**
    * "user": a real, signed-in reporter — `reporterName` is their real
@@ -62,4 +74,18 @@ export interface ReportQueueItem {
    */
   reporterKind: "user" | "anonymous";
   reporterName: string | null;
+  /**
+   * EPIC 019: the reported message's author, resolved server-side purely
+   * so the admin queue can show who could be suspended and their current
+   * status — never confused with `reporterKind`/`reporterName` above,
+   * which describe who *filed* the report, a completely different person
+   * in the overwhelming majority of cases. `null` only when `message` is
+   * also `null` (report about a message this lookup couldn't resolve).
+   */
+  reportedUser: {
+    id: string;
+    name: string | null;
+    email: string;
+    status: UserAccountStatus;
+  } | null;
 }
