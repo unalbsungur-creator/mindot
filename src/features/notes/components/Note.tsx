@@ -458,6 +458,22 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
         // features/board/lib/placement.ts's DECORATIVE_OVERFLOW_PX for the
         // (smaller, still-real) margin the remaining overflowing elements
         // — attachment/decoration/avatar/like — still need.
+        //
+        // BUG FIX: real-device mobile QA found these buttons only
+        // intermittently reachable on a touchscreen — confirmed as a
+        // touch-hover reveal problem, not a card-selection or business-rule
+        // bug: `pointer-coarse:opacity-100` below (Tailwind v4's built-in
+        // `pointer: coarse` media variant) makes save/share/report always
+        // visible on a touchscreen, exactly like the like button already
+        // is, regardless of hover/focus state. `hover:`/`group-hover:`/
+        // `group-focus-within:`/`focus-visible:` alone are a mouse-only
+        // discovery model — a touchscreen has no true `:hover`, so whether
+        // a tap grants any of them a transient hover/focus state is a
+        // browser/OS quirk (WebKit's well-known tap-hover behavior, which
+        // never focuses a `<button>` on tap at all), not something this app
+        // controls — which is why only one of three visually-identical
+        // buttons was ever reachable. Desktop's mouse hover/focus reveal is
+        // untouched by this addition.
         <div className="absolute top-2 right-2 flex gap-1">
           {actions.map((action) => (
             <div key={action.href ?? action.label} className="group/action relative">
@@ -471,7 +487,7 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
                   // pan-gesture handling on "world" notes before the click
                   // ever registers (confirmed by real testing, not assumed).
                   onPointerDown={(event) => event.stopPropagation()}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-focus-within:opacity-100"
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
                 >
                   {actionIcons[action.icon]}
                 </button>
@@ -484,7 +500,7 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
                   // pan-gesture handling on "world" notes before navigation
                   // fires (confirmed by real testing, not assumed).
                   onPointerDown={(event) => event.stopPropagation()}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-focus-within:opacity-100"
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
                 >
                   {actionIcons[action.icon]}
                 </Link>

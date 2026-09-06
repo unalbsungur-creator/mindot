@@ -144,11 +144,42 @@ Google Cloud Console:
    `AUTH_URL` you actually set in `.env.local` — `http://localhost:3200` is
    this repo's own default in `.env.example`, matching `npm run dev`'s own
    pinned port; if you override the port, use that port instead.)
-3. Keep localhost, staging, and production as separate OAuth clients with
+3. **Testing sign-in from a real phone over LAN** (e.g. opening
+   `http://<your-machine's-LAN-IP>:3200` on a phone on the same network,
+   rather than `http://localhost:3200` on the dev machine itself) needs one
+   more deliberate step, or Google returns `Error 400: redirect_uri_mismatch`
+   the moment "Continue with Google" is tapped. This is not a code bug:
+   Auth.js computes the `redirect_uri` it sends to Google strictly from
+   `AUTH_URL` (falling back to `NEXT_PUBLIC_APP_URL`/the actual request host
+   only when `AUTH_URL` is unset — see `getAppUrl()`'s doc comment in
+   `src/lib/env.ts`) — so as long as `.env.local` keeps `AUTH_URL` at its
+   `http://localhost:3200` default, that is *always* the exact `redirect_uri`
+   Auth.js sends, regardless of which origin the phone actually used to load
+   the page. To test from a phone:
+   1. Find your dev machine's LAN address (e.g. `ipconfig` on Windows,
+      `ifconfig`/`ip addr` on macOS/Linux) — something like `192.168.1.143`.
+   2. In Google Cloud Console, on the same **local development** OAuth
+      client, add a *second* authorized JavaScript origin and redirect URI
+      alongside the localhost ones from the table above: exactly
+      `http://<your-LAN-IP>:3200` and
+      `http://<your-LAN-IP>:3200/api/auth/callback/google`. Console accepts
+      more than one of each — you don't need a separate client.
+   3. Temporarily set both `NEXT_PUBLIC_APP_URL` and `AUTH_URL` in
+      `.env.local` to that same `http://<your-LAN-IP>:3200`, restart
+      `npm run dev`, then open that address on the phone.
+   4. Revert both back to `http://localhost:3200` in `.env.local` when you're
+      done — don't leave a LAN address configured, and never commit one to
+      `.env.example` or any tracked file. This project's own architecture
+      (see `getAppUrl()`/`getRequestOrigin()` in `src/lib/env.ts`) already
+      forbids hardcoding a LAN IP in code or forcing `localhost` as a LAN/
+      production callback for exactly this reason — a real device's network
+      address is different for every developer and every network, so it can
+      only ever be a per-session local config value, never a code constant.
+4. Keep localhost, staging, and production as separate OAuth clients with
    explicit origins; avoid wildcard redirect URIs.
-4. Verify `AUTH_URL` and `NEXT_PUBLIC_APP_URL` match the public origin for
+5. Verify `AUTH_URL` and `NEXT_PUBLIC_APP_URL` match the public origin for
    that environment exactly (scheme, host, and port).
-5. Never commit a real `GOOGLE_CLIENT_SECRET` — it belongs in `.env.local`
+6. Never commit a real `GOOGLE_CLIENT_SECRET` — it belongs in `.env.local`
    (gitignored) or your deployment platform's secret store only.
 
 No real OAuth client, DNS record, database, or deployment is configured by
