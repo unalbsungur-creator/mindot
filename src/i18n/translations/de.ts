@@ -83,6 +83,9 @@ export const de: Dictionary = {
     errorConsentRequired: "Bitte aktiviere das Zustimmungsfeld, bevor du fortfährst.",
     errorAccountSuspended: "Du kannst gerade keine neuen Inhalte teilen.",
     errorRateLimited: "Du sendest zu schnell — versuche es in ein paar Minuten erneut.",
+    continueRequirementsContent: "Schreibe deinen Gedanken, um fortzufahren.",
+    continueRequirementsConsent: "Bestätige den Verantwortungshinweis, um fortzufahren.",
+    continueRequirementsBoth: "Schreibe deinen Gedanken und bestätige den Verantwortungshinweis, um fortzufahren.",
   },
   invite: {
     eyebrow: "Eine persönliche Einladung",
@@ -394,6 +397,7 @@ export const de: Dictionary = {
     emptyRegion: "Hier wurde noch nichts hinterlassen.",
     loadError: "Dieser Teil der Wand konnte nicht geladen werden. Bewege dich erneut.",
     slogan: "Lass es nicht nur im Kopf bleiben.",
+    mobileGestureHint: "Ziehen, um die Wand zu erkunden",
     ariaLabel: "Interaktive MINDOT-Gedankenwand — zum Erkunden ziehen, Pfeiltasten oder WASD verwenden",
   },
   boardControls: {

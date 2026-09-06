@@ -130,6 +130,22 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
     language,
   };
 
+  // EPIC 026: explains *why* Submit/Continue-with-Google is disabled — the
+  // requirement itself (content + consent) is unchanged, this only makes it
+  // visible. `null` once both are satisfied. Reported as "checking the
+  // consent box doesn't activate Google sign-in" — the real cause was that
+  // the button ALSO requires non-empty content, with nothing on screen ever
+  // saying so, so a writer who only noticed the checkbox had no way to know
+  // why the button stayed disabled.
+  const continueRequirementsHint =
+    hasContent && consentChecked
+      ? null
+      : !hasContent && !consentChecked
+        ? dictionary.write.continueRequirementsBoth
+        : !hasContent
+          ? dictionary.write.continueRequirementsContent
+          : dictionary.write.continueRequirementsConsent;
+
   const errorMessage: Record<SubmitMessageError, string> = {
     "auth-required": dictionary.write.signInRequired,
     "account-suspended": dictionary.write.errorAccountSuspended,
@@ -242,7 +258,11 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
                 placeholder={dictionary.write.namePlaceholder}
-                className="w-full rounded-md border border-border bg-surface p-2.5 text-sm text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
+                // BUG FIX (EPIC 026): text-sm (14px) is below the 16px
+                // threshold Mobile Safari uses to auto-zoom the page on
+                // focus — text-[16px] prevents that disruptive zoom/scroll
+                // jump on a real phone without changing anything else here.
+                className="w-full rounded-md border border-border bg-surface p-2.5 text-[16px] text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
               />
             </div>
           )}
@@ -256,7 +276,14 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
             id="language"
             value={language}
             onChange={(event) => setLanguage(event.target.value as Locale)}
-            className="w-full max-w-xs rounded-md border border-border bg-surface p-2.5 text-sm text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
+            // BUG FIX (EPIC 026): same Mobile Safari auto-zoom issue as
+            // #displayName above — this is the publication-language select
+            // specifically (independent of the header's interface-language
+            // LanguageSwitcher, also fixed this EPIC), reported as
+            // "reverts to English": the underlying state was never actually
+            // wrong, the disruptive zoom-on-focus just made the picker feel
+            // broken on a real device.
+            className="w-full max-w-xs rounded-md border border-border bg-surface p-2.5 text-[16px] text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
           >
             {locales.map((code) => (
               <option key={code} value={code}>
@@ -318,13 +345,21 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
         )}
 
         {sessionUser ? (
-          <Button type="button" onClick={handleSubmit} disabled={!canSubmit}>
-            {isPending ? dictionary.write.submitting : dictionary.write.submit}
-          </Button>
+          <div className="flex flex-col items-start gap-2">
+            <Button type="button" onClick={handleSubmit} disabled={!canSubmit}>
+              {isPending ? dictionary.write.submitting : dictionary.write.submit}
+            </Button>
+            {!isSuspended && continueRequirementsHint && (
+              <p className="text-xs text-ink-soft">{continueRequirementsHint}</p>
+            )}
+          </div>
         ) : (
           <div className="flex flex-col items-start gap-2">
             <p className="text-sm text-ink-soft">{dictionary.write.signInRequired}</p>
             <GoogleSignInButton redirectTo={redirectTo} disabled={!canContinueToGoogle} />
+            {!isSuspended && continueRequirementsHint && (
+              <p className="text-xs text-ink-soft">{continueRequirementsHint}</p>
+            )}
           </div>
         )}
         <p className="text-xs text-ink-soft">{dictionary.write.trustNote}</p>

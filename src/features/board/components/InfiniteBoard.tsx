@@ -33,6 +33,16 @@ const EMPTY_HINT_DELAY_MS = 4000;
 // see message_likes' unique index. Wrapped in try/catch like every other
 // localStorage read in this codebase.
 const LIKED_STORAGE_KEY = "mindot:liked-messages:v1";
+// EPIC 026: this canvas is a drag-to-pan world, not a normal scrolling
+// page — by design (see CLAUDE.md's "Infinite board interaction model"),
+// never touched here. On a real mobile device that's not obvious without
+// the mouse-cursor/scrollbar affordances desktop has, and was reported as
+// "no posts visible, can't scroll" — this one-time hint (shown once per
+// browser, same versioned-key convention as onboarding/liked-messages
+// above) is the minimal, purely-additive fix: it doesn't change how the
+// board loads or renders content, only tells a first-time mobile visitor
+// how to move around it.
+const MOBILE_HINT_STORAGE_KEY = "mindot:board-mobile-hint-seen:v1";
 
 const MOVE_KEYS: Record<string, [number, number]> = {
   ArrowUp: [0, -1],
@@ -149,19 +159,42 @@ export function InfiniteBoard({
   const dragStart = useRef<{ x: number; y: number; camera: Camera } | null>(null);
   const pinchStart = useRef<{ distance: number; camera: Camera } | null>(null);
 
-  const handlePointerDown = useCallback((event: React.PointerEvent) => {
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    isGesturingRef.current = true;
-
-    if (pointers.current.size === 1) {
-      dragStart.current = { x: event.clientX, y: event.clientY, camera: liveCameraRef.current };
-    } else if (pointers.current.size === 2) {
-      dragStart.current = null;
-      const [a, b] = [...pointers.current.values()];
-      pinchStart.current = { distance: Math.hypot(a.x - b.x, a.y - b.y), camera: liveCameraRef.current };
+  // EPIC 026: one-time mobile gesture hint — see MOBILE_HINT_STORAGE_KEY above.
+  const [showMobileHint, setShowMobileHint] = useState(false);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-only localStorage read, same justified exception as the liked-messages restore below
+      if (!window.localStorage.getItem(MOBILE_HINT_STORAGE_KEY)) setShowMobileHint(true);
+    } catch {
+      // Private mode / blocked storage — hint just won't persist as "seen"; harmless to show again.
     }
   }, []);
+  const dismissMobileHint = useCallback(() => {
+    setShowMobileHint(false);
+    try {
+      window.localStorage.setItem(MOBILE_HINT_STORAGE_KEY, "1");
+    } catch {
+      // Fine — worst case the hint reappears next visit in this browser.
+    }
+  }, []);
+
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent) => {
+      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+      pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      isGesturingRef.current = true;
+      dismissMobileHint();
+
+      if (pointers.current.size === 1) {
+        dragStart.current = { x: event.clientX, y: event.clientY, camera: liveCameraRef.current };
+      } else if (pointers.current.size === 2) {
+        dragStart.current = null;
+        const [a, b] = [...pointers.current.values()];
+        pinchStart.current = { distance: Math.hypot(a.x - b.x, a.y - b.y), camera: liveCameraRef.current };
+      }
+    },
+    [dismissMobileHint]
+  );
 
   const handlePointerMove = useCallback(
     (event: React.PointerEvent) => {
@@ -506,6 +539,19 @@ export function InfiniteBoard({
       {anyTileError && (
         <p className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-pill bg-surface/80 px-4 py-1.5 text-xs text-ink-soft opacity-80 backdrop-blur">
           {dictionary.boardPage.loadError}
+        </p>
+      )}
+      {/* EPIC 026: mobile-only (sm:hidden) — desktop already has the visible
+          BoardControls pan/zoom buttons plus an obvious mouse-drag
+          affordance; a touch-only visitor has neither, and reported this
+          drag-to-pan canvas as "no posts visible, can't scroll" without it. */}
+      {showMobileHint && (
+        // top-16, not top-6 like the two hints above: avoids stacking on top
+        // of showEmptyHint/anyTileError (both anchored at top-6) if this is
+        // also a first-time visit to an empty region. Never bottom-anchored
+        // — BoardControls' D-pad already owns that band.
+        <p className="pointer-events-none absolute left-1/2 top-16 -translate-x-1/2 rounded-pill bg-surface/80 px-4 py-1.5 text-xs text-ink-soft opacity-80 backdrop-blur sm:hidden">
+          {dictionary.boardPage.mobileGestureHint}
         </p>
       )}
 

@@ -87,6 +87,10 @@ export interface Dictionary {
     errorAccountSuspended: string;
     /** EPIC 018: submitMessage's server-side rate-limit rejection — a real writer composing several notes in one sitting should never see this; it's tuned for a clear velocity outlier. */
     errorRateLimited: string;
+    /** EPIC 026: shown next to the disabled Continue-with-Google/Submit action so it's clear *why* it's disabled — never changes the actual requirement (content + consent), only explains it. */
+    continueRequirementsContent: string;
+    continueRequirementsConsent: string;
+    continueRequirementsBoth: string;
   };
   invite: {
     eyebrow: string;
@@ -399,6 +403,8 @@ export interface Dictionary {
     loadError: string;
     slogan: string;
     ariaLabel: string;
+    /** EPIC 026: a brief, one-time, mobile-only hint (dismissed on first drag, and never shown again after that — see InfiniteBoard's own localStorage flag) since this canvas intentionally never scrolls like a normal page. */
+    mobileGestureHint: string;
   };
   boardControls: {
     panUp: string;

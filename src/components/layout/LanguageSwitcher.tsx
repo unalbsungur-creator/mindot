@@ -19,7 +19,15 @@ export function LanguageSwitcher({ className }: { className?: string }) {
       <select
         value={locale}
         onChange={(event) => setLocale(event.target.value as (typeof locales)[number])}
-        className="appearance-none rounded-pill border border-white/25 bg-transparent py-1.5 pl-3 pr-6 text-xs font-medium uppercase tracking-wide text-white/75 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange [color-scheme:dark]"
+        // BUG FIX (EPIC 026): text-xs (12px) is below the 16px threshold
+        // Mobile Safari/WebKit uses to decide whether to auto-zoom the page
+        // on focusing a form control — tapping this select on a real iOS
+        // device zoomed the whole page in, which is what made language
+        // switching look broken/unresponsive on mobile even though the
+        // underlying onChange/state/persistence logic was already correct.
+        // text-[16px] fixes the zoom with no other visual change (still
+        // wrapped in the same small pill, still uppercase/tracked).
+        className="appearance-none rounded-pill border border-white/25 bg-transparent py-1.5 pl-3 pr-6 text-[16px] font-medium uppercase tracking-wide text-white/75 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange [color-scheme:dark]"
         aria-label={dictionary.common.language}
       >
         {locales.map((code) => (

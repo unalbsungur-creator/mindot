@@ -83,6 +83,9 @@ export const es: Dictionary = {
     errorConsentRequired: "Marca la casilla de consentimiento antes de continuar.",
     errorAccountSuspended: "Ahora mismo no puedes compartir contenido nuevo.",
     errorRateLimited: "Estás enviando demasiado rápido — inténtalo de nuevo en unos minutos.",
+    continueRequirementsContent: "Escribe tu pensamiento para continuar.",
+    continueRequirementsConsent: "Acepta el aviso de responsabilidad para continuar.",
+    continueRequirementsBoth: "Escribe tu pensamiento y acepta el aviso de responsabilidad para continuar.",
   },
   invite: {
     eyebrow: "Una invitación personal",
@@ -394,6 +397,7 @@ export const es: Dictionary = {
     emptyRegion: "Todavía no se ha dejado nada aquí.",
     loadError: "Esta parte del muro no se pudo cargar. Intenta moverte de nuevo.",
     slogan: "No dejes que se quede solo en tu mente.",
+    mobileGestureHint: "Arrastra para explorar el muro",
     ariaLabel: "Muro de pensamientos interactivo de MINDOT — arrastra, usa las flechas o WASD para explorar",
   },
   boardControls: {

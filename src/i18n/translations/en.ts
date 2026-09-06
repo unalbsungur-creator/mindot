@@ -85,6 +85,9 @@ export const en: Dictionary = {
     errorConsentRequired: "Please check the consent box before continuing.",
     errorAccountSuspended: "You can't share new content right now.",
     errorRateLimited: "You're sending too quickly — try again in a few minutes.",
+    continueRequirementsContent: "Write your thought to continue.",
+    continueRequirementsConsent: "Accept the responsibility notice to continue.",
+    continueRequirementsBoth: "Write your thought and accept the responsibility notice to continue.",
   },
   invite: {
     eyebrow: "A personal invitation",
@@ -396,6 +399,7 @@ export const en: Dictionary = {
     emptyRegion: "Nothing has been left here yet.",
     loadError: "This part of the wall didn't load. Try moving again.",
     slogan: "Don't let it stay in your mind.",
+    mobileGestureHint: "Drag to explore the wall",
     ariaLabel: "Interactive MINDOT thought board — drag, use arrow keys, or WASD to explore",
   },
   boardControls: {

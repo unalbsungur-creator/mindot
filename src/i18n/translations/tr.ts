@@ -85,6 +85,9 @@ export const tr: Dictionary = {
     errorConsentRequired: "Devam etmeden önce onay kutusunu işaretlemen gerekiyor.",
     errorAccountSuspended: "Şu anda yeni içerik paylaşamazsın.",
     errorRateLimited: "Çok hızlı gönderim yapıyorsun — birkaç dakika sonra tekrar dene.",
+    continueRequirementsContent: "Devam etmek için düşünceni yaz.",
+    continueRequirementsConsent: "Devam etmek için sorumluluk bildirimini onayla.",
+    continueRequirementsBoth: "Devam etmek için düşünceni yaz ve sorumluluk bildirimini onayla.",
   },
   invite: {
     eyebrow: "Kişisel bir davet",
@@ -396,6 +399,7 @@ export const tr: Dictionary = {
     emptyRegion: "Burada henüz bir şey bırakılmamış.",
     loadError: "Duvarın bu kısmı yüklenemedi. Tekrar hareket etmeyi dene.",
     slogan: "Aklında kalmasın.",
+    mobileGestureHint: "Duvarı keşfetmek için sürükle",
     ariaLabel: "Etkileşimli MINDOT düşünce duvarı — sürükleyerek, ok tuşlarıyla ya da WASD ile keşfedin",
   },
   boardControls: {
