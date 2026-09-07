@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/features/auth/auth";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { userRepository } from "./repository";
 
 const MAX_REASON_LENGTH = 500;
@@ -11,12 +11,6 @@ export type UserModerationError = "unauthorized" | "not-found" | "cannot-suspend
 export interface UserModerationResult {
   ok: boolean;
   error?: UserModerationError;
-}
-
-async function requireAdmin() {
-  const session = await auth();
-  if (session?.user?.role !== "admin") return null;
-  return session.user;
 }
 
 /**

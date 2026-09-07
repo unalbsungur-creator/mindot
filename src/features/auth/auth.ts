@@ -34,21 +34,37 @@ import { getAuthRuntimeConfig } from "@/lib/env";
  * Credentials sign-in works independently of those two Google variables.
  */
 
+/**
+ * EPIC 031: explicit, deterministic identity of *how* a session was
+ * established — never inferred from `role` or from which fields happen to
+ * be populated. `role` answers "what can this session do"; `authProvider`
+ * answers "how did this session prove who it is" — two different
+ * questions that must stay two different fields, so authorization checks
+ * never have to guess. Set exactly once, in the `jwt` callback below, from
+ * server-verified data only (Google's own `profile.sub`, or
+ * `authorize()`'s already-vetted return value) — never from anything a
+ * client could influence.
+ */
+export type AuthProvider = "google" | "credentials";
+
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
       role: UserRole;
+      authProvider: AuthProvider;
     } & DefaultSession["user"];
   }
   interface User {
     role?: UserRole;
+    authProvider?: AuthProvider;
   }
 }
 
 declare module "@auth/core/jwt" {
   interface JWT {
     role?: UserRole;
+    authProvider?: AuthProvider;
   }
 }
 
@@ -95,7 +111,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
         await userRepository.recordSuccessfulLogin(candidate.id);
-        return { id: candidate.id, name: candidate.name, role: candidate.role };
+        return { id: candidate.id, name: candidate.name, role: candidate.role, authProvider: "credentials" };
       },
     }),
   ],
@@ -114,15 +130,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
         token.sub = dbUser.id;
         token.role = dbUser.role;
+        // EPIC 031: deterministic, not inferred — a Google sign-in is
+        // always "google", full stop, regardless of what role the account
+        // happens to hold. This is what lets authorization code (and any
+        // future code) tell "how" apart from "what" instead of overloading
+        // `role` to answer both.
+        token.authProvider = "google";
         return token;
       }
       // `user` is only present right after a fresh sign-in too (any
       // provider) — for Credentials it's exactly the object `authorize()`
       // returned above, already fully vetted server-side against the
       // database (role/status/password), never anything the client sent.
-      if (user?.id && user.role) {
+      if (user?.id && user.role && user.authProvider) {
         token.sub = user.id;
         token.role = user.role;
+        token.authProvider = user.authProvider;
       }
       return token;
     },
@@ -130,6 +153,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         if (token.sub) session.user.id = token.sub;
         if (token.role) session.user.role = token.role;
+        if (token.authProvider) session.user.authProvider = token.authProvider;
       }
       return session;
     },

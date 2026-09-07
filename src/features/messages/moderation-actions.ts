@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/features/auth/auth";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { notifyMessageApproved, notifyMessageRejected } from "@/features/notifications/events";
 import { messageRepository } from "./repository";
 import type { Message } from "./types";
@@ -15,12 +15,6 @@ export interface ModerationResult {
   message?: Message;
   /** EPIC 014: the acting admin's own display name/email, resolved server-side from the session — never client-supplied. */
   moderatorName?: string;
-}
-
-async function requireAdmin() {
-  const session = await auth();
-  if (session?.user?.role !== "admin") return null;
-  return session.user;
 }
 
 const MAX_MODERATION_REASON_LENGTH = 1000;

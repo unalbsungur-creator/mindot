@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/features/auth/auth";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getPublicMessageById } from "@/features/board/repository";
 import { getActiveFrameTemplates } from "./config/frameTemplates";
 import { manualDigitalPurchaseProvider } from "./providers/manualProvider";
@@ -124,12 +125,6 @@ export async function createPhysicalOrder(memoryProjectId: string): Promise<Memo
 
   const order = await physicalOrderRepository.create(memoryProjectId, owner.userId);
   return { ok: true, data: order };
-}
-
-async function requireAdmin() {
-  const session = await auth();
-  if (session?.user?.role !== "admin") return null;
-  return session.user;
 }
 
 /**

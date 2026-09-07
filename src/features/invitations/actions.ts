@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/features/auth/auth";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getEmailService } from "@/features/email/service";
 import { getAppUrl } from "@/lib/env";
 import { inviteEmailContent } from "./emailTemplate";
@@ -23,11 +23,6 @@ export interface InvitationActionResult {
   invitation?: Invitation;
 }
 
-async function requireAdmin() {
-  const session = await auth();
-  if (session?.user?.role !== "admin") return null;
-  return session.user;
-}
 
 export async function createInvitation(input: CreateInvitationInput): Promise<InvitationActionResult> {
   const admin = await requireAdmin();

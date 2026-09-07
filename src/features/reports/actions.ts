@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/features/auth/auth";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getPublicMessageById } from "@/features/board/repository";
 import { messageRepository } from "@/features/messages/repository";
 import { notifyReportDismissed, notifyReportResolved } from "@/features/notifications/events";
@@ -103,12 +104,6 @@ export type ReportReviewError = "unauthorized" | "not-found" | "already-reviewed
 export interface ReportReviewResult {
   ok: boolean;
   error?: ReportReviewError;
-}
-
-async function requireAdmin() {
-  const session = await auth();
-  if (session?.user?.role !== "admin") return null;
-  return session.user;
 }
 
 /** Same shape as approveMessage/rejectMessage in features/messages/moderation-actions.ts: re-verify admin on every call, independent of the page-level gate. */
