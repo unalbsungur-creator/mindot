@@ -110,6 +110,30 @@ export const users = pgTable("users", {
   statusReason: text("status_reason"),
   statusChangedAt: timestamp("status_changed_at", { withTimezone: true }),
   statusChangedBy: text("status_changed_by").references((): AnyPgColumn => users.id),
+  // EPIC 030: Dedicated Admin Username/Password Authentication. Additive,
+  // all-nullable-or-defaulted columns so every existing Google-authenticated
+  // row is completely unaffected (they never get a username/passwordHash —
+  // Credentials sign-in is exclusively for the one admin account that needs
+  // to reach /admin independently of Google OAuth being reachable). Deliberately
+  // on this same table, not a new one: this is still the one `role === "admin"`
+  // RBAC model everything else already checks, just a second way to prove
+  // identity for it — see "Public identifier strategy"-style reasoning above.
+  // Never exposed through `User`/`toUser()` (features/users/repository.ts) —
+  // only a narrow, dedicated `getCredentialsByUsername` read touches these,
+  // so a password hash can never leak into `/admin/users`' listing or any
+  // other place a plain `User` object already flows to a client.
+  username: text("username").unique(),
+  // scrypt hash, self-describing as "scrypt:<saltHex>:<hashHex>" — see
+  // features/users/lib/password.ts. Null for every Google-only account.
+  passwordHash: text("password_hash"),
+  // Login-attempt throttling for the one credentials-capable account —
+  // DB-persisted (not in-memory) so it survives serverless/multi-instance
+  // deployment and a server restart, unlike a plain in-process counter.
+  // Reset to 0/null on a successful credentials sign-in; incremented on
+  // each failed one; `lockedUntil` is set only once the threshold is hit —
+  // see recordFailedLogin()/recordSuccessfulLogin().
+  failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

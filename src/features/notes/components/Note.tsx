@@ -474,7 +474,43 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
         // controls — which is why only one of three visually-identical
         // buttons was ever reachable. Desktop's mouse hover/focus reveal is
         // untouched by this addition.
-        <div className="absolute top-2 right-2 flex gap-1">
+        //
+        // BUG FIX (EPIC 028): visibility alone (above) turned out not to be
+        // the whole story — live testing (Chrome touch-pointer simulation,
+        // and geometry inspection of the real rendered card) shows these
+        // three 28px buttons sit only 4px apart, with the *last* one
+        // ("Bildir"/report) flush against the card's own right edge (its
+        // box ends ~8px from the card boundary). Apple/Google's touch
+        // target guidance is ~44px; at 28px with a finger's much larger
+        // contact area, a tap that lands even slightly past a button's
+        // true box — most likely for report, which has the least margin
+        // before falling off the card entirely onto InfiniteBoard's own
+        // pan surface — misses the link/button and is read as the start of
+        // a board drag instead of a tap, while save (leftmost, most
+        // interior to the card) has the most slack and so "wins" most
+        // often. `pointer-coarse:h-9 pointer-coarse:w-9`/`gap-1.5` below
+        // enlarge the tappable box and its spacing on a touchscreen only
+        // (mouse/desktop keeps the original 28px/4px sizing) — the icon
+        // glyph itself is unchanged, so desktop's quiet visual weight is
+        // untouched; only the touch hit-area grows.
+        //
+        // BUG FIX (EPIC 029): the real defect wasn't visibility or sizing —
+        // an unrevealed button (`opacity-0`) still defaulted to
+        // `pointer-events: auto`, and its box measurably overlaps the
+        // note's own paragraph (confirmed via getBoundingClientRect() on a
+        // live card: ~85×25px of real overlap, since a short note's text
+        // naturally sits near this same top-right corner). Painted after
+        // the text in DOM order, that invisible box silently won every
+        // click in the overlap region — tapping what looked like plain
+        // card text actually hit save (leftmost, closest to the text)
+        // underneath. `pointer-events-none` below makes an unrevealed
+        // button transparent to clicks (falling through to the text/
+        // background exactly as a user would expect), and each
+        // `*:pointer-events-auto` re-enables it in lockstep with the exact
+        // same condition that already restores its opacity — mouse hover,
+        // keyboard focus, or a touchscreen — so nothing that could already
+        // reveal an action loses the ability to click it.
+        <div className="absolute top-2 right-2 flex gap-1 pointer-coarse:gap-1.5">
           {actions.map((action) => (
             <div key={action.href ?? action.label} className="group/action relative">
               {action.onClick ? (
@@ -487,7 +523,7 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
                   // pan-gesture handling on "world" notes before the click
                   // ever registers (confirmed by real testing, not assumed).
                   onPointerDown={(event) => event.stopPropagation()}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 pointer-events-none shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:pointer-events-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:h-9 pointer-coarse:w-9"
                 >
                   {actionIcons[action.icon]}
                 </button>
@@ -500,7 +536,7 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
                   // pan-gesture handling on "world" notes before navigation
                   // fires (confirmed by real testing, not assumed).
                   onPointerDown={(event) => event.stopPropagation()}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 pointer-events-none shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:pointer-events-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:h-9 pointer-coarse:w-9"
                 >
                   {actionIcons[action.icon]}
                 </Link>

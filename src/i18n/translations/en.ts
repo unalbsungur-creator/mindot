@@ -104,6 +104,18 @@ export const en: Dictionary = {
     revokedTitle: "This invitation was revoked",
     revokedBody: "Whoever sent this link has cancelled it.",
   },
+  adminLogin: {
+    title: "Admin sign-in",
+    subtitle: "For the MINDOT admin account only — everyone else should continue with Google.",
+    usernameLabel: "Username",
+    usernamePlaceholder: "admin",
+    passwordLabel: "Password",
+    passwordPlaceholder: "••••••••",
+    signInButton: "Sign in",
+    signingIn: "Signing in…",
+    invalidCredentials: "Incorrect username or password.",
+    errorGeneric: "Something went wrong. Please try again.",
+  },
   moderation: {
     title: "Moderation queue",
     subtitle: "Review submitted thoughts before they join the wall.",

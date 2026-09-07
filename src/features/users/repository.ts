@@ -1,10 +1,17 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
 import { generatePublicId } from "./lib/identifiers";
-import type { GoogleProfile, User, UserRole } from "./types";
+import type { CredentialsUser, GoogleProfile, User, UserRole } from "./types";
 
 const MAX_GENERATION_ATTEMPTS = 5;
+
+// EPIC 030: after this many consecutive failed credentials sign-ins, the
+// account is locked out for LOCKOUT_MINUTES — DB-persisted (see schema.ts's
+// failedLoginAttempts/lockedUntil doc comment) so it survives a restart or
+// a different serverless instance handling the next request.
+const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 15;
 
 export interface UserRepository {
   getById(id: string): Promise<User | null>;
@@ -43,6 +50,21 @@ export interface UserRepository {
   suspend(userId: string, adminId: string, reason: string | null): Promise<User | null>;
   /** The inverse — atomic conditional `UPDATE ... WHERE status = 'suspended'`. Clears `statusReason` to null; see the schema doc comment for why. */
   unsuspend(userId: string, adminId: string): Promise<User | null>;
+  /**
+   * EPIC 030: the *only* read that ever touches `passwordHash` — a narrow,
+   * dedicated shape (never the shared `User` type) so a password hash can
+   * never flow into `/admin/users`' listing or anywhere else a plain `User`
+   * already reaches a client. Used exclusively by the Credentials
+   * provider's `authorize()` in features/auth/auth.ts. Returns `null` for
+   * an unknown username or a row with no `passwordHash` set (a Google-only
+   * account can never sign in this way, even if a username were somehow
+   * present).
+   */
+  getCredentialsByUsername(username: string): Promise<CredentialsUser | null>;
+  /** Increments the failed-attempt counter and, once MAX_FAILED_LOGIN_ATTEMPTS is reached, sets `lockedUntil` LOCKOUT_MINUTES ahead — see schema.ts. */
+  recordFailedLogin(userId: string): Promise<void>;
+  /** Resets the failed-attempt counter/lockout on a successful credentials sign-in. */
+  recordSuccessfulLogin(userId: string): Promise<void>;
 }
 
 /**
@@ -203,6 +225,45 @@ class DrizzleUserRepository implements UserRepository {
       .where(and(eq(users.id, userId), eq(users.status, "suspended")))
       .returning();
     return row ? toUser(row) : null;
+  }
+
+  async getCredentialsByUsername(username: string): Promise<CredentialsUser | null> {
+    const db = getDb();
+    const [row] = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    if (!row || !row.passwordHash) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      role: row.role,
+      status: row.status,
+      passwordHash: row.passwordHash,
+      failedLoginAttempts: row.failedLoginAttempts,
+      lockedUntil: row.lockedUntil,
+    };
+  }
+
+  async recordFailedLogin(userId: string): Promise<void> {
+    const db = getDb();
+    const now = new Date();
+    const [row] = await db
+      .update(users)
+      .set({ failedLoginAttempts: sql`${users.failedLoginAttempts} + 1`, updatedAt: now })
+      .where(eq(users.id, userId))
+      .returning({ failedLoginAttempts: users.failedLoginAttempts });
+    if (row && row.failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+      await db
+        .update(users)
+        .set({ lockedUntil: new Date(now.getTime() + LOCKOUT_MINUTES * 60_000) })
+        .where(eq(users.id, userId));
+    }
+  }
+
+  async recordSuccessfulLogin(userId: string): Promise<void> {
+    const db = getDb();
+    await db
+      .update(users)
+      .set({ failedLoginAttempts: 0, lockedUntil: null, updatedAt: new Date() })
+      .where(eq(users.id, userId));
   }
 }
 

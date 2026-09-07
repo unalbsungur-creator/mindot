@@ -107,6 +107,19 @@ export interface Dictionary {
     revokedTitle: string;
     revokedBody: string;
   };
+  /** EPIC 030: /admin/login — the admin-only, Google-independent sign-in form. Never shown to or used by normal users; `invalidCredentials` is one deliberately generic message covering every rejection reason (wrong password, unknown username, non-admin, suspended, locked out) so the form never hints which one applied. */
+  adminLogin: {
+    title: string;
+    subtitle: string;
+    usernameLabel: string;
+    usernamePlaceholder: string;
+    passwordLabel: string;
+    passwordPlaceholder: string;
+    signInButton: string;
+    signingIn: string;
+    invalidCredentials: string;
+    errorGeneric: string;
+  };
   moderation: {
     title: string;
     subtitle: string;

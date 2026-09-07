@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { cn } from "@/lib/cn";
@@ -62,13 +62,40 @@ export function ShareCardPicker({
   // tick, which state alone can't.
   const busyRef = useRef(false);
 
+  // BUG FIX (EPIC 030): "Görseli paylaş" reproducibly failed with
+  // `NotAllowedError: Must be handling a user gesture to perform a share
+  // request` on every real click — confirmed by instrumenting
+  // navigator.share() directly. Root cause: `await fetchImageAsFile(...)`
+  // below used to run *before* `navigator.share()`, and Chrome revokes a
+  // click's transient user-activation across any awaited async gap (a
+  // network fetch is exactly that gap) — by the time the fetch resolved,
+  // the browser no longer considered the call user-initiated, so it
+  // rejected unconditionally, every time, regardless of network speed.
+  // This effect fetches the file ahead of the click instead, so the click
+  // handler below can hand `navigator.share()` an already-resolved File
+  // with no `await` in front of it, preserving activation.
+  const fileRef = useRef<File | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fileRef.current = null;
+    fetchImageAsFile(imageUrl, `${fileNamePrefix}-${formatId}.png`).then((file) => {
+      if (!cancelled) fileRef.current = file;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [imageUrl, fileNamePrefix, formatId]);
+
   async function handleShareOrDownload() {
     if (busyRef.current) return;
     busyRef.current = true;
     setError(false);
     setIsBusy(true);
     try {
-      const file = await fetchImageAsFile(imageUrl, `${fileNamePrefix}-${formatId}.png`);
+      // Reads the already-prefetched file (no await) whenever it's ready;
+      // only falls back to a fresh, awaited fetch in the rare case a click
+      // lands before the effect above has resolved.
+      const file = fileRef.current ?? (await fetchImageAsFile(imageUrl, `${fileNamePrefix}-${formatId}.png`));
       if (!file) {
         setError(true);
         return;

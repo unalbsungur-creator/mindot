@@ -102,6 +102,18 @@ export const de: Dictionary = {
     revokedTitle: "Diese Einladung wurde widerrufen",
     revokedBody: "Die Person, die diesen Link geschickt hat, hat ihn storniert.",
   },
+  adminLogin: {
+    title: "Admin-Anmeldung",
+    subtitle: "Nur für das MINDOT-Admin-Konto — alle anderen sollten mit Google fortfahren.",
+    usernameLabel: "Benutzername",
+    usernamePlaceholder: "admin",
+    passwordLabel: "Passwort",
+    passwordPlaceholder: "••••••••",
+    signInButton: "Anmelden",
+    signingIn: "Anmeldung läuft…",
+    invalidCredentials: "Ungültiger Benutzername oder ungültiges Passwort.",
+    errorGeneric: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+  },
   moderation: {
     title: "Moderationswarteschlange",
     subtitle: "Eingereichte Gedanken prüfen, bevor sie der Wand beitreten.",

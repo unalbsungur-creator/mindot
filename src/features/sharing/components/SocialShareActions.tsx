@@ -68,6 +68,28 @@ export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix, formatId
     setNativeAvailable(supportsFileShare());
   }, []);
 
+  // BUG FIX (EPIC 030): same root cause and fix as ShareCardPicker's own
+  // fileRef — `await fetchImageAsFile(...)` before `navigator.share()`
+  // reproducibly triggered `NotAllowedError: Must be handling a user
+  // gesture...`, because Chrome revokes a click's transient activation
+  // across any awaited async gap. Prefetching here means the click handler
+  // below can call `navigator.share()` with an already-resolved File, no
+  // `await` in front of it. Keyed on the *resolved* URL (not the `imageUrl`
+  // prop itself, a fresh closure every render) so it also refetches
+  // whenever the caller's underlying capture mode changes, not just format.
+  const resolvedImageUrl = imageUrl();
+  const fileRef = useRef<File | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fileRef.current = null;
+    fetchImageAsFile(resolvedImageUrl, `${fileNamePrefix}-${formatId}.png`).then((file) => {
+      if (!cancelled) fileRef.current = file;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedImageUrl, fileNamePrefix, formatId]);
+
   function openFacebookDialog() {
     const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}`;
     window.open(url, "_blank", "noopener,noreferrer,width=600,height=520");
@@ -85,7 +107,7 @@ export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix, formatId
     setIsBusy(true);
     try {
       if (nativeAvailable) {
-        const file = await fetchImageAsFile(imageUrl(), `${fileNamePrefix}-${formatId}.png`);
+        const file = fileRef.current ?? (await fetchImageAsFile(imageUrl(), `${fileNamePrefix}-${formatId}.png`));
         if (!file) {
           setError(true);
           return;

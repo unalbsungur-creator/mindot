@@ -104,6 +104,18 @@ export const tr: Dictionary = {
     revokedTitle: "Bu davet iptal edildi",
     revokedBody: "Bu bağlantıyı gönderen kişi onu iptal etti.",
   },
+  adminLogin: {
+    title: "Yönetici girişi",
+    subtitle: "Yalnızca MINDOT yönetici hesabı içindir — diğer herkes Google ile devam etmeli.",
+    usernameLabel: "Kullanıcı adı",
+    usernamePlaceholder: "admin",
+    passwordLabel: "Şifre",
+    passwordPlaceholder: "••••••••",
+    signInButton: "Giriş yap",
+    signingIn: "Giriş yapılıyor…",
+    invalidCredentials: "Geçersiz kullanıcı adı veya şifre.",
+    errorGeneric: "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
+  },
   moderation: {
     title: "Moderasyon kuyruğu",
     subtitle: "Duvara katılmadan önce gönderilen düşünceleri incele.",

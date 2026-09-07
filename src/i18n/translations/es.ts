@@ -102,6 +102,18 @@ export const es: Dictionary = {
     revokedTitle: "Esta invitación fue revocada",
     revokedBody: "La persona que envió este enlace lo canceló.",
   },
+  adminLogin: {
+    title: "Acceso de administrador",
+    subtitle: "Solo para la cuenta de administrador de MINDOT — todos los demás deben continuar con Google.",
+    usernameLabel: "Nombre de usuario",
+    usernamePlaceholder: "admin",
+    passwordLabel: "Contraseña",
+    passwordPlaceholder: "••••••••",
+    signInButton: "Iniciar sesión",
+    signingIn: "Iniciando sesión…",
+    invalidCredentials: "Nombre de usuario o contraseña incorrectos.",
+    errorGeneric: "Algo salió mal. Inténtalo de nuevo.",
+  },
   moderation: {
     title: "Cola de moderación",
     subtitle: "Revisa los pensamientos enviados antes de que se unan al muro.",

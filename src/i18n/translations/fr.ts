@@ -102,6 +102,18 @@ export const fr: Dictionary = {
     revokedTitle: "Cette invitation a été révoquée",
     revokedBody: "La personne qui a envoyé ce lien l'a annulé.",
   },
+  adminLogin: {
+    title: "Connexion administrateur",
+    subtitle: "Réservé au compte administrateur de MINDOT — tous les autres doivent continuer avec Google.",
+    usernameLabel: "Nom d'utilisateur",
+    usernamePlaceholder: "admin",
+    passwordLabel: "Mot de passe",
+    passwordPlaceholder: "••••••••",
+    signInButton: "Se connecter",
+    signingIn: "Connexion en cours…",
+    invalidCredentials: "Nom d'utilisateur ou mot de passe incorrect.",
+    errorGeneric: "Une erreur s'est produite. Veuillez réessayer.",
+  },
   moderation: {
     title: "File de modération",
     subtitle: "Vérifiez les pensées soumises avant qu'elles ne rejoignent le mur.",
