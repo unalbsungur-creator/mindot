@@ -57,6 +57,19 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
   // not a new persistence system.
   const isFirstPersistRunRef = useRef(true);
 
+  // EPIC 033: on a real (especially LAN/mobile) device, a fast typist can
+  // get a keystroke's onChange in before the mount-only restore effect
+  // below has actually run (effect flush is async; it's not guaranteed to
+  // win a race against a real DOM event). Every field setter marks this
+  // ref synchronously, so by the time restore runs, it can reliably tell
+  // "user already touched the form" from "nothing has happened yet" and
+  // skip clobbering real input with a stale draft — confirmed as a real
+  // race, not hypothetical.
+  const userEditedRef = useRef(false);
+  function markEdited() {
+    userEditedRef.current = true;
+  }
+
   useEffect(() => {
     // Deliberately an effect, not a `useState(() => consumeWriteDraft(...))`
     // lazy initializer (react-hooks/set-state-in-effect would normally
@@ -70,7 +83,10 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
     // for whichever writer is actually returning from a Google redirect.
     const draft = consumeWriteDraft(invitationToken);
     if (!draft) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // The writer already started typing before this restore could run —
+    // never overwrite real input with a stale draft. Still consumed above
+    // so the stale entry doesn't linger in storage.
+    if (userEditedRef.current) return;
     setContent(draft.content);
     setTemplateId(draft.templateId);
     setIsAnonymous(draft.isAnonymous);
@@ -204,7 +220,10 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
           <textarea
             id="content"
             value={content}
-            onChange={(event) => setContent(event.target.value)}
+            onChange={(event) => {
+              markEdited();
+              setContent(event.target.value);
+            }}
             placeholder={dictionary.write.contentPlaceholder}
             rows={5}
             className="w-full rounded-md border border-border bg-surface p-4 text-base leading-relaxed text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
@@ -223,7 +242,10 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
           <span className="text-sm font-medium text-navy">{dictionary.write.templateLabel}</span>
           <TemplatePicker
             value={templateId}
-            onChange={setTemplateId}
+            onChange={(id) => {
+              markEdited();
+              setTemplateId(id);
+            }}
             label={dictionary.write.templateLabel}
             standardLabel={dictionary.write.templateStandardLabel}
             occasionLabel={dictionary.write.templateOccasionLabel}
@@ -235,13 +257,19 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
           <div role="radiogroup" aria-label={dictionary.write.identityHeading} className="grid gap-3 sm:grid-cols-2">
             <IdentityOption
               selected={isAnonymous}
-              onSelect={() => setIsAnonymous(true)}
+              onSelect={() => {
+                markEdited();
+                setIsAnonymous(true);
+              }}
               title={dictionary.write.anonymousLabel}
               hint={dictionary.write.identityAnonymousHint}
             />
             <IdentityOption
               selected={!isAnonymous}
-              onSelect={() => setIsAnonymous(false)}
+              onSelect={() => {
+                markEdited();
+                setIsAnonymous(false);
+              }}
               title={dictionary.write.identityNamedLabel}
               hint={dictionary.write.identityNamedHint}
             />
@@ -256,7 +284,10 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
                 id="displayName"
                 type="text"
                 value={displayName}
-                onChange={(event) => setDisplayName(event.target.value)}
+                onChange={(event) => {
+                  markEdited();
+                  setDisplayName(event.target.value);
+                }}
                 placeholder={dictionary.write.namePlaceholder}
                 // BUG FIX (EPIC 026): text-sm (14px) is below the 16px
                 // threshold Mobile Safari uses to auto-zoom the page on
@@ -275,7 +306,10 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
           <select
             id="language"
             value={language}
-            onChange={(event) => setLanguage(event.target.value as Locale)}
+            onChange={(event) => {
+              markEdited();
+              setLanguage(event.target.value as Locale);
+            }}
             // BUG FIX (EPIC 026): same Mobile Safari auto-zoom issue as
             // #displayName above — this is the publication-language select
             // specifically (independent of the header's interface-language
@@ -307,7 +341,10 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
               id="content-consent"
               type="checkbox"
               checked={consentChecked}
-              onChange={(event) => setConsentChecked(event.target.checked)}
+              onChange={(event) => {
+                markEdited();
+                setConsentChecked(event.target.checked);
+              }}
               required
               className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-border accent-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
             />
