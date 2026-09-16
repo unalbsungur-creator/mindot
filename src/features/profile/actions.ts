@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/features/auth/auth";
 import { messageRepository } from "@/features/messages/repository";
+import { MESSAGE_MAX_LENGTH } from "@/features/messages/types";
 import { userRepository } from "@/features/users/repository";
 
-export type ProfileActionError = "auth-required" | "forbidden";
+export type ProfileActionError = "auth-required" | "forbidden" | "empty-content" | "too-long";
 
 export interface ProfileActionResult<T = undefined> {
   ok: boolean;
@@ -60,5 +61,31 @@ export async function setMessageWallVisibility(messageId: string, show: boolean)
 
   revalidatePath("/me/archive");
   revalidatePath("/me");
+  return { ok: true };
+}
+
+/**
+ * EPIC: Published Note Edit + Re-approval — proposes a content change to
+ * one of the caller's own already-published messages. Never touches the
+ * live, public `content` — see `messageRepository.submitRevision`'s own
+ * comment for the atomic ownership/eligibility boundary this stands on
+ * (author + approved + no revision already pending, all in one WHERE
+ * clause). `empty-content`/`too-long` mirror `submitMessage`'s own
+ * validation exactly (same trim + Unicode-aware length check against the
+ * same `MESSAGE_MAX_LENGTH`), so an edited note is held to the identical
+ * bar a brand-new one already is.
+ */
+export async function submitMessageRevision(messageId: string, content: string): Promise<ProfileActionResult> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: "auth-required" };
+
+  const trimmed = content.trim();
+  if (!trimmed) return { ok: false, error: "empty-content" };
+  if ([...trimmed].length > MESSAGE_MAX_LENGTH) return { ok: false, error: "too-long" };
+
+  const updated = await messageRepository.submitRevision(messageId, session.user.id, trimmed);
+  if (!updated) return { ok: false, error: "forbidden" };
+
+  revalidatePath("/me/archive");
   return { ok: true };
 }

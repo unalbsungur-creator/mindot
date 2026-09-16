@@ -240,12 +240,13 @@ async function main() {
     },
   ];
 
-  // Sequence numbers deliberately span several 36-slot tiles (see
-  // computePlacement) so seeded approvals demonstrate more than one tile.
-  // seq 120 and 121 deliberately land in the *same* tile (120/36 and
-  // 121/36 both floor to tile-index 3) so "surrounding note capture" is
-  // reproducible without hand-picking placement — see the memory project
-  // seeded below, which uses exactly this pair.
+  // Sequence numbers deliberately span several tiles (see computePlacement
+  // and its SLOTS_PER_TILE) so seeded approvals demonstrate more than one
+  // tile. seq 120 and 121 deliberately land in the *same* tile (both floor
+  // to the same tile-index under SLOTS_PER_TILE, whatever its current
+  // value) so "surrounding note capture" is reproducible without
+  // hand-picking placement — see the memory project seeded below, which
+  // uses exactly this pair.
   const approvedSeeds = [
     { seq: 0, content: "A thought pinned here finally gets to exhale.", authorName: "a passerby", isAnonymous: false, showOnPersonalWall: true, language: "en", templateId: "classic-yellow" },
     { seq: 40, content: "Her düşüncenin duvarda bir yeri var.", authorName: "a dreamer", isAnonymous: false, showOnPersonalWall: true, language: "tr", templateId: "torn-kraft" },
@@ -448,9 +449,9 @@ async function main() {
   console.log("");
   console.log("  IMPORTANT: admin@mindot.dev / visitor@mindot.dev are backing data only —");
   console.log("  their ids are not real Google accounts, so you cannot sign in as them.");
-  console.log("  To test as admin, set ADMIN_EMAILS in .env.local to YOUR OWN Google");
-  console.log("  account's email, then sign in with Google — your real account becomes");
-  console.log("  admin on that first sign-in.");
+  console.log("  Google sign-in never grants admin (EPIC 035) — to test as admin, set");
+  console.log("  ADMIN_USERNAME/ADMIN_PASSWORD (and optionally ADMIN_EMAIL) and run");
+  console.log("  `npm run db:create-admin`, then sign in at /admin/login.");
   console.log("");
   console.log(`  Invitations: /invite/${activeInvitation.token} (active) /invite/${expiredInvitation.token} (expired)`);
   console.log(`               /invite/${usedInvitation.token} (used) /invite/${revokedInvitation.token} (revoked)`);

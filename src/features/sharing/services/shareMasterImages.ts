@@ -32,8 +32,7 @@
  *     PNGs on disk are never modified), only in how this renderer reads
  *     and positions the image for compositing.
  */
-import { readFileSync } from "node:fs";
-import path from "node:path";
+import { readPublicAsset } from "./publicAsset";
 
 export interface MasterSafeArea {
   /** Fraction of the *content region's* height (not the raw file's) where the header band ends and the empty hero area begins. */
@@ -132,12 +131,12 @@ function readPngDimensions(buffer: Buffer): { width: number; height: number } {
   return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
 }
 
-/** The master PNG as a `data:` URI plus its real pixel dimensions, or `null` if this format has no master (Print, OG, or any future format not listed above). Read fresh per call — same convention as `loadShareFonts`, no premature caching for a file this small. */
-export function loadShareMasterImage(formatId: string): LoadedMasterImage | null {
+/** The master PNG as a `data:` URI plus its real pixel dimensions, or `null` if this format has no master (Print, OG, or any future format not listed above). Read fresh per call — same convention as `loadShareFonts`, no premature caching for a file this small. Loaded via `readPublicAsset` (HTTP through the Worker's own ASSETS binding in production, `node:fs` locally) rather than a direct filesystem read — see that module's doc comment for why a Cloudflare Worker can't do the latter. */
+export async function loadShareMasterImage(formatId: string): Promise<LoadedMasterImage | null> {
   const filename = MASTER_FILES[formatId];
   if (!filename) return null;
-  const filePath = path.join(process.cwd(), "public/images/share", filename);
-  const buffer = readFileSync(filePath);
+  const arrayBuffer = await readPublicAsset(`/images/share/${filename}`);
+  const buffer = Buffer.from(arrayBuffer);
   const { width, height } = readPngDimensions(buffer);
   return { dataUri: `data:image/png;base64,${buffer.toString("base64")}`, width, height };
 }

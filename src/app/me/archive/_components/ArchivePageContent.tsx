@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { TILE_PX } from "@/features/board/lib/worldGeometry";
 import { getNoteTemplate } from "@/features/notes/config/templates";
 import { Note } from "@/features/notes/components/Note";
-import { setMessageWallVisibility } from "@/features/profile/actions";
+import { templateDisplayName } from "@/features/notes/lib/templateDisplayName";
+import { MESSAGE_MAX_LENGTH } from "@/features/messages/types";
+import { setMessageWallVisibility, submitMessageRevision } from "@/features/profile/actions";
 import { TimeRangeFilter } from "@/features/profile/components/TimeRangeFilter";
 import type { ArchiveMessage } from "@/features/profile/types";
 import { useLocale } from "@/i18n/LocaleProvider";
@@ -97,6 +100,8 @@ export function ArchivePageContent({ isSignedIn, messages: initialMessages, page
           {messages.map((message) => {
             const template = getNoteTemplate(message.templateId);
             const eligibleForWall = message.state === "published" && !message.isAnonymous;
+            const hasPendingRevision = message.pendingContent !== null;
+            const editEligible = message.state === "published" && !hasPendingRevision;
             return (
               <li key={message.id} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 sm:flex-row sm:items-center">
                 <div className="flex justify-center sm:shrink-0">
@@ -108,6 +113,7 @@ export function ArchivePageContent({ isSignedIn, messages: initialMessages, page
                       authorName: "",
                       authorImage: null,
                       templateId: message.templateId,
+                      fontFamily: message.fontFamily,
                       size: "sm",
                       rotation: 0,
                       position: { top: "0%", left: "0%" },
@@ -130,9 +136,17 @@ export function ArchivePageContent({ isSignedIn, messages: initialMessages, page
                     <Badge className="border-border bg-canvas normal-case text-ink-soft">
                       {message.isAnonymous ? dictionary.moderation.anonymousBadge : dictionary.moderation.namedBadge}
                     </Badge>
-                    <span className="text-xs text-ink-soft">{template.name}</span>
+                    {hasPendingRevision && (
+                      <Badge className="border-orange/30 bg-orange-tint/60 normal-case text-orange-ink">
+                        {dictionary.archive.editPendingBadge}
+                      </Badge>
+                    )}
+                    <span className="text-xs text-ink-soft">{templateDisplayName(template, dictionary)}</span>
                   </div>
                   <span className="text-xs text-ink-soft">{new Date(message.createdAt).toLocaleDateString()}</span>
+                  {!hasPendingRevision && message.revisionRejectionReason && (
+                    <p className="text-xs text-ink-soft">{dictionary.archive.editRejectedNotice}</p>
+                  )}
                   <div className="flex flex-wrap items-center gap-3 text-xs font-medium">
                     {message.tile && (
                       <Link href={boardLinkFor(message.tile)} className="text-ink-soft hover:text-navy">
@@ -162,6 +176,21 @@ export function ArchivePageContent({ isSignedIn, messages: initialMessages, page
                         onChange={(next) =>
                           setMessages((current) =>
                             current.map((m) => (m.id === message.id ? { ...m, showOnPersonalWall: next } : m))
+                          )
+                        }
+                      />
+                    )}
+                    {editEligible && (
+                      <EditMessageAction
+                        messageId={message.id}
+                        content={message.content}
+                        onSubmitted={(newContent) =>
+                          setMessages((current) =>
+                            current.map((m) =>
+                              m.id === message.id
+                                ? { ...m, pendingContent: newContent, revisionRejectionReason: null }
+                                : m
+                            )
                           )
                         }
                       />
@@ -227,5 +256,134 @@ function WallVisibilityToggle({
     <button type="button" onClick={handleClick} disabled={isPending} className="text-ink-soft hover:text-navy disabled:opacity-50">
       {showOnPersonalWall ? dictionary.archive.removeFromWallAction : dictionary.archive.addToWallAction}
     </button>
+  );
+}
+
+/**
+ * EPIC: Published Note Edit + Re-approval — a published note's "Düzenle"
+ * entry point. Built on a native `<dialog>` for the same reasons
+ * `ConfirmDialog`/`OnboardingModal` already are (top-layer stacking, focus
+ * trapping, Escape-to-close for free) — a small, dedicated dialog rather
+ * than reusing `ConfirmDialog` itself, since this needs a full pre-filled
+ * textarea, not a reason field. Deliberately does NOT reuse
+ * `WriteThoughtForm` — identity/anonymity/language/consent were fixed at
+ * submission time and stay out of scope for an edit (see submitMessage's
+ * own "anonymity enforced server-side" comment): only the text changes.
+ */
+function EditMessageAction({
+  messageId,
+  content,
+  onSubmitted,
+}: {
+  messageId: string;
+  content: string;
+  onSubmitted: (newContent: string) => void;
+}) {
+  const { dictionary } = useLocale();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const headingId = useId();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(content);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+
+  function openDialog() {
+    setDraft(content);
+    setError(null);
+    setSuccess(false);
+    setOpen(true);
+  }
+
+  function closeDialog() {
+    setOpen(false);
+  }
+
+  function handleSubmit() {
+    setError(null);
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      setError(dictionary.archive.editErrorEmpty);
+      return;
+    }
+    if ([...trimmed].length > MESSAGE_MAX_LENGTH) {
+      setError(dictionary.archive.editErrorTooLong);
+      return;
+    }
+    startTransition(async () => {
+      const result = await submitMessageRevision(messageId, trimmed);
+      if (!result.ok) {
+        setError(dictionary.archive.editErrorGeneric);
+        return;
+      }
+      setSuccess(true);
+      onSubmitted(trimmed);
+    });
+  }
+
+  return (
+    <>
+      <button type="button" onClick={openDialog} className="text-ink-soft hover:text-navy">
+        {dictionary.archive.editAction}
+      </button>
+      <dialog
+        ref={dialogRef}
+        aria-labelledby={headingId}
+        onCancel={(event) => {
+          event.preventDefault();
+          closeDialog();
+        }}
+        onClick={(event) => {
+          if (event.target === dialogRef.current) closeDialog();
+        }}
+        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border border-border bg-surface p-0 shadow-card backdrop:bg-navy/50 backdrop:backdrop-blur-sm"
+      >
+        <div className="flex flex-col gap-4 p-5 sm:p-6">
+          <h2 id={headingId} className="font-display text-lg font-medium text-navy">
+            {dictionary.archive.editDialogTitle}
+          </h2>
+          {success ? (
+            <>
+              <p className="text-sm leading-relaxed text-ink-soft">{dictionary.archive.editSuccessMessage}</p>
+              <div className="flex justify-end pt-1">
+                <Button type="button" size="sm" onClick={closeDialog}>
+                  {dictionary.archive.editCancelAction}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm leading-relaxed text-ink-soft">{dictionary.archive.editExplanation}</p>
+              <textarea
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                rows={4}
+                maxLength={MESSAGE_MAX_LENGTH}
+                className="w-full rounded-md border border-border bg-canvas p-2.5 text-sm text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
+              />
+              <span className="text-right text-xs text-ink-soft">
+                {[...draft].length}/{MESSAGE_MAX_LENGTH}
+              </span>
+              {error && <p className="text-xs text-red-600">{error}</p>}
+              <div className="flex justify-end gap-2 pt-1">
+                <Button type="button" variant="ghost" size="sm" onClick={closeDialog}>
+                  {dictionary.archive.editCancelAction}
+                </Button>
+                <Button type="button" size="sm" onClick={handleSubmit} disabled={isPending}>
+                  {dictionary.archive.editSubmitAction}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </dialog>
+    </>
   );
 }

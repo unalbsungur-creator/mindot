@@ -30,10 +30,13 @@ async function main() {
   const username = (process.env.ADMIN_USERNAME ?? "admin").trim();
   const password = process.env.ADMIN_PASSWORD;
   const displayName = process.env.ADMIN_DISPLAY_NAME ?? "Ünal'ın admin hesabı";
-  // A synthetic, non-routable placeholder — `users.email` is NOT NULL/unique
-  // and this account has no real Google identity to supply one. Never used
-  // for actual delivery (see features/email/) since this account never
-  // signs in with Google and receives no invitation/notification email.
+  // EPIC 036: this is the real /admin/login sign-in identity now, not just
+  // a placeholder filling `users.email`'s NOT NULL/unique constraint — the
+  // Credentials provider's `authorize()` looks the account up by this
+  // value. Still never used for actual delivery (see features/email/):
+  // this account never signs in with Google and receives no
+  // invitation/notification email. Falls back to a synthetic,
+  // non-routable placeholder only if ADMIN_EMAIL is genuinely unset.
   const email = process.env.ADMIN_EMAIL ?? "admin@mindot.local";
 
   if (!password) {
@@ -60,6 +63,7 @@ async function main() {
     await db
       .update(users)
       .set({
+        email,
         username,
         passwordHash,
         name: displayName,
@@ -88,7 +92,7 @@ async function main() {
     console.log(`Created admin credentials for username "${username}".`);
   }
 
-  console.log("Sign in at /admin/login with that username and the password you set in ADMIN_PASSWORD.");
+  console.log(`Sign in at /admin/login with "${email}" and the password you set in ADMIN_PASSWORD.`);
 }
 
 main()

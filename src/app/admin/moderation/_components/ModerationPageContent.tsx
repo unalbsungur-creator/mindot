@@ -11,6 +11,8 @@ interface ModerationPageContentProps {
   approved: Message[];
   archived: Message[];
   rejected: Message[];
+  /** EPIC: Published Note Edit + Re-approval — approved messages carrying a pending content revision (see ModerationQueue). */
+  pendingRevisions: Message[];
   /** EPIC 014: moderatedBy user id -> display name (or email fallback), resolved server-side. */
   moderatorNameById: Record<string, string>;
 }
@@ -21,6 +23,7 @@ export function ModerationPageContent({
   approved,
   archived,
   rejected,
+  pendingRevisions,
   moderatorNameById,
 }: ModerationPageContentProps) {
   const { dictionary } = useLocale();
@@ -54,6 +57,7 @@ export function ModerationPageContent({
         approved={approved}
         archived={archived}
         rejected={rejected}
+        pendingRevisions={pendingRevisions}
         moderatorNameById={moderatorNameById}
       />
     </PageContainer>

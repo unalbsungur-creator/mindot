@@ -8,6 +8,7 @@ export function toShareCardNote(message: BoardTileMessage): ShareCardNote {
   return {
     content: message.content,
     templateId: message.templateId,
+    fontFamily: message.fontFamily,
     authorName: message.author?.displayName ?? null,
     date: formatMemoryDate(message.createdAt),
   };

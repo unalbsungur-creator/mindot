@@ -1,11 +1,12 @@
 import { ImageResponse } from "next/og";
 import { getNoteTemplate } from "@/features/notes/config/templates";
+import type { NoteTextFontFamily } from "@/features/notes/types";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "@/features/memories/services/pdfPalette";
 import type { FrameTemplate } from "@/features/memories/config/frameTemplates";
 import type { ShareFormat } from "../types";
 import { BrandLockup, logoToneFor, MemorySeal, MemoryWatermark } from "./brandMarkSatori";
 import { estimateMemoryCardSize, MemoryNoteCard } from "./noteCardSatori";
-import { BRAND_FONT_FAMILY, loadShareFonts, SHARE_FONT_FAMILY } from "./shareFonts";
+import { BRAND_FONT_FAMILY, loadShareFonts, SHARE_FONT_FAMILY, type LoadedFont } from "./shareFonts";
 import { getMasterContentRegion, getMasterSafeArea, loadShareMasterImage, type LoadedMasterImage, type MasterSafeArea } from "./shareMasterImages";
 
 const SURROUNDING_EXCERPT_CHARS = 70;
@@ -15,6 +16,8 @@ const MAX_SURROUNDING = 6;
 export interface ShareCardNote {
   content: string;
   templateId: string;
+  /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface, threaded through to `MemoryNoteCard` so the generated PNG never disagrees with what `/write`'s preview and `/board` already show for this same message. */
+  fontFamily: NoteTextFontFamily;
   authorName: string | null;
   /** `DD.MM.YYYY`, already formatted by the caller (see shareCardData.ts) — this renderer never touches a raw timestamp/UUID/template id. Optional: omitted entirely (not shown as "unknown") when unavailable. */
   date?: string | null;
@@ -85,20 +88,22 @@ function chunk<T>(items: T[], size: number): T[][] {
  *   the entirely Satori-drawn composition this renderer already had —
  *   unchanged, still the validated design for those cases.
  */
-export function renderShareCard(input: ShareCardInput): ImageResponse {
-  const master = !input.frame ? loadShareMasterImage(input.format.id) : null;
+export async function renderShareCard(input: ShareCardInput): Promise<ImageResponse> {
+  const master = !input.frame ? await loadShareMasterImage(input.format.id) : null;
   const safeArea = master ? getMasterSafeArea(input.format.id) : null;
+  const fonts = await loadShareFonts();
   if (master && safeArea) {
-    return renderWithMasterBackground(input, master, safeArea, getMasterContentRegion(input.format.id));
+    return renderWithMasterBackground(input, master, safeArea, getMasterContentRegion(input.format.id), fonts);
   }
-  return renderFullyDrawnShareCard(input);
+  return renderFullyDrawnShareCard(input, fonts);
 }
 
 function renderWithMasterBackground(
   { primary, surrounding = [], format }: ShareCardInput,
   master: LoadedMasterImage,
   safeArea: MasterSafeArea,
-  contentRegion: { top: number; bottom: number }
+  contentRegion: { top: number; bottom: number },
+  fonts: LoadedFont[]
 ): ImageResponse {
   // Positions the master image so only its `contentRegion` slice (a
   // fraction of the *raw file's* own height) is ever visible, before the
@@ -134,10 +139,10 @@ function renderWithMasterBackground(
   // correct), it's "never claim 100% of the room that exists".
   const availableCardHeight = Math.max(format.width * 0.15, (heroBottom - heroTop - surroundingReserve) * 0.85);
   let cardWidth = format.width * (1 - safeArea.heroInsetX * 2) * 0.86;
-  let cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth);
+  let cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily);
   if (cardSize.height > availableCardHeight) {
     cardWidth *= availableCardHeight / cardSize.height;
-    cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth);
+    cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily);
   }
 
   return new ImageResponse(
@@ -166,7 +171,7 @@ function renderWithMasterBackground(
             gap: sectionGap,
           }}
         >
-          <MemoryNoteCard content={primary.content} authorName={primary.authorName} templateId={primary.templateId} rotation={0} width={cardWidth} />
+          <MemoryNoteCard content={primary.content} authorName={primary.authorName} templateId={primary.templateId} fontFamily={primary.fontFamily} rotation={0} width={cardWidth} />
 
           {rows.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16, width: rowWidth, opacity: 0.82 }}>
@@ -219,7 +224,7 @@ function renderWithMasterBackground(
         )}
       </div>
     ),
-    { width: format.width, height: format.height, fonts: loadShareFonts() }
+    { width: format.width, height: format.height, fonts }
   );
 }
 
@@ -231,7 +236,7 @@ function renderWithMasterBackground(
  * (Print, OG) and for any Memory Project `frame`, whose own palette the
  * master art has no variant for.
  */
-function renderFullyDrawnShareCard({ primary, surrounding = [], format, frame, slogan }: ShareCardInput): ImageResponse {
+function renderFullyDrawnShareCard({ primary, surrounding = [], format, frame, slogan }: ShareCardInput, fonts: LoadedFont[]): ImageResponse {
   const backgroundColor = frame?.background ?? PDF_COLORS.canvas;
   const inkColor = frame?.ink ?? PDF_COLORS.ink;
   const logoTone = frame ? logoToneFor(frame.background) : "brand";
@@ -277,10 +282,10 @@ function renderFullyDrawnShareCard({ primary, surrounding = [], format, frame, s
     format.height - outerPadding * 2 - headerHeight - footerHeight - sectionGap * 2 - surroundingReserve
   );
   let cardWidth = format.width * 0.62;
-  let cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth);
+  let cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily);
   if (cardSize.height > availableCardHeight) {
     cardWidth *= availableCardHeight / cardSize.height;
-    cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth);
+    cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily);
   }
 
   return new ImageResponse(
@@ -311,6 +316,7 @@ function renderFullyDrawnShareCard({ primary, surrounding = [], format, frame, s
             content={primary.content}
             authorName={primary.authorName}
             templateId={primary.templateId}
+            fontFamily={primary.fontFamily}
             rotation={0}
             width={cardWidth}
           />
@@ -371,7 +377,7 @@ function renderFullyDrawnShareCard({ primary, surrounding = [], format, frame, s
     {
       width: format.width,
       height: format.height,
-      fonts: loadShareFonts(),
+      fonts,
     }
   );
 }
@@ -408,11 +414,12 @@ export interface WallShareCardInput {
  * curating `notes` down to a small, deterministic set (see
  * features/profile/lib/curateWallSelection.ts) before this ever runs.
  */
-export function renderWallShareCard({ displayName, notes, format, slogan }: WallShareCardInput): ImageResponse {
+export async function renderWallShareCard({ displayName, notes, format, slogan }: WallShareCardInput): Promise<ImageResponse> {
   const outerPadding = format.width * 0.07;
   const rows = chunk(notes.slice(0, WALL_MAX_NOTES), WALL_NOTES_PER_ROW);
   const rowWidth = format.width - outerPadding * 2;
   const cardWidth = (rowWidth - (WALL_NOTES_PER_ROW - 1) * 20) / WALL_NOTES_PER_ROW;
+  const fonts = await loadShareFonts();
 
   return new ImageResponse(
     (
@@ -463,7 +470,7 @@ export function renderWallShareCard({ displayName, notes, format, slogan }: Wall
     {
       width: format.width,
       height: format.height,
-      fonts: loadShareFonts(),
+      fonts,
     }
   );
 }

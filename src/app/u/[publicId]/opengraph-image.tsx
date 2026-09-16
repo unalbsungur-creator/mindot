@@ -25,12 +25,12 @@ export default async function Image({ params }: { params: Promise<{ publicId: st
   const wall = await getPublicWall(publicId);
 
   if (wall.status !== "ok" || wall.notes.length === 0) {
-    return renderBrandOgImage(getDictionary("en").boardPage.slogan);
+    return await renderBrandOgImage(getDictionary("en").boardPage.slogan);
   }
 
   const curated = curateWallSelection(wall.notes, 4);
 
-  return renderWallShareCard({
+  return await renderWallShareCard({
     displayName: wall.profile.displayName,
     notes: curated.map((note) => ({ content: note.content, templateId: note.templateId })),
     format: { id: "og", name: "OG", width: OG_IMAGE_SIZE.width, height: OG_IMAGE_SIZE.height },

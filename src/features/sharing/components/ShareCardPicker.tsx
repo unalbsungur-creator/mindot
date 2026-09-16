@@ -131,7 +131,7 @@ export function ShareCardPicker({
                 : "border-border text-ink-soft hover:text-navy"
             )}
           >
-            {format.name}
+            {dictionary.share.formatNames[format.id] ?? format.name}
           </button>
         ))}
       </div>

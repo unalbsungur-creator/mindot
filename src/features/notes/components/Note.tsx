@@ -2,6 +2,8 @@ import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { getNoteTemplate } from "../config/templates";
+import { footballBallBackground } from "../lib/sportsBall";
+import { noteFontFamilyClass, noteTextScaleClass } from "../lib/textScale";
 import type { NoteData, NoteDecoration } from "../types";
 
 const paperClasses: Record<string, string> = {
@@ -64,6 +66,10 @@ const shapeClasses: Record<string, string> = {
   ribbon:
     // Both top corners notched inward — a banner/gift-tag top edge.
     "rounded-sm [clip-path:polygon(0_14px,14px_0,calc(100%-14px)_0,100%_14px,100%_100%,0_100%)]",
+  // EPIC 039: not actually read (the football branch below bypasses
+  // paperClasses/shapeClasses entirely for its own two-tone background) —
+  // kept for registry completeness/documentation only.
+  football: "rounded-full",
 };
 
 /**
@@ -246,20 +252,66 @@ interface NoteProps {
     label: string;
     likedLabel: string;
   };
+  /**
+   * EPIC 040: Mobile Note Card Actions: Tap-to-Reveal. `true` when this is
+   * the one card whose `actions` (save/share/report) should be visible on
+   * a touchscreen — driven entirely by the parent (`InfiniteBoard`'s
+   * `activeNoteId`), never local state, so only one note board-wide can
+   * ever be active at once. Only affects the `pointer-coarse:` (touch)
+   * reveal below; desktop's mouse hover/keyboard-focus reveal is
+   * completely independent of this prop and unconditionally unchanged —
+   * see the `actions.length > 0` block's className for exactly where.
+   * Unused (and harmless if omitted) by every non-board caller, since none
+   * of them ever pass `actions` in the first place.
+   */
+  active?: boolean;
+  /**
+   * EPIC 040: called when the card itself (not one of its action buttons,
+   * which have their own `onClick`) is tapped/clicked — the parent sets
+   * its `activeNoteId` to this note's id in response. Deliberately a plain
+   * `onClick` with no `onPointerDown`/`stopPropagation` of its own (unlike
+   * the action/like buttons below): a genuine tap fires the browser's
+   * native `click` after pointerup with negligible movement regardless,
+   * and — critically — a drag gesture that happens to *start* on a note
+   * must keep reaching `InfiniteBoard`'s own pan handling on `pointerdown`
+   * completely untouched, or panning-from-a-card would break (confirmed
+   * real requirement — EPIC 040 QA's Senaryo E).
+   */
+  onActivate?: () => void;
 }
 
-export function Note({ note, variant = "board", actions = [], like }: NoteProps) {
+export function Note({ note, variant = "board", actions = [], like, active = false, onActivate }: NoteProps) {
   const template = getNoteTemplate(note.templateId);
   const isHeart = template.shape === "heart";
+  const isFootball = template.shape === "football";
   // `note.id` is already unique per rendered note (real message id, or a
   // stable "template-preview-<id>"/"preview" id for picker/write-flow
   // previews) — reused as the clip-path id's uniqueness source rather than
   // introducing a new prop, so many heart notes can render on one page
   // (e.g. TemplatePicker's grid) without colliding SVG ids.
   const heartClipId = isHeart ? `note-heart-${note.id}` : undefined;
+  // EPIC — Kart Yazı Tipi Seçenekleri: the writer's own font choice —
+  // independent of `template.font` (a property of the template's paper
+  // design, no longer consulted for the note's own text rendering; see
+  // lib/textScale.ts's module doc comment). Defaults "modern" for any
+  // `NoteData` built before this field existed.
+  const fontFamily = note.fontFamily ?? "modern";
+  const fontFamilyClass = noteFontFamilyClass(fontFamily);
+  // EPIC 045: card geometry (width, and heart/football's fixed
+  // aspect-ratio height) never changes with content — only this tier does,
+  // so long text (up to MESSAGE_MAX_LENGTH) stays inside the same fixed
+  // box instead of deforming or overflowing it. See lib/textScale.ts.
+  const textScaleClass = noteTextScaleClass(note.content.length, fontFamily, isFootball ? "football" : "standard");
 
   return (
     <article
+      // EPIC 040: presence-only marker `InfiniteBoard`'s own "tapped empty
+      // board space" handler uses (`event.target.closest('[data-note-card]')`)
+      // to tell "this click landed on/inside a note" from "this click hit
+      // the bare canvas" — inert everywhere else (write-flow preview,
+      // personal wall, hero notes never read it).
+      data-note-card=""
+      onClick={onActivate}
       className={cn(
         "group flex shrink-0 flex-col",
         // BUG FIX: DUVAR Post-it Rendering Fix. `variant === "world"` needs
@@ -285,6 +337,19 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
         // exactly one of "relative"/"absolute" is chosen up front.
         variant === "world" ? "absolute" : "relative",
         isHeart && "aspect-[4/5]",
+        // EPIC 046: `aspect-square` alone is only a *preferred* size — a
+        // browser's automatic-minimum-size rule still lets the box grow
+        // taller than square when content's own intrinsic height exceeds
+        // it (confirmed via real getBoundingClientRect() measurement: a
+        // 150-char message rendered 182×188px, not 182×182px, silently
+        // turning the ball into a capsule). `overflow-hidden` removes that
+        // automatic minimum (per the CSS box-sizing spec, it only applies
+        // when overflow is `visible`), making the circle geometry a hard
+        // constraint instead of a hint — never a text-truncation risk in
+        // practice, since the football branch's own font tiers (see
+        // lib/textScale.ts) are sized to keep MESSAGE_MAX_LENGTH content
+        // within this exact box.
+        isFootball && "aspect-square overflow-hidden",
         variant === "board" &&
           "sm:absolute sm:top-[var(--note-top)] sm:left-[var(--note-left)] sm:rotate-[var(--note-rotate)]",
         variant === "static" && "rotate-[var(--note-rotate)]",
@@ -293,7 +358,29 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
         "transition-transform duration-[var(--motion-base)] ease-[var(--ease-standard)]",
         "hover:-translate-y-1 hover:z-[var(--z-note-hover)]",
         variant === "board" && "sm:hover:rotate-0",
-        sizeClasses[note.size]
+        // EPIC 042: on a narrow phone viewport, `variant="world"`'s normally
+        // fixed CSS pixel width (the board is a zoom=1-at-default canvas —
+        // see worldGeometry.ts's DEFAULT_ZOOM — where 1 world unit is 1 CSS
+        // pixel, so a note's rendered size never itself scales with camera
+        // zoom the way, say, a map marker's *label* often would) eats a much
+        // bigger share of the screen than it does on desktop, reading as
+        // cards crowding each other even though their actual world-space
+        // jitter positions (server-computed at approval time — see
+        // placement.ts) haven't changed at all. Real-browser testing this
+        // EPIC confirmed Tailwind's `max-sm:` variant family doesn't
+        // compile in this project at all (not present anywhere in the
+        // built stylesheet, in any form) — mobile-first `"w-36 sm:w-44"`
+        // (world only) achieves the identical visual result using only the
+        // plain `sm:` (min-width) variant already proven throughout this
+        // codebase: the "sm" width below 640px, growing to the original
+        // "md" width at 640px and up. `tileToNoteData` (InfiniteBoard.tsx)
+        // only ever sets `size: "md"` for world notes today, so hardcoding
+        // both tokens here (rather than deriving from `sizeClasses`) is a
+        // direct, easily-audited match, not a guess. Every other variant
+        // ("board"/"static") is untouched — still exactly
+        // `sizeClasses[note.size]` at every viewport, byte-identical to
+        // before this EPIC.
+        variant === "world" ? "w-36 sm:w-44" : sizeClasses[note.size]
       )}
       style={
         {
@@ -347,11 +434,41 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
         className={cn(
           "relative flex flex-1 flex-col gap-3",
           "shadow-note group-hover:shadow-note-hover",
-          isHeart ? "justify-center px-7 pb-10 pt-7" : "p-4",
-          paperClasses[template.paper],
-          !isHeart && shapeClasses[template.shape]
+          isHeart && "justify-center px-7 pb-10 pt-7",
+          // EPIC 047: `overflow-hidden`+`min-h-0` here (not just on the
+          // outer `<article>`/inner cream disc) is load-bearing, not
+          // decorative — confirmed by a real rendering defect this fixes.
+          // This wrapper is a `flex-1` flex item inside the article's fixed-
+          // height (`aspect-square`) flex column; by the CSS flexbox spec, a
+          // flex item's *automatic* minimum size defaults to its content's
+          // min-content size (not 0) unless the item's own `overflow` is
+          // non-`visible`. Without that, the inner disc's `h-[82%]` had
+          // nothing definite to resolve against whenever its own text
+          // content's natural (unclamped) height exceeded 176px — the
+          // percentage silently fell back to "auto," letting the disc grow
+          // to the text's real height with no 144px ceiling at all. Real
+          // rendering confirmed the result: a `rounded-full` element far
+          // taller than it is wide renders as a pill, then gets clipped by
+          // the article's own `overflow-hidden` partway down — a dome/arch
+          // shape instead of a circle, with the message's own text visibly
+          // cut off mid-sentence. `overflow-hidden` makes this wrapper's
+          // automatic minimum size 0 per spec, so `flex-1` can actually
+          // shrink it to the article's real 176px, which makes the disc's
+          // `h-[82%]` resolve against a definite height again — restoring
+          // the fixed, content-independent circle every other safeguard
+          // here already assumes.
+          isFootball && "items-center justify-center overflow-hidden rounded-full p-0",
+          !isHeart && !isFootball && "p-4",
+          !isFootball && paperClasses[template.paper],
+          !isHeart && !isFootball && shapeClasses[template.shape]
         )}
-        style={heartClipId ? { clipPath: `url(#${heartClipId})` } : undefined}
+        style={
+          heartClipId
+            ? { clipPath: `url(#${heartClipId})` }
+            : isFootball
+              ? footballBallBackground(template.primaryColor!, template.secondaryColor!, template.accentColor)
+              : undefined
+        }
       >
         {template.shape === "polaroid" && (
           <span aria-hidden="true" className="-mx-4 -mt-4 mb-1 block h-24 bg-navy/10" />
@@ -362,28 +479,95 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
             className="absolute right-0 top-0 h-5 w-5 bg-surface [clip-path:polygon(100%_0,0_0,100%_100%)]"
           />
         )}
-        <p
-          lang={note.language}
-          className={cn(
-            // BUG FIX (same audit as the clip-path fix above): a single
-            // word longer than the card's own width — a long German
-            // compound, a URL, anything with no natural break point —
-            // doesn't wrap under the browser's default `overflow-wrap:
-            // normal`; it overflows the box instead, and since this
-            // element sits inside the shape's own clip-path, that overflow
-            // was silently cut off rather than visibly spilling out
-            // (confirmed: "Verantwortungsbewusstsein" lost its own tail on
-            // a real clip-path template). `break-words` lets a genuinely
-            // unbreakable word wrap mid-word as a last resort, matching
-            // the PDF renderer's own guaranteed-fit text handling
-            // (pdfTextMeasure.ts) — never truncated/hidden, always visible.
-            "break-words text-[0.95rem] leading-snug text-ink",
-            template.font === "hand" && "font-hand text-lg leading-tight"
-          )}
-        >
-          {note.content}
-        </p>
-        <span className="break-words text-xs text-ink-soft">— {note.authorName}</span>
+        {isFootball ? (
+          // EPIC 039: the ball's colored surface (set via `style` above)
+          // stays behind this smaller, always-light inset disc — real note
+          // text needs to stay legible regardless of which two colors a
+          // writer's chosen ball uses (a black+navy ball, say, would make
+          // the standard dark `text-ink` unreadable directly on it).
+          // EPIC 046: 82% (was 70%) — more usable text area inside a still
+          // content-independent, fixed proportion (never derived from
+          // content length), while the remaining ~18% ring keeps the
+          // colored ball bands clearly visible. `overflow-hidden` is the
+          // same hard geometry guarantee as the outer article above,
+          // one level deeper: without it, this disc's own `h-[]/w-[]`
+          // percentage is only a preferred size too, and real
+          // measurement (150-char content) showed it silently growing
+          // ~8px taller than its own declared height, letting text spill
+          // onto the colored ball outside the cream circle.
+          //
+          // EPIC 047: the disc itself (82%) is untouched — only its inner
+          // safe area changed. A flat `px-3.5 py-2.5` (14px/10px) let a
+          // wrapped paragraph's own rectangular box reach ~80% of the
+          // disc's diameter — comfortably past the ~70.7% a rectangle can
+          // occupy before its own corners cross a circle's curved edge, so
+          // multi-line text visibly crowded the cream circle's boundary
+          // near its top/bottom rows. `p-[18%]` is a *percentage* padding —
+          // per the CSS spec, `padding` percentages always resolve against
+          // the containing block's *width*, on every side, so on this
+          // square (`w`==`h`) disc it insets top/bottom by the same amount
+          // as left/right — leaving a concentric ~64%-of-diameter content
+          // box (0.64/√2 ≈ 45% of the radius from center to a corner,
+          // comfortably inside the 50% circle boundary) that scales with
+          // the disc at every card size, not a fixed pixel gap that shrinks
+          // in relative terms as the card grows. Paired with the smaller
+          // `dense`/`compact` tiers below (lib/textScale.ts, re-tuned for
+          // this narrower box), real DOM measurement (`scrollHeight` vs.
+          // the disc's fixed `clientHeight`) confirms MESSAGE_MAX_LENGTH
+          // content still fits with no clipping — `overflow-hidden` stays a
+          // safety net, never an active truncation.
+          <div className="flex h-[82%] w-[82%] flex-col items-center justify-center gap-1 overflow-hidden rounded-full bg-paper-cream p-[18%] text-center shadow-inner">
+            <p
+              lang={note.language}
+              className={cn(
+                // EPIC 045: `items-center` on this flex-col disc doesn't
+                // stretch its children to the disc's width the way the
+                // standard (non-football) card's wrapper does — without an
+                // explicit width cap, a flex item with no cross-axis stretch
+                // sizes to its own max-content width, so `break-words`
+                // (overflow-wrap: break-word) never gets a constrained box
+                // to actually wrap inside — confirmed by a real 150-char
+                // unbroken-run stress test spilling the text far outside the
+                // disc/card entirely. `max-w-full` caps the paragraph at the
+                // disc's own rendered width, giving break-words something to
+                // wrap against, exactly like the standard shape's
+                // full-width wrapper already does implicitly.
+                "max-w-full break-words text-ink",
+                textScaleClass,
+                fontFamilyClass
+              )}
+            >
+              {note.content}
+            </p>
+            <span className="max-w-full break-words text-[0.65rem] text-ink-soft">— {note.authorName}</span>
+          </div>
+        ) : (
+          <>
+            <p
+              lang={note.language}
+              className={cn(
+                // BUG FIX (same audit as the clip-path fix above): a single
+                // word longer than the card's own width — a long German
+                // compound, a URL, anything with no natural break point —
+                // doesn't wrap under the browser's default `overflow-wrap:
+                // normal`; it overflows the box instead, and since this
+                // element sits inside the shape's own clip-path, that overflow
+                // was silently cut off rather than visibly spilling out
+                // (confirmed: "Verantwortungsbewusstsein" lost its own tail on
+                // a real clip-path template). `break-words` lets a genuinely
+                // unbreakable word wrap mid-word as a last resort, matching
+                // the PDF renderer's own guaranteed-fit text handling
+                // (pdfTextMeasure.ts) — never truncated/hidden, always visible.
+                "break-words text-ink",
+                textScaleClass,
+                fontFamilyClass
+              )}
+            >
+              {note.content}
+            </p>
+            <span className="break-words text-xs text-ink-soft">— {note.authorName}</span>
+          </>
+        )}
       </div>
       {template.attachment === "tape" && (
         <span
@@ -510,6 +694,17 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
         // same condition that already restores its opacity — mouse hover,
         // keyboard focus, or a touchscreen — so nothing that could already
         // reveal an action loses the ability to click it.
+        //
+        // EPIC 040: on a touchscreen specifically, that "always visible"
+        // reveal used to be unconditional (`pointer-coarse:opacity-100`
+        // with no other condition) — confirmed to be exactly what was
+        // permanently covering a short note's own text on a phone. Now
+        // gated by the `active` prop (see each button's className below):
+        // still driven by the same `pointer-coarse:` media variant (so
+        // desktop's mouse hover/keyboard-focus reveal, both unconditional,
+        // are completely untouched by this), but touch only reveals the
+        // one board-wide "active" card's actions, set by tapping the card
+        // itself (`onActivate` on the `<article>` above).
         <div className="absolute top-2 right-2 flex gap-1 pointer-coarse:gap-1.5">
           {actions.map((action) => (
             <div key={action.href ?? action.label} className="group/action relative">
@@ -523,7 +718,22 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
                   // pan-gesture handling on "world" notes before the click
                   // ever registers (confirmed by real testing, not assumed).
                   onPointerDown={(event) => event.stopPropagation()}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 pointer-events-none shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:pointer-events-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:h-9 pointer-coarse:w-9"
+                  // pointer-coarse:backdrop-blur-none — on a touchscreen
+                  // these buttons are permanently visible (see
+                  // pointer-coarse:opacity-100 below), not a transient hover
+                  // reveal like on desktop, so every one of them recomposites
+                  // its backdrop-filter on every board-pan frame. bg-surface/90
+                  // is already near-opaque, so the blur added negligible
+                  // legibility there while being one of the most expensive
+                  // properties to paint on mobile GPUs — dropped for touch
+                  // only; desktop's transient hover appearance is unchanged.
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 pointer-events-none shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:pointer-events-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto pointer-coarse:h-9 pointer-coarse:w-9 pointer-coarse:backdrop-blur-none",
+                    // EPIC 040: touch reveal is conditional on this being
+                    // the board's one active card — see the div comment
+                    // above.
+                    active && "pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto"
+                  )}
                 >
                   {actionIcons[action.icon]}
                 </button>
@@ -536,7 +746,11 @@ export function Note({ note, variant = "board", actions = [], like }: NoteProps)
                   // pan-gesture handling on "world" notes before navigation
                   // fires (confirmed by real testing, not assumed).
                   onPointerDown={(event) => event.stopPropagation()}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 pointer-events-none shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:pointer-events-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:h-9 pointer-coarse:w-9"
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-ink-soft opacity-0 pointer-events-none shadow-card ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-[var(--motion-fast)] hover:text-navy focus-visible:opacity-100 focus-visible:pointer-events-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto pointer-coarse:h-9 pointer-coarse:w-9 pointer-coarse:backdrop-blur-none",
+                    // EPIC 040: same conditional touch reveal as the button variant above.
+                    active && "pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto"
+                  )}
                 >
                   {actionIcons[action.icon]}
                 </Link>

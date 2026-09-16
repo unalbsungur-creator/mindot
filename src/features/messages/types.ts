@@ -1,3 +1,5 @@
+import type { NoteTextFontFamily } from "@/features/notes/types";
+
 export type MessageStatus = "pending" | "approved" | "rejected" | "archived";
 export type AiModerationDecision = "safe" | "review" | "blocked";
 
@@ -7,6 +9,12 @@ export interface Message {
   authorId: string;
   authorName: string;
   isAnonymous: boolean;
+  // EPIC — Kart Yazı Tipi Seçenekleri: the writer's chosen text typeface —
+  // independent of `templateId`'s own paper/shape/`NoteTemplate.font`.
+  // The DB column is `NOT NULL DEFAULT 'modern'` (see schema.ts), so every
+  // row — including ones that predate this column — already reads back as
+  // `"modern"` with no app-level fallback needed here.
+  fontFamily: NoteTextFontFamily;
   /** EPIC 011: owner-controlled curation — eligible (approved + named) doesn't mean shown; see setShowOnPersonalWall. Never affects global board visibility. */
   showOnPersonalWall: boolean;
   /** Denormalized count kept in sync with message_likes — see repository.ts's like(). */
@@ -47,6 +55,15 @@ export interface Message {
   consentAccepted: boolean;
   consentVersion: string | null;
   consentAcceptedAt: string | null;
+  // EPIC: Published Note Edit + Re-approval — see schema.ts's own comment
+  // on `pendingContent` for why this is deliberately not a new `status`
+  // value. `pendingContent === null` means no revision is in flight; that
+  // is the one flag every revision-aware code path branches on.
+  pendingContent: string | null;
+  revisionSubmittedAt: string | null;
+  revisionReviewedAt: string | null;
+  revisionReviewedBy: string | null;
+  revisionRejectionReason: string | null;
 }
 
 export type NewMessageInput = Pick<
@@ -57,6 +74,7 @@ export type NewMessageInput = Pick<
   | "isAnonymous"
   | "language"
   | "templateId"
+  | "fontFamily"
   | "invitationId"
   | "aiModerationStatus"
   | "aiModerationProvider"
@@ -75,4 +93,11 @@ export type NewMessageInput = Pick<
   consentVersion: string;
 };
 
-export const MESSAGE_MAX_LENGTH = 280;
+// EPIC 045: Kart Metin Uzunluğu ve Boyut Standardizasyonu — lowered from
+// 280 so a card's fixed geometry (width always fixed; height/aspect-ratio
+// fixed for heart/football) can guarantee a controlled, readable fit via
+// font-size alone (see features/notes/lib/textScale.ts), never by growing
+// the card or clipping text. The single source of truth for both the
+// frontend UX (WriteThoughtForm's maxLength/counter) and the server
+// validation (submitMessage) below — changing it here changes both.
+export const MESSAGE_MAX_LENGTH = 150;

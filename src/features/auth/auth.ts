@@ -13,9 +13,13 @@ import { getAuthRuntimeConfig } from "@/lib/env";
  *
  * EPIC 003 upserts a `users` row on every Google sign-in, so
  * messages/invitations have a real foreign key to point at. Role is
- * resolved once at sign-in and embedded in the JWT — see
- * userRepository.upsertFromGoogleProfile for how the very first
- * administrator gets bootstrapped from ADMIN_EMAILS.
+ * resolved once at sign-in and embedded in the JWT — but a Google sign-in
+ * always creates a plain "user" row (see
+ * userRepository.upsertFromGoogleProfile), never "admin", regardless of
+ * email. EPIC 035 removed the earlier ADMIN_EMAILS email-match bootstrap
+ * entirely: admin is exclusively the dedicated Credentials identity below,
+ * provisioned out-of-band by `npm run db:create-admin` — Google can never
+ * grant it.
  *
  * EPIC 030 adds Credentials *only* so the admin account is never
  * hostage to Google OAuth being reachable (e.g. a redirect_uri_mismatch
@@ -81,22 +85,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
     Credentials({
       credentials: {
-        username: { label: "Username" },
+        email: { label: "Email" },
         password: { label: "Password", type: "password" },
       },
       // EPIC 030: deliberately returns `null` (never throws a
-      // custom/hinting error) for every rejection path — unknown username,
+      // custom/hinting error) for every rejection path — unknown email,
       // wrong password, non-admin, suspended, locked out — so the caller
       // can never distinguish *why* a sign-in failed (see
       // features/auth/actions.ts's adminSignIn, which maps every rejection
-      // to one single generic message — "no username enumeration" is a
+      // to one single generic message — "no email enumeration" is a
       // hard requirement here, not a nicety).
+      //
+      // EPIC 036: the login identity is email, not username — `username`
+      // still exists on the row (and stays unique) but a sign-in attempt
+      // is looked up by `email` now. Email is trimmed+lowercased before
+      // the lookup (case-insensitive, matching how the one admin row's
+      // email was provisioned); the password is never normalized — a
+      // password is compared byte-for-byte via the existing scrypt
+      // verifier, exactly as before.
       async authorize(credentials) {
-        const username = typeof credentials?.username === "string" ? credentials.username.trim() : "";
+        const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : "";
         const password = typeof credentials?.password === "string" ? credentials.password : "";
-        if (!username || !password) return null;
+        if (!email || !password) return null;
 
-        const candidate = await userRepository.getCredentialsByUsername(username);
+        const candidate = await userRepository.getCredentialsByEmail(email);
         if (!candidate) return null;
         // Credentials sign-in is admin-only by design (see file doc
         // comment) and suspension is re-checked here even though today

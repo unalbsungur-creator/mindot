@@ -7,6 +7,8 @@ export const PDF_FONT_FAMILY = "Noto Sans";
 export const PDF_BRAND_FONT_FAMILY = "Fraunces";
 /** A hand-styled note's real font — matches Share's `HAND_FONT_FAMILY` (Caveat), used only when the note's template has `font: "hand"`. */
 export const PDF_HAND_FONT_FAMILY = "Caveat";
+/** EPIC — Kart Yazı Tipi Seçenekleri: the "Daktilo" note-text choice — matches Share's `MONO_FONT_FAMILY` (Geist Mono). */
+export const PDF_MONO_FONT_FAMILY = "Geist Mono";
 
 let registered = false;
 
@@ -45,6 +47,13 @@ export function ensurePdfFontsRegistered(): void {
     fonts: [
       { src: toFontDataUri(readFileSync(path.join(brandDir, "Caveat-Regular.woff"))), fontWeight: "normal" },
       { src: toFontDataUri(readFileSync(path.join(brandDir, "Caveat-Bold.woff"))), fontWeight: "bold" },
+    ],
+  });
+  Font.register({
+    family: PDF_MONO_FONT_FAMILY,
+    fonts: [
+      { src: toFontDataUri(readFileSync(path.join(brandDir, "GeistMono-Regular.woff"))), fontWeight: "normal" },
+      { src: toFontDataUri(readFileSync(path.join(brandDir, "GeistMono-Bold.woff"))), fontWeight: "bold" },
     ],
   });
 

@@ -61,6 +61,7 @@ export function SharePageContent({ messageId, message, pageUrl }: SharePageConte
     authorName: message.author?.displayName ?? "",
     authorImage: message.author?.image ?? null,
     templateId: message.templateId,
+    fontFamily: message.fontFamily,
     size: "md",
     rotation: 0,
     position: { top: "0%", left: "0%" },

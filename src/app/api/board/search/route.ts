@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { searchPublicMessages } from "@/features/board/repository";
+import type { NoteTemplateCategory } from "@/features/notes/types";
 
 const MAX_KEYWORD_LENGTH = 100;
+/** EPIC "Paylaşılan Kartlarda Gelişmiş Filtreleme": the only three real `NoteTemplateCategory` values — "all" is the UI's own "no restriction" choice and is never sent as a query param at all (see BoardDiscoveryPanel), so it's deliberately not in this list. */
+const VALID_CATEGORIES: readonly NoteTemplateCategory[] = ["standard", "seasonal", "sports"];
 
 /**
  * EPIC 021: board discovery's only endpoint. Public, no sign-in required
@@ -11,6 +14,12 @@ const MAX_KEYWORD_LENGTH = 100;
  * request with no filter at all (400) rather than treating it as "return
  * the most recent N approved messages" — see `searchPublicMessages`'s own
  * doc comment for why that boundary matters.
+ *
+ * EPIC "Paylaşılan Kartlarda Gelişmiş Filtreleme": `?category=` is the
+ * one new, optional query param — `standard`/`seasonal`/`sports` (never
+ * `"all"`; the UI simply omits this param for "no category restriction",
+ * same convention `query`/`from`/`to` already use for "not set"). Counts
+ * toward the "at least one filter" requirement exactly like the others.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -26,11 +35,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "from/to must be valid dates" }, { status: 400 });
   }
 
-  if (!keyword && !from && !to) {
-    return NextResponse.json({ error: "query, from, or to is required" }, { status: 400 });
+  const categoryParam = searchParams.get("category");
+  if (categoryParam && !VALID_CATEGORIES.includes(categoryParam as NoteTemplateCategory)) {
+    return NextResponse.json({ error: "category must be one of standard, seasonal, sports" }, { status: 400 });
+  }
+  const category = (categoryParam as NoteTemplateCategory | null) ?? undefined;
+
+  if (!keyword && !from && !to && !category) {
+    return NextResponse.json({ error: "query, from, to, or category is required" }, { status: 400 });
   }
 
-  const results = await searchPublicMessages({ keyword, from, to });
+  const results = await searchPublicMessages({ keyword, from, to, category });
   return NextResponse.json(
     { results },
     { headers: { "Cache-Control": "public, max-age=15, stale-while-revalidate=60" } }

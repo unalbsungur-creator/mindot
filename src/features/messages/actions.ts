@@ -4,15 +4,26 @@ import { auth } from "@/features/auth/auth";
 import { invitationRepository } from "@/features/invitations/repository";
 import { getEffectiveStatus } from "@/features/invitations/types";
 import { getNoteTemplate, isTemplateAvailable } from "@/features/notes/config/templates";
+import type { NoteTextFontFamily } from "@/features/notes/types";
 import { getModerationService } from "@/features/moderation/service";
 import { userRepository } from "@/features/users/repository";
 import { CONTENT_CONSENT_VERSION } from "./consent";
 import { messageRepository } from "./repository";
 import { MESSAGE_MAX_LENGTH, type Message } from "./types";
 
+// EPIC — Kart Yazı Tipi Seçenekleri: the closed set `WriteThoughtForm`'s
+// font picker can actually send — an unrecognized/missing value here
+// (a stale client build, a hand-crafted request) falls back to "modern",
+// the same default a pre-this-feature message already gets from the DB
+// column's own default — never trusted from the client without this check.
+const VALID_FONT_FAMILIES: readonly NoteTextFontFamily[] = ["modern", "classic", "handwritten", "typewriter"];
+const DEFAULT_FONT_FAMILY: NoteTextFontFamily = "modern";
+
 export interface SubmitMessageInput {
   content: string;
   templateId: string;
+  /** EPIC — Kart Yazı Tipi Seçenekleri: optional — an older client build simply won't send it, and the server falls back to `DEFAULT_FONT_FAMILY` ("modern") exactly like a pre-this-feature message already does. */
+  fontFamily?: string;
   authorName: string;
   isAnonymous: boolean;
   language: string;
@@ -115,6 +126,10 @@ export async function submitMessage(input: SubmitMessageInput): Promise<SubmitMe
     return { ok: false, error: "invalid-template" };
   }
 
+  const fontFamily: NoteTextFontFamily = VALID_FONT_FAMILIES.includes(input.fontFamily as NoteTextFontFamily)
+    ? (input.fontFamily as NoteTextFontFamily)
+    : DEFAULT_FONT_FAMILY;
+
   let invitationId: string | null = null;
   if (input.invitationToken) {
     const invitation = await invitationRepository.getByToken(input.invitationToken);
@@ -141,6 +156,7 @@ export async function submitMessage(input: SubmitMessageInput): Promise<SubmitMe
     isAnonymous: input.isAnonymous,
     language: input.language,
     templateId: template.id,
+    fontFamily,
     invitationId,
     aiModerationStatus: aiResult.decision,
     aiModerationProvider: aiResult.provider,

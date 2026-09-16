@@ -81,6 +81,7 @@ export function OrderDetailContent({ authorized, order, project, message, custom
         authorName: message.author?.displayName ?? "",
         authorImage: message.author?.image ?? null,
         templateId: message.templateId,
+        fontFamily: message.fontFamily,
         size: "md",
         rotation: 0,
         position: { top: "0%", left: "0%" },
@@ -118,7 +119,7 @@ export function OrderDetailContent({ authorized, order, project, message, custom
             </div>
             {frame && (
               <div>
-                {dictionary.memory.frameLabel}: {frame.name}
+                {dictionary.memory.frameLabel}: {dictionary.memory.frameNames[frame.id] ?? frame.name}
               </div>
             )}
           </dl>

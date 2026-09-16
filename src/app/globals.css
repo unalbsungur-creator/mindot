@@ -35,6 +35,8 @@
   --font-sans: var(--font-geist-sans);
   --font-display: var(--font-fraunces);
   --font-hand: var(--font-caveat);
+  /* EPIC — Kart Yazı Tipi Seçenekleri: "Daktilo" (typewriter) note-text option — Tailwind's own default `font-mono` utility otherwise falls back to a generic system monospace stack. */
+  --font-mono: var(--font-geist-mono);
 }
 
 body {

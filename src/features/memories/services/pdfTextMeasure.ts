@@ -1,5 +1,6 @@
 import path from "node:path";
 import { openSync, type Font } from "fontkit";
+import type { NoteTextFontFamily } from "@/features/notes/types";
 
 /**
  * Real glyph-metrics text measurement and manual line-wrapping for the PDF
@@ -47,11 +48,19 @@ import { openSync, type Font } from "fontkit";
  * the content's widest word wouldn't fit at all.
  */
 
-export type PdfMeasureFont = "sans" | "hand";
+/**
+ * EPIC — Kart Yazı Tipi Seçenekleri: now keyed by the writer's chosen
+ * `fontFamily` rather than the template's `font` — every font a note's
+ * text can render in gets real glyph-metrics measurement, not just the
+ * original two.
+ */
+export type PdfMeasureFont = NoteTextFontFamily;
 
 const FONT_FILES: Record<PdfMeasureFont, string> = {
-  sans: path.join(process.cwd(), "src/features/memories/assets/fonts/NotoSans-Regular.woff"),
-  hand: path.join(process.cwd(), "src/features/sharing/assets/fonts/Caveat-Regular.woff"),
+  modern: path.join(process.cwd(), "src/features/memories/assets/fonts/NotoSans-Regular.woff"),
+  classic: path.join(process.cwd(), "src/features/sharing/assets/fonts/Fraunces-Regular.woff"),
+  handwritten: path.join(process.cwd(), "src/features/sharing/assets/fonts/Caveat-Regular.woff"),
+  typewriter: path.join(process.cwd(), "src/features/sharing/assets/fonts/GeistMono-Regular.woff"),
 };
 
 const fontCache = new Map<PdfMeasureFont, Font>();

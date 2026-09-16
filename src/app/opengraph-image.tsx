@@ -6,6 +6,6 @@ export const alt = "MINDOT";
 export const size = OG_IMAGE_SIZE;
 export const contentType = "image/png";
 
-export default function Image() {
-  return renderBrandOgImage(getDictionary("en").boardPage.slogan);
+export default async function Image() {
+  return await renderBrandOgImage(getDictionary("en").boardPage.slogan);
 }

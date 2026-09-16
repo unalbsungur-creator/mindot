@@ -14,6 +14,7 @@ function toPersonalWallNote(message: Message): PersonalWallNote {
     id: message.id,
     content: message.content,
     templateId: message.templateId,
+    fontFamily: message.fontFamily,
     rotation: message.rotation ?? 0,
     language: message.language,
     createdAt: message.createdAt,
@@ -106,6 +107,7 @@ export async function getPrivateArchive(userId: string, range?: TimeRange, page?
     id: message.id,
     content: message.content,
     templateId: message.templateId,
+    fontFamily: message.fontFamily,
     language: message.language,
     isAnonymous: message.isAnonymous,
     createdAt: message.createdAt,
@@ -113,6 +115,8 @@ export async function getPrivateArchive(userId: string, range?: TimeRange, page?
     memoryProjectId: memoryProjectIdByMessageId.get(message.id) ?? null,
     tile: message.tileX !== null && message.tileY !== null ? { x: message.tileX, y: message.tileY } : null,
     showOnPersonalWall: message.showOnPersonalWall,
+    pendingContent: message.pendingContent,
+    revisionRejectionReason: message.revisionRejectionReason,
   }));
 
   return { items, total };
@@ -149,6 +153,7 @@ export async function getMemoryLibrary(userId: string): Promise<MemoryLibraryIte
       messageId: project.messageId,
       noteContent: message?.content ?? null,
       noteTemplateId: message?.templateId ?? null,
+      noteFontFamily: message?.fontFamily ?? null,
       noteLanguage: message?.language ?? null,
       captureMode: project.captureMode,
       outputType: project.outputType,

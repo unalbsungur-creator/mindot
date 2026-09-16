@@ -1,3 +1,5 @@
+import type { NoteTemplateCategory, NoteTextFontFamily } from "@/features/notes/types";
+
 /**
  * The public tile contract. Deliberately narrow: no authorId, no
  * invitationId, no moderation fields, no status, no email — nothing here
@@ -14,6 +16,8 @@ export interface BoardTileMessage {
   id: string;
   content: string;
   templateId: string;
+  /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface — rendering metadata, same privacy tier as `templateId`. */
+  fontFamily: NoteTextFontFamily;
   position: { x: number; y: number };
   rotation: number;
   language: string;
@@ -54,7 +58,17 @@ export interface BoardTimeRange {
  * either optional but at least one expected to be set by the caller (see
  * `searchPublicMessages`'s own doc comment for why an all-empty call is
  * refused rather than silently returning "the whole board").
+ *
+ * EPIC "Paylaşılan Kartlarda Gelişmiş Filtreleme": `category` is the new
+ * third, independent filter — same "at least one of these must be set"
+ * rule applies, now counting a real (non-"all") category too. Deliberately
+ * `NoteTemplateCategory` here (not a pre-resolved template id list) — this
+ * type describes *what the caller asked for*; `searchPublicMessages`
+ * itself resolves it to concrete template ids via
+ * `templateIdsForCategory` right before querying, so nothing upstream of
+ * that needs to know how categories map to ids.
  */
 export interface BoardSearchFilters extends BoardTimeRange {
   keyword?: string;
+  category?: NoteTemplateCategory;
 }

@@ -6,7 +6,8 @@ import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { Note } from "@/features/notes/components/Note";
 import { TemplatePicker } from "@/features/notes/components/TemplatePicker";
 import { getActiveNoteTemplates } from "@/features/notes/config/templates";
-import type { NoteData } from "@/features/notes/types";
+import { noteFontFamilyClass } from "@/features/notes/lib/textScale";
+import type { NoteData, NoteTextFontFamily } from "@/features/notes/types";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { locales, localeLabels, type Locale } from "@/i18n/config";
@@ -38,12 +39,33 @@ interface WriteThoughtFormProps {
   isSuspended?: boolean;
 }
 
+/**
+ * EPIC — Kart Yazı Tipi Seçenekleri: the four font choices, in the order
+ * they're shown. Each button's own `className` renders its label in the
+ * actual typeface it selects (`noteFontFamilyClass` — the same mapping
+ * `Note.tsx` uses for the real card, so this preview is never a second,
+ * possibly-drifting source of truth for "which Tailwind class means which
+ * font"). "modern" has no extra class — it's the page's own default
+ * `font-sans`, exactly like Note.tsx's default case.
+ */
+const FONT_OPTIONS: {
+  value: NoteTextFontFamily;
+  labelKey: "fontModernLabel" | "fontClassicLabel" | "fontHandwrittenLabel" | "fontTypewriterLabel";
+  className: string;
+}[] = [
+  { value: "modern", labelKey: "fontModernLabel", className: noteFontFamilyClass("modern") },
+  { value: "classic", labelKey: "fontClassicLabel", className: noteFontFamilyClass("classic") },
+  { value: "handwritten", labelKey: "fontHandwrittenLabel", className: noteFontFamilyClass("handwritten") },
+  { value: "typewriter", labelKey: "fontTypewriterLabel", className: noteFontFamilyClass("typewriter") },
+];
+
 export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = false }: WriteThoughtFormProps) {
   const { locale, dictionary } = useLocale();
   const defaultTemplateId = getActiveNoteTemplates()[0]?.id ?? "";
 
   const [content, setContent] = useState("");
   const [templateId, setTemplateId] = useState(defaultTemplateId);
+  const [fontFamily, setFontFamily] = useState<NoteTextFontFamily>("modern");
   const [displayName, setDisplayName] = useState(sessionUser?.name ?? "");
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [language, setLanguage] = useState<Locale>(locale);
@@ -89,6 +111,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
     if (userEditedRef.current) return;
     setContent(draft.content);
     setTemplateId(draft.templateId);
+    setFontFamily(draft.fontFamily ?? "modern");
     setIsAnonymous(draft.isAnonymous);
     setDisplayName(draft.displayName);
     setLanguage(draft.language);
@@ -114,6 +137,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
     saveWriteDraft({
       content,
       templateId,
+      fontFamily,
       isAnonymous,
       displayName,
       language,
@@ -121,10 +145,15 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
       consentAccepted: consentChecked,
       consentVersion: CONTENT_CONSENT_VERSION,
     });
-  }, [sessionUser, content, templateId, isAnonymous, displayName, language, consentChecked, invitationToken]);
+  }, [sessionUser, content, templateId, fontFamily, isAnonymous, displayName, language, consentChecked, invitationToken]);
 
   const charCount = [...content].length;
   const overLimit = charCount > MESSAGE_MAX_LENGTH;
+  // EPIC 045: an "approaching the limit" visual cue — purely a color
+  // change (no new copy needed; `characterCount`'s "{count} / {max}" text
+  // already says the number), so it reads as urgency without adding a
+  // second string to translate across all five locales.
+  const nearLimit = !overLimit && charCount >= MESSAGE_MAX_LENGTH - 15;
   const hasContent = content.trim().length > 0 && !overLimit;
   const canSubmit = hasContent && consentChecked && !isPending && !isSuspended;
   const canContinueToGoogle = hasContent && consentChecked && !isSuspended;
@@ -140,6 +169,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
     authorName: previewAuthor,
     authorImage: isAnonymous ? null : (sessionUser?.image ?? null),
     templateId,
+    fontFamily,
     size: "md",
     rotation: -2,
     position: { top: "0%", left: "0%" },
@@ -181,6 +211,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
       const result = await submitMessage({
         content,
         templateId,
+        fontFamily,
         authorName: displayName,
         isAnonymous,
         language,
@@ -212,7 +243,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
-      <div className="flex flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-6">
         <div className="flex flex-col gap-2">
           <label htmlFor="content" className="text-sm font-medium text-navy">
             {dictionary.write.contentLabel}
@@ -226,10 +257,22 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
             }}
             placeholder={dictionary.write.contentPlaceholder}
             rows={5}
+            // EPIC 045: native maxLength hard-blocks any keystroke or paste
+            // past MESSAGE_MAX_LENGTH — the browser truncates a paste that
+            // would exceed it automatically, so no separate paste handler
+            // is needed. [...content].length (used by charCount/overLimit
+            // below) can only exceed this via a pre-EPIC-045 restored draft
+            // (drafts are plain localStorage, saved before this limit
+            // existed) — overLimit's existing red-counter + disabled-submit
+            // behavior already handles that gracefully.
+            maxLength={MESSAGE_MAX_LENGTH}
             className="w-full rounded-md border border-border bg-surface p-4 text-base leading-relaxed text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
           />
           <span
-            className={cn("self-end text-xs", overLimit ? "text-red-600" : "text-ink-soft")}
+            className={cn(
+              "self-end text-xs",
+              overLimit ? "text-red-600" : nearLimit ? "text-orange-ink font-medium" : "text-ink-soft"
+            )}
             aria-live="polite"
           >
             {dictionary.write.characterCount
@@ -247,9 +290,37 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
               setTemplateId(id);
             }}
             label={dictionary.write.templateLabel}
-            standardLabel={dictionary.write.templateStandardLabel}
-            occasionLabel={dictionary.write.templateOccasionLabel}
           />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-navy">{dictionary.write.fontFamilyLabel}</span>
+          <div role="radiogroup" aria-label={dictionary.write.fontFamilyLabel} className="flex flex-wrap gap-2">
+            {FONT_OPTIONS.map((option) => {
+              const selected = fontFamily === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => {
+                    markEdited();
+                    setFontFamily(option.value);
+                  }}
+                  className={cn(
+                    "shrink-0 rounded-pill border px-4 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange",
+                    option.className,
+                    selected
+                      ? "border-navy bg-navy text-white"
+                      : "border-border bg-surface text-ink-soft hover:border-navy/40 hover:text-navy"
+                  )}
+                >
+                  {dictionary.write[option.labelKey]}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <fieldset className="flex flex-col gap-2">

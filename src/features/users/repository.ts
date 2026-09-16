@@ -2,7 +2,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
 import { generatePublicId } from "./lib/identifiers";
-import type { CredentialsUser, GoogleProfile, User, UserRole } from "./types";
+import type { CredentialsUser, GoogleProfile, User } from "./types";
 
 const MAX_GENERATION_ATTEMPTS = 5;
 
@@ -19,9 +19,11 @@ export interface UserRepository {
   getByIds(ids: string[]): Promise<User[]>;
   /**
    * Creates the user on first sign-in, or refreshes name/image on every
-   * later sign-in. Deliberately never overwrites `role` on an existing row
-   * — see `initialRoleFor` for why. Every newly-created row is given a
-   * publicId immediately.
+   * later sign-in. Deliberately never overwrites `role` on an existing
+   * row, and always creates a brand-new row with `role: "user"` — see the
+   * implementation below and EPIC 035/036 in CLAUDE.md's "Authorization /
+   * admin role" section. Every newly-created row is given a publicId
+   * immediately.
    */
   upsertFromGoogleProfile(profile: GoogleProfile): Promise<User>;
   /** Resolves a user by their /u/[publicId] identifier — never by database id or email. Returns null for an unknown or not-yet-assigned id. */
@@ -56,31 +58,18 @@ export interface UserRepository {
    * never flow into `/admin/users`' listing or anywhere else a plain `User`
    * already reaches a client. Used exclusively by the Credentials
    * provider's `authorize()` in features/auth/auth.ts. Returns `null` for
-   * an unknown username or a row with no `passwordHash` set (a Google-only
-   * account can never sign in this way, even if a username were somehow
-   * present).
+   * an unknown email or a row with no `passwordHash` set (a Google-only
+   * account can never sign in this way, even if its email happened to
+   * match). EPIC 036 (email-based admin login): `email` is the lookup key
+   * now, not `username` — `username` still exists on the row and is still
+   * unique, but it's no longer what a sign-in attempt is looked up by.
+   * Caller is responsible for trimming/lowercasing `email` first.
    */
-  getCredentialsByUsername(username: string): Promise<CredentialsUser | null>;
+  getCredentialsByEmail(email: string): Promise<CredentialsUser | null>;
   /** Increments the failed-attempt counter and, once MAX_FAILED_LOGIN_ATTEMPTS is reached, sets `lockedUntil` LOCKOUT_MINUTES ahead — see schema.ts. */
   recordFailedLogin(userId: string): Promise<void>;
   /** Resets the failed-attempt counter/lockout on a successful credentials sign-in. */
   recordSuccessfulLogin(userId: string): Promise<void>;
-}
-
-/**
- * Environment-based bootstrap for the very first administrator(s). This is
- * consulted only when a user row is first created (a brand-new sign-in) —
- * changing ADMIN_EMAILS later does not retroactively promote or demote
- * anyone already in the database. Ongoing role management is DB-driven:
- * update the `role` column directly (or a future admin-management UI) to
- * add more admins.
- */
-function initialRoleFor(email: string): UserRole {
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-  return adminEmails.includes(email.toLowerCase()) ? "admin" : "user";
 }
 
 function toUser(row: typeof users.$inferSelect): User {
@@ -130,7 +119,15 @@ class DrizzleUserRepository implements UserRepository {
             email: profile.email,
             name: profile.name,
             image: profile.image,
-            role: initialRoleFor(profile.email),
+            // EPIC 035: a Google sign-in never grants admin, regardless of
+            // email — always "user" on creation, full stop. Admin is a
+            // separate, dedicated Credentials identity (see
+            // src/lib/db/createAdmin.ts / ADMIN_EMAIL / ADMIN_USERNAME /
+            // ADMIN_PASSWORD); ongoing role changes for any account are
+            // database-managed (the `role` column directly, or a future
+            // admin-management UI), never derived from an email match at
+            // sign-in time.
+            role: "user",
             publicId: generatePublicId(),
             createdAt: now,
             updatedAt: now,
@@ -227,9 +224,9 @@ class DrizzleUserRepository implements UserRepository {
     return row ? toUser(row) : null;
   }
 
-  async getCredentialsByUsername(username: string): Promise<CredentialsUser | null> {
+  async getCredentialsByEmail(email: string): Promise<CredentialsUser | null> {
     const db = getDb();
-    const [row] = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
     if (!row || !row.passwordHash) return null;
     return {
       id: row.id,

@@ -26,15 +26,15 @@ just the sequence, not a duplicate of it.
 3. *(Only when deploying)* add the **production** authorized redirect URI
    from the same table — skip this step for local testing.
 4. Configure `.env.local` — see "Environment variables" below.
-5. Set `ADMIN_EMAILS` to your own Google account's email — see "Database
-   commands" below for why the seeded `admin@mindot.dev` can't be signed
-   into directly.
+5. Set `ADMIN_EMAIL`/`ADMIN_PASSWORD` and run `npm run db:create-admin` —
+   see "Database commands" below for why the seeded `admin@mindot.dev` can't
+   be signed into directly, and why Google sign-in never grants admin.
 6. Start PostgreSQL — see "Local PostgreSQL" below.
 7. Run migrations: `npm run db:migrate`.
 8. *(Optional)* seed development data: `npm run db:seed`, then
    `npm run db:verify` to confirm it seeded correctly.
 9. Start the application: `npm run dev`.
-10. Sign in with the Google account matching your `ADMIN_EMAILS` value.
+10. Sign in at `/admin/login` with your `ADMIN_EMAIL`/`ADMIN_PASSWORD`.
 11. Work through "Manual QA — end-to-end checklist" below, A → K.
 
 ## Environments and deployment
@@ -62,7 +62,7 @@ Copy `.env.example` to `.env.local` and fill in:
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — from a Google Cloud OAuth 2.0 Web application client. Redirect URI: `<origin>/api/auth/callback/google`.
 - `AUTH_SECRET` — generate with `npx auth secret`.
 - `DATABASE_URL` — a PostgreSQL connection string (see below).
-- `ADMIN_EMAILS` — comma-separated emails that become admins on their first sign-in.
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` (and optionally `ADMIN_USERNAME`) — consulted only by `npm run db:create-admin`; `/admin/login` signs in with email + password, not username. See "Admin credentials login" in `.env.example`. Google sign-in never grants admin, regardless of email.
 
 Public site identity itself (brand name, production URL, default description) is
 centralized in `src/lib/siteConfig.ts`, not an environment variable — read from
@@ -93,14 +93,14 @@ Then `DATABASE_URL=postgresql://postgres:password@localhost:5432/mindot`.
 - `npm run db:verify` — a repeatable automated check (no new dependency) that the seeded data's privacy/ownership invariants actually hold: anonymous authorship never reaches public output, pending/rejected messages stay private, wall curation and visibility are enforced at the query level, and access-code/ownership scoping can't be bypassed. Run it after `db:seed` (or any time you suspect a regression) — see CLAUDE.md for exactly what it checks.
 - `npm run db:studio` — a local browser UI for inspecting the database.
 
-**`admin@mindot.dev`/`visitor@mindot.dev` are backing data, not accounts you can sign in as** — their ids aren't real Google accounts. To test as an admin, set `ADMIN_EMAILS` in `.env.local` to your own Google account's email *before* signing in with Google; your real account becomes admin on that first sign-in.
+**`admin@mindot.dev`/`visitor@mindot.dev` are backing data, not accounts you can sign in as** — their ids aren't real Google accounts. Google sign-in never grants admin, regardless of email (EPIC 035) — to test as an admin, set `ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env.local` and run `npm run db:create-admin`, then sign in at `/admin/login` with that email.
 
 After seeding, try:
 
 - `/invite/welcome-to-mindot` — an active invitation
 - `/invite/expired-example`, `/invite/used-up-example`, `/invite/revoked-example` — the other invitation states
 - `/board` — the real board, reading approved messages back out
-- `/admin/moderation` — sign in with your own email (added to `ADMIN_EMAILS`) to review the seeded pending messages
+- `/admin/moderation` — sign in at `/admin/login` (see above) to review the seeded pending messages
 - `/u/devwall01` — the seeded enabled personal wall (one message deliberately hidden from it); `/u/devwall00` — the seeded disabled wall, showing the "private" state
 - `/admin/access-codes` and `/admin/orders` — the seeded digital access codes (one of each status) and the one seeded physical order, already mid-fulfilment
 
@@ -111,9 +111,11 @@ After seeding, try:
 2. Back up an existing database before every release.
 3. Apply committed migrations in order with `npm run db:migrate` as a
    release step before serving the new application version.
-4. Set `ADMIN_EMAILS` before the intended first administrator signs in. It
-   only assigns a role when a user row is first created; later role changes
-   are database-managed.
+4. Provision the admin account with `ADMIN_EMAIL`/`ADMIN_PASSWORD` (and
+   optionally `ADMIN_USERNAME`) via `npm run db:create-admin` before the
+   intended administrator needs `/admin/login`. Google sign-in never grants
+   admin, regardless of email; later role changes for any account are
+   database-managed.
 5. Never run `npm run db:seed` in production. It creates development fixtures. `npm run db:verify` doesn't create or corrupt data (every check either reads or attempts a redemption that's expected to fail), but it's a development testing tool — there's no reason to run it against production either.
 
 Do not use `db:push` for production. A database outage is a runtime service
@@ -225,9 +227,11 @@ this repository.
 
 Run `npm run db:seed` first so pending content, both wall-visibility states,
 and representative Memory Project/access-code/order data already exist —
-see "Development seed data & test readiness" in CLAUDE.md. Set `ADMIN_EMAILS`
-to your own Google email before signing in if you want to exercise the admin
-steps too (see above — the seeded admin user isn't a sign-in-able account).
+see "Development seed data & test readiness" in CLAUDE.md. Run
+`npm run db:create-admin` (see "Environment variables" above) if you want to
+exercise the admin steps too, then sign in at `/admin/login` (see above —
+the seeded admin user isn't a sign-in-able account, and Google sign-in never
+grants admin).
 Run `npm run db:verify` alongside this checklist to confirm the privacy/
 ownership invariants below hold at the data layer, not just in the UI.
 

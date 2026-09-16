@@ -1,4 +1,5 @@
 import type { Locale } from "@/i18n/config";
+import type { NoteTextFontFamily } from "@/features/notes/types";
 
 /**
  * Bridges a writer's in-progress note across the one full-page navigation
@@ -26,6 +27,8 @@ const MAX_DRAFT_AGE_MS = 30 * 60 * 1000;
 export interface WriteDraft {
   content: string;
   templateId: string;
+  /** EPIC — Kart Yazı Tipi Seçenekleri: optional — a draft saved before this field existed simply restores as `undefined`, and `WriteThoughtForm`'s own state already defaults that to `"modern"`; no key-version bump needed for a purely additive field. */
+  fontFamily?: NoteTextFontFamily;
   isAnonymous: boolean;
   displayName: string;
   language: Locale;

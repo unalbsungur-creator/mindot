@@ -137,7 +137,22 @@ export function NotificationBell() {
         <div
           role="dialog"
           aria-label={dictionary.notifications.panelTitle}
-          className="absolute right-0 top-full z-[var(--z-header)] mt-2 w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-lg border border-border bg-surface text-ink shadow-card"
+          // EPIC 053: a real, confirmed pre-existing bug — `right-0` here
+          // anchors to this bell's own small `relative` wrapper, not the
+          // viewport, so the panel's right EDGE lands wherever the bell
+          // happens to sit in the header. That was never visibly broken on
+          // a wide desktop viewport (plenty of margin either way), but on
+          // a genuine ~375-390px phone width, with other header items
+          // (avatar, language switcher) sitting to the bell's right, the
+          // bell itself isn't anywhere near the screen's right edge —
+          // measured live: the panel rendered ~54px into negative-x territory,
+          // its left portion (including part of its own title) genuinely
+          // off-screen and unreachable. Below `sm:`, `fixed` positioning
+          // pins the panel to the *viewport's* edges (`left-4 right-4`)
+          // instead of the bell's, independent of exactly where the bell
+          // sits; `sm:` and up restores the original, unchanged
+          // `absolute right-0 top-full` behavior verbatim.
+          className="fixed left-4 right-4 top-[4.5rem] z-[var(--z-overlay)] overflow-hidden rounded-lg border border-border bg-surface text-ink shadow-card sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(340px,calc(100vw-2rem))]"
         >
           <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
             <h2 ref={headingRef} tabIndex={-1} className="font-display text-sm font-medium text-navy focus:outline-none">

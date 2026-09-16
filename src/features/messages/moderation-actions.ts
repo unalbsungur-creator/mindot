@@ -115,6 +115,59 @@ export async function restoreMessage(id: string): Promise<ModerationResult> {
  * board (rejection happens before approval ever places it), so there's
  * no revalidatePath("/board") here — only the moderation queue changes.
  */
+/**
+ * EPIC: Published Note Edit + Re-approval — approves a pending revision on
+ * an already-published message. `status` was, and stays, "approved" the
+ * whole time (see schema.ts's `pendingContent` comment for why this is
+ * deliberately not a status transition) — the repository's atomic
+ * `pendingContent IS NOT NULL` guard is the real boundary, this pre-check
+ * only picks a precise error message. Reuses `notifyMessageApproved`
+ * as-is: its board-link target is exactly as correct for a revision
+ * (the message's tile never changes) as it is for a first approval.
+ */
+export async function approveMessageRevision(id: string): Promise<ModerationResult> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: "unauthorized" };
+
+  const existing = await messageRepository.getById(id);
+  if (!existing) return { ok: false, error: "not-found" };
+  if (existing.pendingContent === null) return { ok: false, error: "already-moderated" };
+
+  const updated = await messageRepository.approveRevision(id, admin.id);
+  if (!updated) return { ok: false, error: "already-moderated" };
+
+  await notifyMessageApproved(updated);
+
+  revalidatePath("/admin/moderation");
+  revalidatePath("/board");
+  revalidatePath("/me/archive");
+  return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
+}
+
+/**
+ * The reject counterpart — `content` is never touched, only the
+ * `pending*`/`revision*` bookkeeping. Reuses `notifyMessageRejected`
+ * as-is (its "/me/archive" target is exactly where a rejected revision's
+ * status is visible too).
+ */
+export async function rejectMessageRevision(id: string, reason?: string): Promise<ModerationResult> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: "unauthorized" };
+
+  const existing = await messageRepository.getById(id);
+  if (!existing) return { ok: false, error: "not-found" };
+  if (existing.pendingContent === null) return { ok: false, error: "already-moderated" };
+
+  const updated = await messageRepository.rejectRevision(id, admin.id, normalizeReason(reason));
+  if (!updated) return { ok: false, error: "already-moderated" };
+
+  await notifyMessageRejected(updated);
+
+  revalidatePath("/admin/moderation");
+  revalidatePath("/me/archive");
+  return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
+}
+
 export async function reconsiderMessage(id: string): Promise<ModerationResult> {
   const admin = await requireAdmin();
   if (!admin) return { ok: false, error: "unauthorized" };

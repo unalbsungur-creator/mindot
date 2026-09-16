@@ -27,7 +27,12 @@ export function LanguageSwitcher({ className }: { className?: string }) {
         // underlying onChange/state/persistence logic was already correct.
         // text-[16px] fixes the zoom with no other visual change (still
         // wrapped in the same small pill, still uppercase/tracked).
-        className="appearance-none rounded-pill border border-white/25 bg-transparent py-1.5 pl-3 pr-6 text-[16px] font-medium uppercase tracking-wide text-white/75 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange [color-scheme:dark]"
+        // EPIC 053: pl-2/pr-5 (was pl-3/pr-6) below `sm:` only — a
+        // measured contributor to a confirmed phone-width header overflow;
+        // text stays at the EPIC 026-mandated 16px at every width (only
+        // the pill's own padding shrinks), so the iOS auto-zoom fix above
+        // is untouched.
+        className="appearance-none rounded-pill border border-white/25 bg-transparent py-1.5 pl-2 pr-4 text-[16px] font-medium uppercase tracking-wide text-white/75 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange [color-scheme:dark] sm:pl-3 sm:pr-6"
         aria-label={dictionary.common.language}
       >
         {locales.map((code) => (
@@ -39,7 +44,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
       <svg
         aria-hidden="true"
         viewBox="0 0 10 6"
-        className="pointer-events-none absolute right-2 h-1.5 w-2.5 fill-none stroke-white/75"
+        className="pointer-events-none absolute right-1.5 h-1.5 w-2.5 fill-none stroke-white/75 sm:right-2"
         strokeWidth={1.5}
       >
         <path d="M1 1l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />

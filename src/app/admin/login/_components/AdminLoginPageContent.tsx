@@ -8,20 +8,25 @@ import { adminSignIn, type AdminSignInError } from "@/features/auth/actions";
 import { useLocale } from "@/i18n/LocaleProvider";
 
 /**
- * EPIC 030: the admin login form. Deliberately a plain username/password
+ * EPIC 030: the admin login form. Deliberately a plain email/password
  * form, not a second styling of GoogleSignInButton — Google is not an
  * authentication *option* here, it's a different flow entirely for a
  * different audience (see CLAUDE.md's authentication section once updated).
  *
- * Every rejection reason — wrong password, unknown username, a real
- * account that just isn't an admin, a suspended admin, a locked-out
- * account — renders as the exact same `invalidCredentials` message. That's
- * deliberate (no username enumeration), not a missing feature.
+ * EPIC 036: the login identity is email (`unalbsungur@hotmail.com`), not
+ * username — the DB row still has a `username` column, but this form
+ * never collects or sends it; `adminSignIn`/`authorize()` look the
+ * account up by email now.
+ *
+ * Every rejection reason — wrong password, unknown email, a real account
+ * that just isn't an admin, a suspended admin, a locked-out account —
+ * renders as the exact same `invalidCredentials` message. That's
+ * deliberate (no email enumeration), not a missing feature.
  */
 export function AdminLoginPageContent() {
   const { dictionary } = useLocale();
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<AdminSignInError | undefined>();
@@ -38,7 +43,7 @@ export function AdminLoginPageContent() {
     setError(undefined);
     startTransition(async () => {
       try {
-        const result = await adminSignIn(username, password);
+        const result = await adminSignIn(email, password);
         if (result.ok) {
           router.push("/admin");
           return;
@@ -63,18 +68,18 @@ export function AdminLoginPageContent() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label htmlFor="admin-username" className="text-sm font-medium text-navy">
-              {dictionary.adminLogin.usernameLabel}
+            <label htmlFor="admin-email" className="text-sm font-medium text-navy">
+              {dictionary.adminLogin.emailLabel}
             </label>
             <input
-              id="admin-username"
-              name="username"
-              type="text"
-              autoComplete="username"
+              id="admin-email"
+              name="email"
+              type="email"
+              autoComplete="email"
               required
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              placeholder={dictionary.adminLogin.usernamePlaceholder}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder={dictionary.adminLogin.emailPlaceholder}
               // text-[16px], not text-sm: the same Mobile Safari auto-zoom
               // fix as every other form input in this codebase (see
               // WriteThoughtForm/LanguageSwitcher) — below 16px, focusing
@@ -106,7 +111,7 @@ export function AdminLoginPageContent() {
             </p>
           )}
 
-          <Button type="submit" disabled={isPending || !username || !password}>
+          <Button type="submit" disabled={isPending || !email || !password}>
             {isPending ? dictionary.adminLogin.signingIn : dictionary.adminLogin.signInButton}
           </Button>
         </form>

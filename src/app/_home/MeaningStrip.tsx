@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { StarField } from "@/components/ui/StarField";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useLocale } from "@/i18n/LocaleProvider";
 
@@ -66,7 +67,12 @@ export function MeaningStrip() {
   ];
 
   return (
-    <section className="border-t border-white/10 bg-navy py-6 sm:py-7">
+    <section className="relative border-t border-white/10 bg-navy py-6 sm:py-7">
+      {/* EPIC 038: same asset as HomeHero (StarField, see
+          src/components/ui/StarField.tsx), at a lower opacity (~0.08 vs.
+          the hero's ~0.12) — a continuation of the same atmosphere across
+          the navy strip, not a duplicated identical band. */}
+      <StarField opacity={0.08} />
       <PageContainer>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4 lg:divide-x lg:divide-white/10">
           {columns.map((column, index) => (

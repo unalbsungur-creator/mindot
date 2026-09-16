@@ -6,5 +6,12 @@
  * to a MINDOT order manually via the order number — see
  * features/memories/lib/identifiers.ts and "Physical gift & DilekKutum
  * flow" in CLAUDE.md.
+ *
+ * EPIC 053: defaults to `null` (same fail-safe shape as
+ * `shoppier.ts`'s `SHOPPIER_PRODUCT_URL`) rather than the real live
+ * storefront — the pre-launch commercial phase isn't active yet, so an
+ * unset env var must never silently hand a real user a live external
+ * purchase link. Set DILEKKUTUM_URL once the physical-gift flow is
+ * actually ready to go live.
  */
-export const DILEKKUTUM_URL = process.env.DILEKKUTUM_URL || "https://dilekkutum.com/";
+export const DILEKKUTUM_URL = process.env.DILEKKUTUM_URL || null;

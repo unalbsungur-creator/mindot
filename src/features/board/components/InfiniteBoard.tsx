@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Note } from "@/features/notes/components/Note";
 import type { NoteData } from "@/features/notes/types";
+import { StarField } from "@/components/ui/StarField";
 import { cn } from "@/lib/cn";
 import { getAnonymousId } from "@/lib/anonymousId";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { likeMessage } from "@/features/messages/like-actions";
 import { ReportDialog } from "@/features/reports/components/ReportDialog";
 import type { BoardTile } from "../types";
+import type { BoardFilterResult } from "./BoardDiscoveryPanel";
 import { useBoardCamera } from "../hooks/useBoardCamera";
 import { useTileCache } from "../hooks/useTileCache";
 import {
@@ -68,6 +70,7 @@ function tileToNoteData(message: BoardTile["messages"][number]): NoteData {
     authorName: message.author?.displayName ?? "",
     authorImage: message.author?.image ?? null,
     templateId: message.templateId,
+    fontFamily: message.fontFamily,
     size: "md",
     rotation: message.rotation,
     position: { top: `${message.position.y * 100}%`, left: `${message.position.x * 100}%` },
@@ -80,6 +83,7 @@ export function InfiniteBoard({
   centerPoint,
   focusPoint,
   onFocusHandled,
+  filter,
 }: {
   initialTile?: BoardTile;
   /** Where "return to center" goes — see useBoardCamera's own doc comment. */
@@ -93,6 +97,21 @@ export function InfiniteBoard({
    */
   focusPoint?: { x: number; y: number } | null;
   onFocusHandled?: () => void;
+  /**
+   * EPIC — Duvar İçi Filtreleme: `BoardDiscoveryPanel`'s current keyword/
+   * date/category outcome, relayed through `BoardPageContent`. This never
+   * changes *how* a tile's messages are fetched/positioned — `tileCache`
+   * below is completely unaware a filter exists. It only decides, per
+   * already-rendered message, whether to render its `Note` at all (see
+   * the `matchedIds` check in the tile-map loop): `matchedIds === null`
+   * renders everything, exactly as before this EPIC; a non-null Set
+   * hides any message whose id isn't in it. World-space position, tile
+   * membership, rotation, size — none of it is touched, so a hidden
+   * card's coordinates are exactly what they were the moment the filter
+   * clears. Optional so any other future caller of `InfiniteBoard` that
+   * doesn't need filtering can simply omit it.
+   */
+  filter?: BoardFilterResult;
 }) {
   const { dictionary } = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -411,6 +430,29 @@ export function InfiniteBoard({
   // currently-open dialog (if any) is about; `null` means closed.
   const [reportingMessageId, setReportingMessageId] = useState<string | null>(null);
 
+  // EPIC 040: Mobile Note Card Actions: Tap-to-Reveal. One board-wide id,
+  // not per-note local state — guarantees at most one note's actions can
+  // ever be visible on a touchscreen at a time (tapping a new card
+  // implicitly closes whichever one was open, since only one id can be
+  // "current"). Desktop's mouse hover/keyboard-focus reveal (Note.tsx's
+  // `group-hover:`/`group-focus-within:`) is completely independent of
+  // this state — see Note.tsx's own EPIC 040 comments.
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+
+  // Tapping empty board space (canvas, a tile's background, BoardControls,
+  // anywhere that isn't a note) clears the active card. Checked via
+  // `closest` rather than `event.target === event.currentTarget` because a
+  // tap that lands on a tile's background `<div>` (not the note itself)
+  // still needs to count as "outside" — `data-note-card` (Note.tsx) is the
+  // one marker that means "this click originated on/inside an actual
+  // note," including its own action buttons (so tapping "Paylaş" on the
+  // already-active card never immediately re-closes it via this handler).
+  const handleBoardBackgroundClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("[data-note-card]")) return;
+    setActiveNoteId(null);
+  }, []);
+
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(LIKED_STORAGE_KEY);
@@ -469,10 +511,17 @@ export function InfiniteBoard({
     // the underlying condition changes, then re-arming the timer below.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowEmptyHint(false);
-    if (visibleMessageCount > 0 || anyTileLoading || viewport.width === 0) return;
+    // EPIC — Duvar İçi Filtreleme: this hint means "this world region has
+    // no messages at all," which isn't the right message while a filter
+    // is actively hiding cards that do exist — that case gets its own
+    // "eşleşen düşünce yok" hint below instead (see filterStatus/
+    // filterHasNoMatches), so this one stays gated to the true unfiltered
+    // empty-region case exactly as it was before this EPIC.
+    const filterActive = filter != null && (filter.status === "loading" || filter.matchedIds !== null);
+    if (visibleMessageCount > 0 || anyTileLoading || viewport.width === 0 || filterActive) return;
     const timeout = setTimeout(() => setShowEmptyHint(true), EMPTY_HINT_DELAY_MS);
     return () => clearTimeout(timeout);
-  }, [visibleMessageCount, anyTileLoading, viewport.width]);
+  }, [visibleMessageCount, anyTileLoading, viewport.width, filter]);
 
   return (
     <div
@@ -485,7 +534,76 @@ export function InfiniteBoard({
       onPointerMove={handlePointerMove}
       onPointerUp={endPointer}
       onPointerCancel={endPointer}
+      onClick={handleBoardBackgroundClick}
     >
+      {/* EPIC 038: a static, decorative star-field atmosphere (StarField,
+          see src/components/ui/StarField.tsx) — deliberately a sibling of
+          `worldRef` (never a child of it), so it stays fixed to the
+          viewport/container and never pans or scales with the world-space
+          transform applied to tiles/notes below.
+          EPIC 041: EPIC 038 shipped this at `opacity={0.1}` with normal
+          blending — real-browser QA confirmed that combination reads as
+          essentially imperceptible against `bg-canvas`'s light cream:
+          normal alpha compositing of a mostly-dark navy image at 10%
+          opacity over a light base just shifts the cream a few RGB units
+          cooler, with no visible star texture. Two changes fix this
+          without touching cards/controls/search/center-mark/pan-zoom, and
+          without turning the board into a dark theme:
+          (1) a barely-there flat navy wash (`bg-navy` at 4% opacity, its
+          own sibling layer, painted first so the star image composites
+          over it) — deepens the base tone just enough that the star
+          image's own tonal range has something to actually contrast
+          against, still overwhelmingly the existing cream everywhere a
+          card or control sits;
+          (2) `mix-blend-mode: multiply` (see StarField.tsx's `blendMode`
+          prop) instead of normal blending, at a higher `opacity={0.28}` —
+          multiply darkens the canvas specifically where the source image
+          is dark (its navy/black regions) while leaving lighter regions
+          (the nebula glow, star points) comparatively brighter, producing
+          real visible tonal variation ("atmosphere") instead of one flat
+          uniform tint. Every card renders in its own fully opaque paper
+          layer above this (see Note.tsx) — none of this can ever affect a
+          card's own color/shadow/legibility, only the empty canvas
+          between them.
+          (3) THE ACTUAL ROOT CAUSE, found via real-browser testing (not
+          just opacity/contrast): both this layer and StarField below use
+          `zIndex={0}`, not the `-1` EPIC 038 originally shipped. `worldRef`
+          just below carries an imperatively-applied `transform` (for
+          60fps pan/zoom), which promotes it to its own stacking context —
+          and that context was found to fully OCCLUDE any negative-z-index
+          sibling behind it, not merely paint over it faintly. Confirmed by
+          injecting plain positioned test elements directly into this
+          container at both z-index values: `-1` was completely invisible
+          regardless of DOM order, `0` (placed first in DOM order, same as
+          here) rendered correctly. `0` still paints behind `worldRef` and
+          everything after it (same stacking "level," DOM order decides),
+          it just no longer gets excluded from painting at all. See
+          StarField.tsx's own EPIC 041 comment for the full explanation —
+          this is a board-only override; HomeHero/MeaningStrip have no
+          transformed descendant, so their default `-1` is untouched and
+          still correct. */}
+      {/* Inline style (not a Tailwind opacity-[…] utility) for the exact
+          same reason StarField.tsx's own inset values are inline — this
+          session has repeatedly confirmed arbitrary-value Tailwind
+          utilities can silently fail to compile under this project's dev
+          server; an inline style has no such risk. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bg-navy"
+        style={{ zIndex: 0, top: 0, right: 0, bottom: 0, left: 0, opacity: 0.02 }}
+      />
+      <StarField opacity={0.13} blendMode="multiply" zIndex={0} />
+      {/* EPIC 042: Board Watermark Logo Replacement. Moved out from inside
+          `worldRef` — this used to be a world-space element (a child of
+          `worldRef`, positioned at the world origin via `TILE_PX/2`
+          coordinates) that panned/scaled away with the board by design.
+          The new asset-based watermark is required to behave like
+          StarField instead: fixed to the viewport, never moving with
+          pan/zoom. See BoardCenterMark.tsx's own EPIC 042 comment for the
+          rest (asset, opacity, and the same `zIndex={0}`-not-`-1` fix
+          StarField needed for the same worldRef-stacking-context reason —
+          see StarField.tsx's EPIC 041 comment). */}
+      <BoardCenterMark />
       <div
         ref={worldRef}
         className={cn(
@@ -493,7 +611,6 @@ export function InfiniteBoard({
           isResetting && "transition-transform duration-500 ease-out"
         )}
       >
-        <BoardCenterMark />
         {visibleTiles.map((coord) => {
           const entry = tileCache.get(`${coord.x},${coord.y}`);
           if (!entry?.tile) return null;
@@ -504,6 +621,16 @@ export function InfiniteBoard({
               style={{ left: coord.x * TILE_PX, top: coord.y * TILE_PX, width: TILE_PX, height: TILE_PX }}
             >
               {entry.tile.messages.map((message) => {
+                // EPIC — Duvar İçi Filtreleme: the one line that actually
+                // implements "filtering happens in place." `matchedIds ===
+                // null` means no filter is active — every message renders,
+                // byte-identical to before this EPIC. A non-null Set means
+                // only ids in it render; everything else about this
+                // message (its tile, its `tileToNoteData` position/
+                // rotation/size) is never touched, so a hidden card's
+                // coordinates are exactly what they were the moment the
+                // filter clears — nothing is recomputed, nothing moves.
+                if (filter?.matchedIds && !filter.matchedIds.has(message.id)) return null;
                 const liked = likedIds.has(message.id);
                 const count = likeCountOverrides[message.id] ?? message.likeCount;
                 return (
@@ -511,6 +638,8 @@ export function InfiniteBoard({
                     key={message.id}
                     note={tileToNoteData(message)}
                     variant="world"
+                    active={activeNoteId === message.id}
+                    onActivate={() => setActiveNoteId(message.id)}
                     actions={[
                       { href: `/memory/${message.id}`, label: dictionary.memory.preserveAction, icon: "save" },
                       { href: `/share/${message.id}`, label: dictionary.share.shareAction, icon: "share" },
@@ -539,6 +668,32 @@ export function InfiniteBoard({
       {anyTileError && (
         <p className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-pill bg-surface/80 px-4 py-1.5 text-xs text-ink-soft opacity-80 backdrop-blur">
           {dictionary.boardPage.loadError}
+        </p>
+      )}
+      {/*
+       * EPIC — Duvar İçi Filtreleme: the board itself is now the "search
+       * result" — these are its only feedback for a filter that's still
+       * loading, failed, or genuinely matched nothing anywhere on the
+       * board (not just outside the current viewport, which needs a pan,
+       * not an error message — see `matchedIds.size === 0`, computed from
+       * the *full* search result, never from what happens to be on
+       * screen). Same quiet top-6 pill pattern as the two hints above;
+       * mutually exclusive with them in practice since `showEmptyHint`'s
+       * own effect is gated off while a filter is active (see above).
+       */}
+      {filter?.status === "loading" && (
+        <p className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-pill bg-surface/80 px-4 py-1.5 text-xs text-ink-soft opacity-80 backdrop-blur">
+          {dictionary.boardDiscovery.loading}
+        </p>
+      )}
+      {filter?.status === "error" && (
+        <p className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-pill bg-surface/80 px-4 py-1.5 text-xs text-red-600 opacity-80 backdrop-blur">
+          {dictionary.boardDiscovery.error}
+        </p>
+      )}
+      {filter?.status === "ready" && filter.matchedIds?.size === 0 && (
+        <p className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-pill bg-surface/80 px-4 py-1.5 text-xs text-ink-soft opacity-80 backdrop-blur">
+          {dictionary.boardDiscovery.noResults}
         </p>
       )}
       {/* EPIC 026: mobile-only (sm:hidden) — desktop already has the visible

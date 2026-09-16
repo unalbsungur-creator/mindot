@@ -1,18 +1,39 @@
 {
-  // EPIC: Proper Cloudflare OpenNext Integration and Real Bundle Measurement.
-  // "main"/"assets" point at OpenNext's own generated output directory
-  // (.open-next/, produced by `npm run build:cf` — see package.json) rather
-  // than anything hand-written. "nodejs_compat" is required because the
-  // app's dependency graph (next-auth, drizzle-orm, postgres, @react-pdf/*)
-  // uses Node.js built-ins that only the Workers Node.js compat layer
-  // provides — Workers has no filesystem/node_modules at runtime, so this
-  // flag (not a bundler setting) is what makes those imports resolve at all.
-  "name": "mindot",
-  "compatibility_date": "2026-08-31",
-  "compatibility_flags": ["nodejs_compat"],
-  "main": ".open-next/worker.js",
-  "assets": {
-    "directory": ".open-next/assets",
-    "binding": "ASSETS"
-  }
+	// EPIC: Proper Cloudflare OpenNext Integration and Real Bundle Measurement.
+	// "main"/"assets" point at OpenNext's own generated output directory
+	// (.open-next/, produced by `npm run build:cf` — see package.json) rather
+	// than anything hand-written. "nodejs_compat" is required because the
+	// app's dependency graph (next-auth, drizzle-orm, postgres, @react-pdf/*)
+	// uses Node.js built-ins that only the Workers Node.js compat layer
+	// provides — Workers has no filesystem/node_modules at runtime, so this
+	// flag (not a bundler setting) is what makes those imports resolve at all.
+	"name": "mindot",
+	"compatibility_date": "2026-08-31",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"main": ".open-next/worker.js",
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "8c1d28bf42b047c1954fd3108ece3d0f"
+		}
+	],
+	// Share-card PNG generation (next/og's Satori renderer: multiple custom
+	// web fonts + a large embedded master-image data URI, composited and
+	// rasterized via WASM) is genuinely CPU-heavy — confirmed via direct
+	// production timing that every I/O phase (font/master-image loading via
+	// the ASSETS binding) is fast (~16ms each) and the entire cost is inside
+	// `ImageResponse`'s own lazy render. That render was hitting the default
+	// Worker CPU-time budget ("Worker exceeded CPU time limit", error 1102)
+	// on the account's former Free plan, which doesn't support a `limits`
+	// override at all. Now that the account is on a paid Workers plan, this
+	// raises the budget to the platform maximum for this Worker.
+	"limits": {
+		"cpu_ms": 300000
+	}
 }

@@ -50,13 +50,19 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
   const format = getShareFormat(formatId);
   const frame = project.frameTemplateId ? getFrameTemplate(project.frameTemplateId) : null;
 
-  const image = renderShareCard({
-    primary: toShareCardNote(region.primary),
-    surrounding: region.surrounding.map(toShareCardNote),
-    format,
-    frame,
-    slogan: sloganForLanguage(message.language),
-  });
+  let image;
+  try {
+    image = await renderShareCard({
+      primary: toShareCardNote(region.primary),
+      surrounding: region.surrounding.map(toShareCardNote),
+      format,
+      frame,
+      slogan: sloganForLanguage(message.language),
+    });
+  } catch (error) {
+    console.error("renderShareCard failed", { formatId, error: error instanceof Error ? error.message : String(error) });
+    return NextResponse.json({ error: "render-failed" }, { status: 500 });
+  }
 
   image.headers.set("Cache-Control", "private, no-store");
   return image;

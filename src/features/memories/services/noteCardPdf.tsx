@@ -27,8 +27,8 @@ import type { ReactNode } from "react";
 import { Circle, Path, Polygon, Rect, Svg, Text, View } from "@react-pdf/renderer";
 import { scaleHeartPathData, estimateMemoryCardSize as estimateMemoryCardSizeShared } from "@/features/sharing/services/noteCardSatori";
 import { getNoteTemplate } from "@/features/notes/config/templates";
-import type { NoteDecoration, NoteShape } from "@/features/notes/types";
-import { PDF_FONT_FAMILY, PDF_HAND_FONT_FAMILY } from "./fonts";
+import type { NoteDecoration, NoteShape, NoteTextFontFamily } from "@/features/notes/types";
+import { PDF_FONT_FAMILY, PDF_HAND_FONT_FAMILY, PDF_BRAND_FONT_FAMILY, PDF_MONO_FONT_FAMILY } from "./fonts";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "./pdfPalette";
 import { safeTextScale, wrapTextToLines } from "./pdfTextMeasure";
 
@@ -81,23 +81,28 @@ export function pdfSafeText(text: string): string {
  */
 const PDF_HEIGHT_SAFETY_FACTOR = 1.22;
 
-export function estimateMemoryCardSize(templateId: string, content: string, width: number): { width: number; height: number } {
-  const shared = estimateMemoryCardSizeShared(templateId, content, width);
+export function estimateMemoryCardSize(templateId: string, content: string, width: number, fontFamily: NoteTextFontFamily): { width: number; height: number } {
+  const shared = estimateMemoryCardSizeShared(templateId, content, width, fontFamily);
   return { width: shared.width, height: Math.round(shared.height * PDF_HEIGHT_SAFETY_FACTOR) };
 }
 
 /** Same baseline as noteCardSatori.tsx (Note.tsx's real `w-44` board/world card width) — every proportion below is scaled by `width / BASELINE_WIDTH`, so it stays correct at any print size. */
 const BASELINE_WIDTH = 176;
 
-const FONT_METRICS: Record<"sans" | "hand", { fontSize: number }> = {
-  sans: { fontSize: 15.2 },
-  hand: { fontSize: 18 },
+/** EPIC — Kart Yazı Tipi Seçenekleri: keyed by the writer's chosen `fontFamily`, mirroring noteCardSatori.tsx's own table — `family` is the exact react-pdf `Font.register` name from fonts.ts. */
+const FONT_METRICS: Record<NoteTextFontFamily, { fontSize: number; family: string }> = {
+  modern: { fontSize: 15.2, family: PDF_FONT_FAMILY },
+  classic: { fontSize: 15.2, family: PDF_BRAND_FONT_FAMILY },
+  handwritten: { fontSize: 18, family: PDF_HAND_FONT_FAMILY },
+  typewriter: { fontSize: 14, family: PDF_MONO_FONT_FAMILY },
 };
 
 export interface MemoryNoteCardPdfInput {
   content: string;
   authorName: string | null;
   templateId: string;
+  /** The writer's own text typeface — see FONT_METRICS above. */
+  fontFamily: NoteTextFontFamily;
   /** Degrees — 0 for the Memory Print's hero card (matches Share's own choice: a print/share hero is shown upright, never board-tilted, for readability). */
   rotation: number;
   width: number;
@@ -192,6 +197,15 @@ function shapeDescriptorFor(shape: NoteShape, width: number, height: number, sca
     }
     case "heart":
       return { kind: "path", d: scaleHeartPathData(width, height) };
+    // EPIC 039: a plain circle — Memory/PDF rendering deliberately doesn't
+    // reproduce the app's two-tone ball background (see this file's own
+    // "don't touch PDF/share" scope note in CLAUDE.md); `template.paper`
+    // (set to a plain light tone for every sports entry) already gives a
+    // legible, non-crashing card here.
+    case "football": {
+      const r = Math.min(width, height) / 2;
+      return { kind: "rect", radii: [r, r, r, r] };
+    }
   }
 }
 
@@ -353,16 +367,17 @@ function ShadowLayer({ shape, width, height }: { shape: ShapeDescriptor; width: 
   );
 }
 
-export function MemoryNoteCardPdf({ content, authorName, templateId, rotation, width }: MemoryNoteCardPdfInput) {
+export function MemoryNoteCardPdf({ content, authorName, templateId, fontFamily, rotation, width }: MemoryNoteCardPdfInput) {
   const template = getNoteTemplate(templateId);
   const isHeart = template.shape === "heart";
   const isPolaroid = template.shape === "polaroid";
   const isFolded = template.shape === "folded";
+  const isFootball = template.shape === "football";
   const scale = width / BASELINE_WIDTH;
-  const { height } = estimateMemoryCardSize(templateId, content, width);
+  const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily);
   const shape = shapeDescriptorFor(template.shape, width, height, scale);
-  const metrics = FONT_METRICS[template.font];
-  const fontFamily = template.font === "hand" ? PDF_HAND_FONT_FAMILY : PDF_FONT_FAMILY;
+  const metrics = FONT_METRICS[fontFamily];
+  const pdfFontFamily = metrics.family;
   const paperColor = PDF_PAPER_COLORS[template.paper] ?? PDF_PAPER_COLORS.white;
 
   const paddingStyle = isHeart
@@ -383,14 +398,14 @@ export function MemoryNoteCardPdf({ content, authorName, templateId, rotation, w
   // decoration/padding keep their normal geometry scale, so ordinary
   // content (no unusually long word, no narrow-overflow line) renders
   // pixel-identically to before this existed.
-  const contentTextScale = safeTextScale(content, template.font, metrics.fontSize, scale, innerWidth);
+  const contentTextScale = safeTextScale(content, fontFamily, metrics.fontSize, scale, innerWidth);
   const contentFontSize = metrics.fontSize * contentTextScale;
-  const wrappedContent = wrapTextToLines(content, template.font, contentFontSize, innerWidth).join("\n");
+  const wrappedContent = wrapTextToLines(content, fontFamily, contentFontSize, innerWidth).join("\n");
 
   const authorLine = authorName ? `— ${authorName}` : null;
-  const authorTextScale = authorLine ? safeTextScale(authorLine, "sans", 12, scale, innerWidth) : scale;
+  const authorTextScale = authorLine ? safeTextScale(authorLine, "modern", 12, scale, innerWidth) : scale;
   const authorFontSize = 12 * authorTextScale;
-  const wrappedAuthor = authorLine ? wrapTextToLines(authorLine, "sans", authorFontSize, innerWidth).join("\n") : null;
+  const wrappedAuthor = authorLine ? wrapTextToLines(authorLine, "modern", authorFontSize, innerWidth).join("\n") : null;
 
   return (
     <View style={{ position: "relative", width, height, transform: `rotate(${rotation}deg)` }}>
@@ -410,8 +425,8 @@ export function MemoryNoteCardPdf({ content, authorName, templateId, rotation, w
         />
       )}
 
-      <View style={{ position: "absolute", top: 0, left: 0, width, height, display: "flex", flexDirection: "column", justifyContent: isHeart ? "center" : "flex-start", ...paddingStyle }}>
-        <Text style={{ fontFamily, fontSize: contentFontSize, lineHeight: 1.4, color: PDF_COLORS.ink }}>{pdfSafeText(wrappedContent)}</Text>
+      <View style={{ position: "absolute", top: 0, left: 0, width, height, display: "flex", flexDirection: "column", justifyContent: isHeart || isFootball ? "center" : "flex-start", ...paddingStyle }}>
+        <Text style={{ fontFamily: pdfFontFamily, fontSize: contentFontSize, lineHeight: 1.4, color: PDF_COLORS.ink }}>{pdfSafeText(wrappedContent)}</Text>
         {wrappedAuthor && (
           <Text style={{ marginTop: 12 * scale, fontSize: authorFontSize, color: PDF_COLORS.inkSoft }}>{pdfSafeText(wrappedAuthor)}</Text>
         )}

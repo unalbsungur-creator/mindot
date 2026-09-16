@@ -88,6 +88,7 @@ export function MemoryLibraryContent({ isSignedIn, items }: MemoryLibraryContent
                       authorName: "",
                       authorImage: null,
                       templateId: item.noteTemplateId,
+                      fontFamily: item.noteFontFamily ?? undefined,
                       size: "sm",
                       rotation: 0,
                       position: { top: "0%", left: "0%" },

@@ -56,7 +56,7 @@ function HomeLink({ label }: { label: string }) {
       href="/"
       aria-label={label}
       title={label}
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 text-white/80 transition-colors hover:border-orange/50 hover:text-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 text-white/80 transition-colors hover:border-orange/50 hover:text-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange sm:h-10 sm:w-10"
     >
       <HomeIcon className="h-5 w-5" />
     </Link>
@@ -99,9 +99,9 @@ function WallNavLink({ label }: { label: string }) {
   return (
     <Link
       href="/board"
-      className="group inline-flex items-center gap-2.5 rounded-lg border border-white/15 px-3 py-2 text-base font-semibold text-white/85 transition-all duration-[var(--motion-fast)] ease-[var(--ease-standard)] hover:-translate-y-0.5 hover:border-orange/50 hover:text-white hover:shadow-[0_4px_16px_rgba(255,106,0,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange sm:text-lg lg:text-xl"
+      className="group inline-flex items-center gap-1 rounded-lg border border-white/15 px-2 py-1.5 text-base font-semibold text-white/85 transition-all duration-[var(--motion-fast)] ease-[var(--ease-standard)] hover:-translate-y-0.5 hover:border-orange/50 hover:text-white hover:shadow-[0_4px_16px_rgba(255,106,0,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange sm:gap-2.5 sm:px-3 sm:py-2 sm:text-lg lg:text-xl"
     >
-      <WallIcon className="h-5 w-5 shrink-0 transition-transform group-hover:scale-105 sm:h-6 sm:w-6" />
+      <WallIcon className="h-4 w-4 shrink-0 transition-transform group-hover:scale-105 sm:h-6 sm:w-6" />
       {label}
     </Link>
   );
@@ -148,13 +148,13 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-[var(--z-header)] border-b border-white/10 bg-navy/95 backdrop-blur supports-[backdrop-filter]:bg-navy/90">
-      <PageContainer className="flex h-16 items-center justify-between gap-4 lg:h-20">
-        <nav aria-label="Primary" className="flex items-center gap-3 lg:gap-6">
+      <PageContainer className="flex h-16 items-center justify-between gap-1 sm:gap-4 lg:h-20">
+        <nav aria-label={dictionary.common.primaryNavLabel} className="flex items-center gap-1 sm:gap-3 lg:gap-6">
           {showHomeButton && <HomeLink label={dictionary.states.home} />}
           <WallNavLink label={dictionary.nav.wall} />
           <Link
             href="/about"
-            className="inline-flex min-h-11 items-center text-base font-semibold text-white/85 transition-colors hover:text-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange sm:text-lg lg:text-xl"
+            className="inline-flex min-h-11 items-center text-sm font-semibold text-white/85 transition-colors hover:text-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange sm:text-lg lg:text-xl"
           >
             {dictionary.nav.about}
           </Link>
@@ -164,15 +164,47 @@ export function SiteHeader() {
           <DotCtaButton href="/write">{dictionary.nav.writeThought}</DotCtaButton>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 sm:gap-3">
           {user?.isAdmin && (
             // Discoverability only, not the security boundary — every
             // /admin/* page and Server Function independently re-checks
             // session.user.role === "admin" itself regardless of whether
             // this link is visible. See /api/session/summary.
-            <Button href="/admin" variant="outline" size="sm">
-              {dictionary.nav.admin}
-            </Button>
+            //
+            // A separate, tighter text chip below `sm:` — the same padded
+            // `Button` used at `sm:` and up doesn't fit a ~375-390px header
+            // alongside the notification bell/avatar/language switcher
+            // (EPIC 053 first tried an icon-only glyph here, but a real
+            // admin tester didn't recognize an unlabeled icon as the
+            // "Yönetim" entry point; this keeps the word itself legible at
+            // every width instead). Verified to add zero horizontal
+            // overflow at 375px and 390px against the current nav/right
+            // cluster; the full button returns at `sm:` and up.
+            <>
+              <Link
+                href="/admin"
+                aria-label={dictionary.nav.admin}
+                title={dictionary.nav.admin}
+                className="flex h-9 shrink-0 items-center rounded-full border border-white/15 px-1 text-[10px] font-semibold leading-none text-white/80 transition-colors hover:border-orange/50 hover:text-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange sm:hidden"
+              >
+                {dictionary.nav.admin}
+              </Link>
+              {/*
+               * EPIC 053: hides via a wrapper, not a `hidden` className
+               * passed straight to Button — Button's own `base` constant
+               * already bakes in an unconditional `inline-flex`, and a
+               * same-specificity, unprefixed `hidden` utility next to it
+               * loses the CSS source-order tie-break (a well-known
+               * Tailwind gotcha), so it silently never actually hid.
+               * Confirmed live before this fix: both the icon link and
+               * the full button rendered simultaneously at 390px.
+               */}
+              <span className="hidden sm:inline-flex">
+                <Button href="/admin" variant="outline" size="sm">
+                  {dictionary.nav.admin}
+                </Button>
+              </span>
+            </>
           )}
           {/* EPIC 023: visible only once a signed-in session is known — same gate as the /me avatar link right after it. */}
           {user && <NotificationBell />}

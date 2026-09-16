@@ -40,6 +40,7 @@ export function WallNotes({ notes, profile, emptyMessage }: WallNotesProps) {
             authorName: profile.displayName,
             authorImage: profile.image,
             templateId: note.templateId,
+            fontFamily: note.fontFamily,
             size: "md",
             rotation: note.rotation,
             position: { top: "0%", left: "0%" },

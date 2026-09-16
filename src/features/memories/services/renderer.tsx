@@ -88,10 +88,10 @@ export function MemoryPdfDocument({ region, frameTemplateId }: MemoryPdfProps) {
   // EPIC's own explicit requirement ("güvenli baskı marjı").
   const availableCardHeight = Math.max(contentHeight * 0.2, contentHeight - HEADER_HEIGHT - FOOTER_HEIGHT - SECTION_GAP * 2 - surroundingReserve) * 0.92;
   let cardWidth = contentWidth * 0.64;
-  let cardSize = estimateMemoryCardSize(region.primary.templateId, region.primary.content, cardWidth);
+  let cardSize = estimateMemoryCardSize(region.primary.templateId, region.primary.content, cardWidth, region.primary.fontFamily);
   if (cardSize.height > availableCardHeight) {
     cardWidth *= availableCardHeight / cardSize.height;
-    cardSize = estimateMemoryCardSize(region.primary.templateId, region.primary.content, cardWidth);
+    cardSize = estimateMemoryCardSize(region.primary.templateId, region.primary.content, cardWidth, region.primary.fontFamily);
   }
 
   return (
@@ -111,6 +111,7 @@ export function MemoryPdfDocument({ region, frameTemplateId }: MemoryPdfProps) {
             content={region.primary.content}
             authorName={region.primary.author?.displayName ?? null}
             templateId={region.primary.templateId}
+            fontFamily={region.primary.fontFamily}
             rotation={0}
             width={cardWidth}
           />
@@ -156,8 +157,8 @@ function SurroundingNoteCard({ note, width }: { note: BoardTileMessage; width: n
   // pdfTextMeasure.ts) — this box is narrower still, so both of that file's
   // two confirmed react-pdf line-breaking defects are even more likely here.
   const innerWidth = width - SURROUNDING_PADDING * 2;
-  const fontSize = SURROUNDING_FONT_SIZE * safeTextScale(excerpt, "sans", SURROUNDING_FONT_SIZE, 1, innerWidth);
-  const wrappedExcerpt = wrapTextToLines(excerpt, "sans", fontSize, innerWidth).join("\n");
+  const fontSize = SURROUNDING_FONT_SIZE * safeTextScale(excerpt, "modern", SURROUNDING_FONT_SIZE, 1, innerWidth);
+  const wrappedExcerpt = wrapTextToLines(excerpt, "modern", fontSize, innerWidth).join("\n");
 
   return (
     <View style={{ display: "flex", width, borderRadius: 8, padding: SURROUNDING_PADDING, backgroundColor: paperColor }}>

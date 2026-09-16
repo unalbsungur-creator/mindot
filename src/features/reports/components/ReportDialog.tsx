@@ -104,6 +104,17 @@ export function ReportDialog({ open, messageId, onClose }: ReportDialogProps) {
         if (phase !== "submitting") onClose();
       }}
       onClick={handleBackdropClick}
+      // The dialog is mounted inside InfiniteBoard's own pointer-gesture
+      // container (see InfiniteBoard.tsx), which calls setPointerCapture on
+      // itself for any pointerdown that bubbles up to it — showModal()'s
+      // top-layer promotion is paint/stacking only, it doesn't change the
+      // DOM's normal bubbling path. Without stopping propagation here, every
+      // tap inside this dialog (a reason radio, Cancel, Submit, even the
+      // backdrop) gets its subsequent pointer events redirected to the
+      // board's drag handling instead, breaking selection/cancel/backdrop-
+      // close all at once. Same fix pattern EPIC 029 already applied to
+      // Note.tsx's own action buttons, just never carried over here.
+      onPointerDown={(event) => event.stopPropagation()}
       className="m-auto w-[calc(100%-2rem)] max-w-sm rounded-lg border border-border bg-surface p-0 shadow-card backdrop:bg-navy/50 backdrop:backdrop-blur-sm"
     >
       {phase === "success" ? (

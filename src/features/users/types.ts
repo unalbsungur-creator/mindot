@@ -34,10 +34,11 @@ export interface GoogleProfile {
 }
 
 /**
- * EPIC 030: the narrow, internal-only shape `getCredentialsByUsername`
- * returns — deliberately not part of `User` (see repository.ts's doc
- * comment) so `passwordHash` can never leak into a client-facing read.
- * Consumed exclusively by the Credentials provider's `authorize()`.
+ * EPIC 030: the narrow, internal-only shape `getCredentialsByEmail`
+ * (EPIC 036: looked up by email, not username) returns — deliberately not
+ * part of `User` (see repository.ts's doc comment) so `passwordHash` can
+ * never leak into a client-facing read. Consumed exclusively by the
+ * Credentials provider's `authorize()`.
  */
 export interface CredentialsUser {
   id: string;

@@ -16,7 +16,9 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/lib/db/seed.ts",
     "db:verify": "tsx src/lib/db/verify.ts",
-    "db:create-admin": "tsx src/lib/db/createAdmin.ts"
+    "db:create-admin": "tsx src/lib/db/createAdmin.ts",
+    "db:repair-placements": "tsx src/lib/db/repairPlacements.ts",
+    "db:recalibrate-sequence": "tsx src/lib/db/recalibratePlacementSequence.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

@@ -25,10 +25,10 @@ export default async function Image({ params }: { params: Promise<{ messageId: s
   const message = await getPublicMessageById(messageId);
 
   if (!message) {
-    return renderBrandOgImage(getDictionary("en").boardPage.slogan);
+    return await renderBrandOgImage(getDictionary("en").boardPage.slogan);
   }
 
-  return renderShareCard({
+  return await renderShareCard({
     primary: toShareCardNote(message),
     format: { id: "og", name: "OG", width: OG_IMAGE_SIZE.width, height: OG_IMAGE_SIZE.height },
     slogan: sloganForLanguage(message.language),

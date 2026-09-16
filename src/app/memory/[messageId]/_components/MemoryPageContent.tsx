@@ -82,6 +82,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
     authorName: message.author?.displayName ?? "",
     authorImage: message.author?.image ?? null,
     templateId: message.templateId,
+    fontFamily: message.fontFamily,
     size: "lg",
     rotation: 0,
     position: { top: "0%", left: "0%" },
@@ -103,7 +104,11 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
       }
 
       let physicalOrder: PhysicalOrder | null = null;
-      if (outputType === "physical_gift") {
+      // EPIC 053: never mint a real order number (or send anyone toward the
+      // real DilekKutum storefront) while the pre-launch commercial phase
+      // isn't active — same "unset env var means not live yet" fail-safe
+      // `SHOPPIER_PRODUCT_URL` already uses for the digital path below.
+      if (outputType === "physical_gift" && DILEKKUTUM_URL) {
         const orderResult = await createPhysicalOrder(result.data.id);
         if (orderResult.ok && orderResult.data) physicalOrder = orderResult.data;
       }
@@ -214,7 +219,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
                             : "border-border bg-surface text-ink-soft hover:text-navy"
                         )}
                       >
-                        {frame.name}
+                        {dictionary.memory.frameNames[frame.id] ?? frame.name}
                       </button>
                     ))}
                   </div>
@@ -363,7 +368,14 @@ function PhysicalOrderPanel({ order }: { order: PhysicalOrder | null }) {
   const { dictionary } = useLocale();
   const [copied, setCopied] = useState(false);
 
-  if (!order) return null;
+  // EPIC 053: `order` is null both when the physical-gift flow isn't live
+  // yet (DILEKKUTUM_URL unset, see handleCreate above) and — unchanged from
+  // before — if `createPhysicalOrder` itself ever fails; either way, an
+  // honest "not available yet" message (same shape as `shoppierUnavailable`
+  // below) is correct, never a silently blank panel.
+  if (!order) {
+    return <p className="max-w-xs text-sm text-orange-ink">{dictionary.memory.physicalUnavailable}</p>;
+  }
 
   function handleCopy() {
     navigator.clipboard
@@ -398,9 +410,11 @@ function PhysicalOrderPanel({ order }: { order: PhysicalOrder | null }) {
           </li>
         ))}
       </ol>
-      <Button href={DILEKKUTUM_URL} target="_blank" rel="noopener noreferrer">
-        {dictionary.memory.dilekkutumButton}
-      </Button>
+      {DILEKKUTUM_URL && (
+        <Button href={DILEKKUTUM_URL} target="_blank" rel="noopener noreferrer">
+          {dictionary.memory.dilekkutumButton}
+        </Button>
+      )}
       <MemoryShareSection projectId={order.memoryProjectId} />
     </div>
   );

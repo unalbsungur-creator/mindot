@@ -31,13 +31,22 @@
 import type { ReactNode } from "react";
 import { HEART_PATH } from "@/features/notes/components/Note";
 import { getNoteTemplate } from "@/features/notes/config/templates";
-import type { NoteDecoration, NoteShape } from "@/features/notes/types";
+import { SPORTS_COLOR_HEX } from "@/features/notes/lib/sportsBall";
+import type { NoteDecoration, NoteShape, NoteTextFontFamily, SportsColorKey } from "@/features/notes/types";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "@/features/memories/services/pdfPalette";
 
 /** Tailwind `w-44` (11rem @ 16px root) — Note.tsx's real fixed board/world card width. Every proportion below (padding, corner-cut size, decoration size, attachment size) was measured against this and is scaled by `renderWidth / BASELINE_WIDTH`. */
 const BASELINE_WIDTH = 176;
 
-const FONT_METRICS: Record<"sans" | "hand", { charsPerLine: number; lineHeight: number; fontSize: number }> = {
+/**
+ * EPIC — Kart Yazı Tipi Seçenekleri: keyed by the writer's chosen
+ * `fontFamily`, not `template.font` — text typography is now fully
+ * independent of the template's paper/shape styling (see
+ * `features/notes/lib/textScale.ts`, the DOM equivalent of this table).
+ * `family` is the literal Satori `fontFamily` string, matched to whichever
+ * WOFF `shareFonts.ts` registers under that exact name.
+ */
+const FONT_METRICS: Record<NoteTextFontFamily, { charsPerLine: number; lineHeight: number; fontSize: number; family: string }> = {
   // Same measurement basis as features/notes/lib/footprint.ts (176px card,
   // ~144px of text width after padding) — reused as a *ratio* (chars per
   // line is resolution-independent), not imported, because that module's
@@ -46,8 +55,10 @@ const FONT_METRICS: Record<"sans" | "hand", { charsPerLine: number; lineHeight: 
   // is a standalone hero image with its own generous whitespace, meant to
   // show a thought in full (up to MESSAGE_MAX_LENGTH, not a wall-fitting
   // excerpt).
-  sans: { charsPerLine: 18, lineHeight: 21, fontSize: 15.2 },
-  hand: { charsPerLine: 15, lineHeight: 23, fontSize: 18 },
+  modern: { charsPerLine: 18, lineHeight: 21, fontSize: 15.2, family: "Noto Sans" },
+  classic: { charsPerLine: 17, lineHeight: 21, fontSize: 15.2, family: "Fraunces" },
+  handwritten: { charsPerLine: 15, lineHeight: 23, fontSize: 18, family: "Caveat" },
+  typewriter: { charsPerLine: 15, lineHeight: 20, fontSize: 14, family: "Geist Mono" },
 };
 const MAX_ESTIMATED_LINES = 20;
 
@@ -55,6 +66,8 @@ export interface MemoryNoteCardInput {
   content: string;
   authorName: string | null;
   templateId: string;
+  /** The writer's own text typeface — see FONT_METRICS above. */
+  fontFamily: NoteTextFontFamily;
   /** Degrees — the note's real rotation (its board placement, or 0 for a fresh preview). */
   rotation: number;
   /** Target render width in px; height is derived from content + template, never fixed in advance. */
@@ -74,12 +87,18 @@ function estimateLineCount(content: string, charsPerLine: number): number {
  * surrounding whitespace, so it's a separate, callable estimate rather
  * than something only the card component itself knows after the fact.
  */
-export function estimateMemoryCardSize(templateId: string, content: string, width: number): { width: number; height: number } {
+export function estimateMemoryCardSize(
+  templateId: string,
+  content: string,
+  width: number,
+  fontFamily: NoteTextFontFamily
+): { width: number; height: number } {
   const template = getNoteTemplate(templateId);
   const isHeart = template.shape === "heart";
   const isPolaroid = template.shape === "polaroid";
+  const isFootball = template.shape === "football";
   const scale = width / BASELINE_WIDTH;
-  const metrics = FONT_METRICS[template.font];
+  const metrics = FONT_METRICS[fontFamily];
 
   const lines = estimateLineCount(content, metrics.charsPerLine);
   const paddingY = isHeart ? (28 + 40) * scale : 32 * scale;
@@ -87,6 +106,15 @@ export function estimateMemoryCardSize(templateId: string, content: string, widt
 
   if (isHeart) height = Math.max(height, width * 1.25);
   if (isPolaroid) height += (32 + 96 - 16 + 4) * scale; // pb-8 shape padding + the top photo block, same accounting as features/notes/lib/footprint.ts
+  // EPIC 046: was `Math.max(height, width)` — a *minimum*, so long
+  // content (confirmed with a real 192-char message) could still push the
+  // ball taller than it is wide, the exact oval/capsule deformity this
+  // EPIC exists to fix. Football's circle is a hard, content-independent
+  // constraint here too, exactly like Note.tsx's own `aspect-square` fix —
+  // never a minimum. `MemoryNoteCard`'s own font-size scaling (below) is
+  // what keeps MESSAGE_MAX_LENGTH content fitting inside this fixed
+  // circle instead.
+  if (isFootball) height = width;
 
   return { width, height: Math.round(height) };
 }
@@ -106,6 +134,49 @@ export function scaleHeartPathData(width: number, height: number): string {
 
 function scaledHeartPath(width: number, height: number): string {
   return `path('${scaleHeartPathData(width, height)}')`;
+}
+
+/**
+ * EPIC 046: now that the football ball's height is a hard `width` equality
+ * (see `estimateMemoryCardSize` above) rather than a minimum, its inner
+ * text disc is a genuinely fixed box — this scales the font down as
+ * content approaches `MESSAGE_MAX_LENGTH` so it still fits inside that
+ * fixed box, mirroring `features/notes/lib/textScale.ts`'s tiers/
+ * thresholds (90/130 chars) conceptually, expressed as a plain numeric
+ * multiplier since Satori needs inline pixel values, not Tailwind classes.
+ */
+function footballFontScale(contentLength: number): number {
+  if (contentLength > 130) return 0.5;
+  if (contentLength > 90) return 0.64;
+  return 0.82;
+}
+
+/**
+ * EPIC 044: a Satori-safe two/three-tone "ball" background for the
+ * football shape — reuses `SPORTS_COLOR_HEX` (the exact same color map
+ * `features/notes/lib/sportsBall.ts`'s `footballBallBackground` draws
+ * from, imported directly rather than re-declared) but can't reuse that
+ * function's own CSS output: it uses `conic-gradient`, which is *not* in
+ * Satori's documented supported background-image list (only
+ * `linear-gradient`/`radial-gradient`/solid colors are) — confirmed by
+ * this file's own header comment already documenting several other CSS
+ * features (calc() in clip-path, the elliptical border-radius shorthand)
+ * that silently render as nothing under this exact Satori build, the same
+ * failure mode a `conic-gradient` here would risk. A diagonal band split
+ * (two bands for a plain primary+secondary pair, three when `accent` is
+ * set) plus one soft top-left radial highlight approximates the real
+ * app's wedge pattern closely enough to unmistakably read as "these two
+ * (or three) colors, on a round card" — the actual requirement — without
+ * depending on unsupported CSS.
+ */
+function footballBallBackgroundForSatori(primary: SportsColorKey, secondary: SportsColorKey, accent?: SportsColorKey): string {
+  const p = SPORTS_COLOR_HEX[primary];
+  const s = SPORTS_COLOR_HEX[secondary];
+  const highlight = "radial-gradient(circle at 32% 28%, rgba(255,255,255,0.28), rgba(255,255,255,0) 45%)";
+  const bands = accent
+    ? `linear-gradient(135deg, ${p} 0%, ${p} 33%, ${s} 33%, ${s} 66%, ${SPORTS_COLOR_HEX[accent]} 66%, ${SPORTS_COLOR_HEX[accent]} 100%)`
+    : `linear-gradient(135deg, ${p} 0%, ${p} 50%, ${s} 50%, ${s} 100%)`;
+  return `${highlight}, ${bands}`;
 }
 
 interface ShapeResult {
@@ -177,6 +248,16 @@ function shapeStyleFor(shape: NoteShape, width: number, height: number, scale: n
     }
     case "heart":
       return { clipPath: scaledHeartPath(width, height) };
+    // EPIC 039 shipped this as a plain circle with no color — confirmed by
+    // EPIC 044's repository analysis to be the actual root cause of share
+    // cards showing "just text" for a Sports template (a near-white circle
+    // on a near-white/cream canvas reads as no visible card at all). Still
+    // returned here (used by non-football shapes' generic border-radius
+    // path, and as this shape's own outer geometry), but `MemoryNoteCard`
+    // below no longer applies plain `paperColor` to it for football — see
+    // its own EPIC 044 branch and `footballBallBackgroundForSatori` above.
+    case "football":
+      return { borderRadius: "50%" };
   }
 }
 
@@ -255,16 +336,17 @@ function decorationIcon(decoration: NoteDecoration): ReactNode {
   }
 }
 
-export function MemoryNoteCard({ content, authorName, templateId, rotation, width }: MemoryNoteCardInput): ReactNode {
+export function MemoryNoteCard({ content, authorName, templateId, fontFamily, rotation, width }: MemoryNoteCardInput): ReactNode {
   const template = getNoteTemplate(templateId);
   const isHeart = template.shape === "heart";
   const isPolaroid = template.shape === "polaroid";
   const isFolded = template.shape === "folded";
+  const isFootball = template.shape === "football";
   const scale = width / BASELINE_WIDTH;
-  const { height } = estimateMemoryCardSize(templateId, content, width);
+  const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily);
   const shape = shapeStyleFor(template.shape, width, height, scale);
-  const metrics = FONT_METRICS[template.font];
-  const fontFamily = template.font === "hand" ? "Caveat" : "Noto Sans";
+  const metrics = FONT_METRICS[fontFamily];
+  const satoriFontFamily = metrics.family;
   const paperColor = PDF_PAPER_COLORS[template.paper] ?? PDF_PAPER_COLORS.white;
 
   const paddingStyle = isHeart
@@ -281,38 +363,90 @@ export function MemoryNoteCard({ content, authorName, templateId, rotation, widt
         boxShadow: `0 ${1 * scale}px ${2 * scale}px rgba(32,29,24,0.1), 0 ${10 * scale}px ${20 * scale}px rgba(32,29,24,0.22)`,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          width,
-          height,
-          background: paperColor,
-          justifyContent: isHeart ? "center" : "flex-start",
-          ...paddingStyle,
-          ...(shape.clipPath ? { clipPath: shape.clipPath } : {}),
-          ...(shape.borderRadius !== undefined ? { borderRadius: shape.borderRadius } : {}),
-          ...(shape.extraStyle ?? {}),
-        }}
-      >
-        {isPolaroid && (
-          <div style={{ display: "flex", width: `calc(100% + ${32 * scale}px)`, height: 96 * scale, background: "rgba(13,27,42,0.1)", marginLeft: -16 * scale, marginTop: -16 * scale, marginBottom: 4 * scale }} />
-        )}
-        <span
+      {isFootball ? (
+        // EPIC 044: mirrors Note.tsx's real two-layer football rendering —
+        // an outer, fully-opaque two-tone "ball" circle (never `paperColor`,
+        // which is always the inert "white" fallback EPIC 039 gave every
+        // sports template — see templates.ts) plus a smaller, centered,
+        // always-light inner disc holding the actual text, exactly like
+        // the live app so the share preview and the real card agree.
+        <div
           style={{
             display: "flex",
-            fontFamily,
-            fontSize: metrics.fontSize * scale,
-            lineHeight: 1.4,
-            color: PDF_COLORS.ink,
+            alignItems: "center",
+            justifyContent: "center",
+            width,
+            height,
+            borderRadius: "50%",
+            overflow: "hidden",
+            background: footballBallBackgroundForSatori(template.primaryColor!, template.secondaryColor!, template.accentColor),
           }}
         >
-          {content}
-        </span>
-        {authorName && (
-          <span style={{ display: "flex", marginTop: 12 * scale, fontSize: 12 * scale, color: PDF_COLORS.inkSoft }}>— {authorName}</span>
-        )}
-      </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              width: width * 0.74,
+              height: height * 0.74,
+              borderRadius: "50%",
+              overflow: "hidden",
+              background: PDF_PAPER_COLORS.cream,
+              padding: 14 * scale,
+              textAlign: "center",
+            }}
+          >
+            <span
+              style={{
+                display: "flex",
+                fontFamily: satoriFontFamily,
+                fontSize: metrics.fontSize * scale * footballFontScale(content.length),
+                lineHeight: 1.3,
+                color: PDF_COLORS.ink,
+              }}
+            >
+              {content}
+            </span>
+            {authorName && (
+              <span style={{ display: "flex", marginTop: 8 * scale, fontSize: 10.5 * scale, color: PDF_COLORS.inkSoft }}>— {authorName}</span>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            width,
+            height,
+            background: paperColor,
+            justifyContent: isHeart ? "center" : "flex-start",
+            ...paddingStyle,
+            ...(shape.clipPath ? { clipPath: shape.clipPath } : {}),
+            ...(shape.borderRadius !== undefined ? { borderRadius: shape.borderRadius } : {}),
+            ...(shape.extraStyle ?? {}),
+          }}
+        >
+          {isPolaroid && (
+            <div style={{ display: "flex", width: `calc(100% + ${32 * scale}px)`, height: 96 * scale, background: "rgba(13,27,42,0.1)", marginLeft: -16 * scale, marginTop: -16 * scale, marginBottom: 4 * scale }} />
+          )}
+          <span
+            style={{
+              display: "flex",
+              fontFamily: satoriFontFamily,
+              fontSize: metrics.fontSize * scale,
+              lineHeight: 1.4,
+              color: PDF_COLORS.ink,
+            }}
+          >
+            {content}
+          </span>
+          {authorName && (
+            <span style={{ display: "flex", marginTop: 12 * scale, fontSize: 12 * scale, color: PDF_COLORS.inkSoft }}>— {authorName}</span>
+          )}
+        </div>
+      )}
 
       {isFolded && (
         <div

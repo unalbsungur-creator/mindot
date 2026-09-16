@@ -32,12 +32,18 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pub
   const format = getShareFormat(formatId);
   const curated = curateWallSelection(wall.notes, 6);
 
-  const image = renderWallShareCard({
-    displayName: wall.profile.displayName,
-    notes: curated.map((note) => ({ content: note.content, templateId: note.templateId })),
-    format,
-    slogan: getDictionary("en").boardPage.slogan,
-  });
+  let image;
+  try {
+    image = await renderWallShareCard({
+      displayName: wall.profile.displayName,
+      notes: curated.map((note) => ({ content: note.content, templateId: note.templateId })),
+      format,
+      slogan: getDictionary("en").boardPage.slogan,
+    });
+  } catch (error) {
+    console.error("renderWallShareCard failed", { formatId, error: error instanceof Error ? error.message : String(error) });
+    return NextResponse.json({ error: "render-failed" }, { status: 500 });
+  }
 
   // Not cached as aggressively as a single note's card: a wall's content
   // changes every time a new message is approved for this author, unlike

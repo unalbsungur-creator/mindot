@@ -1,7 +1,7 @@
-import { and, desc, eq, gte, ilike, lte, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, lte, notInArray, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { messageLikes, messages } from "@/lib/db/schema";
-import { computePlacement, tileForSequence, type OccupantFootprint } from "@/features/board/lib/placement";
+import { computePlacement, findEmptyTile, hasCollision, neighborTiles, tileForSequence, type NoteFootprint, type OccupantFootprint } from "@/features/board/lib/placement";
 import { estimateNoteFootprint } from "@/features/notes/lib/footprint";
 import { CONTENT_CONSENT_VERSION } from "./consent";
 import type { Message, NewMessageInput } from "./types";
@@ -25,6 +25,16 @@ export interface MessageRepository {
    */
   listApproved(limit?: number): Promise<Message[]>;
   listRejected(limit?: number): Promise<Message[]>;
+  /**
+   * EPIC: Published Note Edit + Re-approval — every approved message with
+   * a pending revision, oldest submission first (same "first submitted,
+   * first reviewed" convention as `listPending`). Deliberately its own
+   * query rather than filtering `listApproved`'s result in JS: that method
+   * caps at 50 most-recently-*moderated* rows, so a revision on an older
+   * approved message could otherwise fall outside the window an admin
+   * actually sees — this guarantees a pending revision is never missed.
+   */
+  listPendingRevisions(): Promise<Message[]>;
   /**
    * Approved messages placed in one tile — the public board's only read
    * path. `range` is the time-exploration foundation from EPIC 004: no UI
@@ -51,7 +61,17 @@ export interface MessageRepository {
    * capped, no pagination" list in this codebase already does (see
    * `getPrivateArchive`/`getMemoryLibrary`).
    */
-  searchApproved(options: { keyword?: string; from?: Date; to?: Date; limit: number }): Promise<Message[]>;
+  /**
+   * `templateIds` — EPIC "Paylaşılan Kartlarda Gelişmiş Filtreleme"'s
+   * category filter, already resolved to a concrete id list by the caller
+   * (`features/notes/config/templates.ts`'s `templateIdsForCategory`, via
+   * `features/board/repository.ts`) — this layer only ever sees plain
+   * template ids, never `NoteTemplateCategory` itself, so the messages
+   * feature stays decoupled from the notes feature's own category concept.
+   * `undefined`/empty applies no template restriction, same as every other
+   * optional filter here.
+   */
+  searchApproved(options: { keyword?: string; from?: Date; to?: Date; templateIds?: string[]; limit: number }): Promise<Message[]>;
   /**
    * EPIC 014: `reason` is the acting admin's own optional written
    * justification — persisted in the same atomic conditional UPDATE as
@@ -178,6 +198,64 @@ export interface MessageRepository {
   countByAuthor(
     authorId: string
   ): Promise<{ total: number; pending: number; approved: number; rejected: number; archived: number }>;
+  /**
+   * EPIC 049: repositions one already-approved message's board coordinate
+   * in place — an atomic conditional UPDATE (`id` + `status = "approved"`
+   * in the WHERE clause, same boundary shape as every other write in this
+   * file) that touches *only* `positionX`/`positionY`. Never `tileX`/
+   * `tileY` (the message stays in the same tile it was already routed to —
+   * this is a within-tile repair, not a re-route) and never `rotation`
+   * (the repair tool that calls this always re-solves collision-freedom at
+   * the message's existing rotation, so its visual character is
+   * unchanged) — and obviously never content/author/likeCount/moderation
+   * fields, which this method doesn't even accept as parameters. See
+   * `features/board/lib/repairCollisions.ts` for the one caller and the
+   * collision-detection logic that decides when this is actually needed.
+   */
+  repositionPlacement(id: string, positionX: number, positionY: number): Promise<Message | null>;
+  /**
+   * EPIC 049: the rare escape hatch `repositionPlacement` deliberately
+   * doesn't provide — moving a message to a *different* tile, only ever
+   * used when its original tile is genuinely over the capacity a
+   * within-tile repair can guarantee collision-freedom for (see
+   * `src/lib/db/repairPlacements.ts` and `findEmptyTile` in
+   * `features/board/lib/placement.ts`). Same atomic-conditional-UPDATE
+   * boundary (`id` + `status = "approved"`) and same narrow field set as
+   * `repositionPlacement` otherwise — content/author/fontFamily/
+   * templateId/likeCount/moderation fields are untouched, `rotation` is
+   * untouched (the target tile is always empty, so the message's existing
+   * rotation is already collision-free there by construction).
+   */
+  migrateToEmptyTile(id: string, tileX: number, tileY: number, positionX: number, positionY: number): Promise<Message | null>;
+  /**
+   * EPIC: Published Note Edit + Re-approval — records a proposed content
+   * change on an already-approved message without touching the live
+   * `content` at all. The real ownership/eligibility boundary is the WHERE
+   * clause: `id` + `authorId` + `status = "approved"` + `pendingContent IS
+   * NULL`, the same atomic-conditional-UPDATE shape as `setShowOnPersonalWall`
+   * above — a null result covers "not yours," "doesn't exist," "not
+   * approved," and "a revision is already pending" alike. Also clears any
+   * leftover `revisionRejectionReason` from a previous rejected attempt, so
+   * a fresh submission never shows a stale rejection message.
+   */
+  submitRevision(id: string, authorId: string, content: string): Promise<Message | null>;
+  /**
+   * Applies a pending revision: `content` becomes `pendingContent`, then
+   * every revision-tracking field is cleared in the same atomic UPDATE —
+   * `status` never changes (it was already "approved"), so this is the
+   * entire boundary between "pending revision" and "published" again.
+   * `WHERE id + pendingContent IS NOT NULL` mirrors `approve()`'s own
+   * `WHERE status = "pending"` shape exactly.
+   */
+  approveRevision(id: string, moderatorId: string): Promise<Message | null>;
+  /**
+   * Discards a pending revision: `content` is never touched, only the
+   * `pending*`/`revision*` bookkeeping fields — `revisionRejectionReason`
+   * is the one field that survives (until the author's next submission
+   * clears it), the same "latest reason, overwritten not appended" shape
+   * `moderationReason` already uses.
+   */
+  rejectRevision(id: string, moderatorId: string, reason: string | null): Promise<Message | null>;
 }
 
 function toMessage(row: typeof messages.$inferSelect): Message {
@@ -191,6 +269,7 @@ function toMessage(row: typeof messages.$inferSelect): Message {
     likeCount: row.likeCount,
     language: row.language,
     templateId: row.templateId,
+    fontFamily: row.fontFamily as Message["fontFamily"],
     invitationId: row.invitationId,
     status: row.status,
     tileX: row.tileX,
@@ -212,7 +291,30 @@ function toMessage(row: typeof messages.$inferSelect): Message {
     consentAccepted: row.consentAccepted,
     consentVersion: row.consentVersion,
     consentAcceptedAt: row.consentAcceptedAt?.toISOString() ?? null,
+    pendingContent: row.pendingContent,
+    revisionSubmittedAt: row.revisionSubmittedAt?.toISOString() ?? null,
+    revisionReviewedAt: row.revisionReviewedAt?.toISOString() ?? null,
+    revisionReviewedBy: row.revisionReviewedBy,
+    revisionRejectionReason: row.revisionRejectionReason,
   };
+}
+
+/**
+ * EPIC 053: Turkish-aware case folding for search keywords only — confirmed,
+ * reproducible bug found in final-release QA: Postgres's `ILIKE` case-folds
+ * using the database's own (non-Turkish) locale, so a real user search like
+ * "ASLANIM" (a very ordinary Caps-Lock/Turkish-keyboard uppercase input)
+ * never matched stored content's "aslanım" — standard case folding maps
+ * ASCII "I" to dotted "i", never to Turkish's dotless "ı", and Postgres has
+ * no Turkish-specific collation configured. Confirmed via manual testing
+ * that ILIKE already case-folds every other character correctly on both
+ * sides (a plain-ASCII query like "SLAN" matched fine) — only the Turkish
+ * İ/I pair needed correcting, and only on the keyword side, so this stays a
+ * narrow, targeted fix rather than a new normalization layer: it never
+ * touches the `content` column, the query shape, or any index.
+ */
+function turkishSearchKeyword(keyword: string): string {
+  return keyword.replace(/İ/g, "i").replace(/I/g, "ı");
 }
 
 /** Atomically claims the next placement slot from the Postgres sequence. */
@@ -279,6 +381,16 @@ class DrizzleMessageRepository implements MessageRepository {
     return rows.map(toMessage);
   }
 
+  async listPendingRevisions(): Promise<Message[]> {
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(messages)
+      .where(sql`${messages.pendingContent} is not null`)
+      .orderBy(messages.revisionSubmittedAt);
+    return rows.map(toMessage);
+  }
+
   async listRejected(limit = 50): Promise<Message[]> {
     const db = getDb();
     const rows = await db
@@ -304,12 +416,13 @@ class DrizzleMessageRepository implements MessageRepository {
     return rows.map(toMessage);
   }
 
-  async searchApproved(options: { keyword?: string; from?: Date; to?: Date; limit: number }): Promise<Message[]> {
+  async searchApproved(options: { keyword?: string; from?: Date; to?: Date; templateIds?: string[]; limit: number }): Promise<Message[]> {
     const db = getDb();
     const conditions = [eq(messages.status, "approved")];
-    if (options.keyword) conditions.push(ilike(messages.content, `%${options.keyword}%`));
+    if (options.keyword) conditions.push(ilike(messages.content, `%${turkishSearchKeyword(options.keyword)}%`));
     if (options.from) conditions.push(gte(messages.createdAt, options.from));
     if (options.to) conditions.push(lte(messages.createdAt, options.to));
+    if (options.templateIds && options.templateIds.length > 0) conditions.push(inArray(messages.templateId, options.templateIds));
 
     const rows = await db
       .select()
@@ -333,21 +446,53 @@ class DrizzleMessageRepository implements MessageRepository {
 
     const sequence = await nextPlacementSequence(db);
     const { tileX, tileY } = tileForSequence(sequence);
-    // Real siblings already placed in the destination tile — collision
-    // checked against, not ignored, so a crowded tile degrades to the
-    // least-overlapping spot instead of stacking blindly. See
-    // placement.ts's module doc for why this was missing before.
-    const tileOccupants = await this.listApprovedByTile(tileX, tileY);
-    const occupants: OccupantFootprint[] = tileOccupants
-      .filter((m) => m.positionX !== null && m.positionY !== null && m.rotation !== null)
-      .map((m) => ({
-        positionX: m.positionX!,
-        positionY: m.positionY!,
-        rotation: m.rotation!,
-        ...estimateNoteFootprint(m.templateId, m.content),
-      }));
-    const footprint = estimateNoteFootprint(current.templateId, current.content);
-    const placement = computePlacement(sequence, id, footprint, occupants);
+    const footprint = estimateNoteFootprint(current.templateId, current.content, current.fontFamily);
+
+    // EPIC 049 (overflow hardening): the tile the sequence routes to is
+    // the *preferred* spot, never the only one this note is allowed to
+    // land on. This project's one absolute board rule — no two cards ever
+    // overlap — outranks "stay in the sequence-assigned tile," so if that
+    // tile is genuinely over capacity (every candidate
+    // `resolveCollisionFreePosition` tries there still overlaps a real
+    // occupant), the search widens: first to the 8 immediate neighbor
+    // tiles (keeping the new card visually close to where it was meant to
+    // land), then — only if every neighbor is *also* full — to a
+    // guaranteed-empty tile via `findEmptyTile`. Every one of these is
+    // bounded (at most 1 + 8 + 1 tile lookups) and deterministic, and the
+    // very first tile still succeeds the overwhelming majority of the
+    // time (this fallback exists for the rare case, not the common path),
+    // so a healthy board pays for this with zero extra queries. Whichever
+    // tile wins, the note ends up both real-position collision-free AND
+    // visible — never silently hidden to avoid an overlap, and never left
+    // overlapping to stay "in its tile."
+    const initialOccupants = await this.occupantsOf(tileX, tileY);
+    let placement = computePlacement(sequence, id, footprint, initialOccupants);
+
+    if (this.overlapsAny(placement, footprint, initialOccupants)) {
+      let resolved = false;
+      for (const neighbor of neighborTiles(tileX, tileY)) {
+        const neighborOccupants = await this.occupantsOf(neighbor.tileX, neighbor.tileY);
+        const candidate = computePlacement(sequence, id, footprint, neighborOccupants);
+        const candidatePlacement = { ...candidate, tileX: neighbor.tileX, tileY: neighbor.tileY };
+        if (!this.overlapsAny(candidatePlacement, footprint, neighborOccupants)) {
+          placement = candidatePlacement;
+          resolved = true;
+          break;
+        }
+      }
+
+      if (!resolved) {
+        const occupiedTileKeys = new Set(
+          (await db.select({ tileX: messages.tileX, tileY: messages.tileY }).from(messages))
+            .filter((t) => t.tileX !== null && t.tileY !== null)
+            .map((t) => `${t.tileX},${t.tileY}`)
+        );
+        const emptyTile = findEmptyTile(occupiedTileKeys);
+        const emptyPlacement = computePlacement(sequence, id, footprint, []);
+        placement = { ...emptyPlacement, tileX: emptyTile.tileX, tileY: emptyTile.tileY };
+      }
+    }
+
     const now = new Date();
 
     const [row] = await db
@@ -368,6 +513,29 @@ class DrizzleMessageRepository implements MessageRepository {
       .returning();
 
     return row ? toMessage(row) : null;
+  }
+
+  /** Real siblings already placed in one tile, as plain footprints — the shape `resolveCollisionFreePosition`/`hasCollision` need. Shared by `approve()`'s primary attempt and its neighbor-tile overflow search so both read tile occupancy identically. */
+  private async occupantsOf(tileX: number, tileY: number): Promise<OccupantFootprint[]> {
+    const tileOccupants = await this.listApprovedByTile(tileX, tileY);
+    return tileOccupants
+      .filter((m) => m.positionX !== null && m.positionY !== null && m.rotation !== null)
+      .map((m) => ({
+        positionX: m.positionX!,
+        positionY: m.positionY!,
+        rotation: m.rotation!,
+        ...estimateNoteFootprint(m.templateId, m.content, m.fontFamily),
+      }));
+  }
+
+  /** Whether a candidate placement — at its own real footprint size — genuinely overlaps (real rotated+inflated box, same geometry `resolveCollisionFreePosition` itself trusts) any occupant already in that tile. */
+  private overlapsAny(
+    placement: { positionX: number; positionY: number; rotation: number },
+    footprint: NoteFootprint,
+    occupants: OccupantFootprint[]
+  ): boolean {
+    const candidate: OccupantFootprint = { positionX: placement.positionX, positionY: placement.positionY, rotation: placement.rotation, ...footprint };
+    return occupants.some((occupant) => hasCollision(candidate, occupant));
   }
 
   async reject(id: string, moderatorId: string, reason: string | null = null): Promise<Message | null> {
@@ -399,6 +567,26 @@ class DrizzleMessageRepository implements MessageRepository {
       .update(messages)
       .set({ status: "approved", moderatedAt: now, moderatedBy: moderatorId, moderationReason: null, updatedAt: now })
       .where(and(eq(messages.id, id), eq(messages.status, "archived")))
+      .returning();
+    return row ? toMessage(row) : null;
+  }
+
+  async repositionPlacement(id: string, positionX: number, positionY: number): Promise<Message | null> {
+    const db = getDb();
+    const [row] = await db
+      .update(messages)
+      .set({ positionX, positionY, updatedAt: new Date() })
+      .where(and(eq(messages.id, id), eq(messages.status, "approved")))
+      .returning();
+    return row ? toMessage(row) : null;
+  }
+
+  async migrateToEmptyTile(id: string, tileX: number, tileY: number, positionX: number, positionY: number): Promise<Message | null> {
+    const db = getDb();
+    const [row] = await db
+      .update(messages)
+      .set({ tileX, tileY, positionX, positionY, updatedAt: new Date() })
+      .where(and(eq(messages.id, id), eq(messages.status, "approved")))
       .returning();
     return row ? toMessage(row) : null;
   }
@@ -608,6 +796,61 @@ class DrizzleMessageRepository implements MessageRepository {
           eq(messages.isAnonymous, false)
         )
       )
+      .returning();
+    return row ? toMessage(row) : null;
+  }
+
+  async submitRevision(id: string, authorId: string, content: string): Promise<Message | null> {
+    const db = getDb();
+    const now = new Date();
+    const [row] = await db
+      .update(messages)
+      .set({ pendingContent: content, revisionSubmittedAt: now, revisionRejectionReason: null, updatedAt: now })
+      .where(
+        and(
+          eq(messages.id, id),
+          eq(messages.authorId, authorId),
+          eq(messages.status, "approved"),
+          sql`${messages.pendingContent} is null`
+        )
+      )
+      .returning();
+    return row ? toMessage(row) : null;
+  }
+
+  async approveRevision(id: string, moderatorId: string): Promise<Message | null> {
+    const db = getDb();
+    const now = new Date();
+    const [row] = await db
+      .update(messages)
+      .set({
+        content: sql`${messages.pendingContent}`,
+        pendingContent: null,
+        revisionSubmittedAt: null,
+        revisionReviewedAt: now,
+        revisionReviewedBy: moderatorId,
+        revisionRejectionReason: null,
+        updatedAt: now,
+      })
+      .where(and(eq(messages.id, id), sql`${messages.pendingContent} is not null`))
+      .returning();
+    return row ? toMessage(row) : null;
+  }
+
+  async rejectRevision(id: string, moderatorId: string, reason: string | null): Promise<Message | null> {
+    const db = getDb();
+    const now = new Date();
+    const [row] = await db
+      .update(messages)
+      .set({
+        pendingContent: null,
+        revisionSubmittedAt: null,
+        revisionReviewedAt: now,
+        revisionReviewedBy: moderatorId,
+        revisionRejectionReason: reason,
+        updatedAt: now,
+      })
+      .where(and(eq(messages.id, id), sql`${messages.pendingContent} is not null`))
       .returning();
     return row ? toMessage(row) : null;
   }

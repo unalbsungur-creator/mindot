@@ -1,4 +1,4 @@
-import type { NoteTemplate } from "../types";
+import type { NoteTemplate, NoteTemplateCategory } from "../types";
 
 /**
  * The template registry. Adding a future style — a heart-shaped Valentine's
@@ -307,6 +307,251 @@ export const noteTemplates: NoteTemplate[] = [
     imageWidth: 221,
     imageHeight: 184,
   },
+  // EPIC 039: "Spor" category — round, two-tone "football" cards. Colors
+  // only; no team name/logo/crest/abbreviation is ever stored on these
+  // entries or rendered anywhere in the UI (see `SportsColorKey`'s doc
+  // comment in ../types.ts and Note.tsx/SportsTemplateCard.tsx's
+  // rendering) — the "echoes:" comment beside each entry is a
+  // maintainer-only research/traceability note, never a data field, so it
+  // can never leak into any UI, log, or accessible name.
+  //
+  // One card per *unique* primary+secondary color pair (order-independent
+  // — "yellow+red" and "red+yellow" are the same pair) found across the
+  // real 2026-27 Trendyol Süper Lig (18 clubs, confirmed via Wikipedia +
+  // TFF season-planning announcements) and Trendyol 1. Lig (20 clubs,
+  // same sourcing) — a pair shared by several real clubs collapses to one
+  // card rather than repeating the same combination multiple times, per
+  // this EPIC's brief. All four explicitly required classic combinations
+  // are present: yellow+red, yellow+navy, black+white, maroon+blue.
+  //
+  // `paper: "white"` / `attachment: "none"` / `font: "sans"` below are
+  // inert fallbacks only ever read by the PDF/share secondary renderers
+  // (noteCardPdf.tsx / noteCardSatori.tsx render a plain light circle,
+  // deliberately not reproducing the two-tone ball there — see those
+  // files' own EPIC 039 comments); the app's real rendering (Note.tsx,
+  // TemplatePicker/SportsTemplateCard) uses `primaryColor`/
+  // `secondaryColor`/`accentColor` instead and never reads `paper` here.
+  {
+    id: "sport-yellow-red",
+    name: "Football — Yellow & Red",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "yellow",
+    secondaryColor: "red",
+  }, // echoes: Galatasaray, Göztepe, Kayserispor
+  {
+    id: "sport-yellow-navy",
+    name: "Football — Yellow & Navy",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "yellow",
+    secondaryColor: "navy",
+  }, // echoes: Fenerbahçe
+  {
+    id: "sport-black-white",
+    name: "Football — Black & White",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "black",
+    secondaryColor: "white",
+  }, // echoes: Beşiktaş, Manisa FK
+  {
+    id: "sport-maroon-blue",
+    name: "Football — Maroon & Blue",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "maroon",
+    secondaryColor: "blue",
+  }, // echoes: Trabzonspor
+  {
+    id: "sport-red-white",
+    name: "Football — Red & White",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "red",
+    secondaryColor: "white",
+  }, // echoes: Samsunspor, Antalyaspor, Batman Petrolspor, Boluspor, Pendikspor, Sivasspor
+  {
+    id: "sport-red-black",
+    name: "Football — Red & Black",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "red",
+    secondaryColor: "black",
+  }, // echoes: Çorum FK, Gaziantep FK, Gençlerbirliği, Fatih Karagümrük, Vanspor FK
+  {
+    id: "sport-red-navy",
+    name: "Football — Red & Navy",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "red",
+    secondaryColor: "navy",
+  }, // echoes: Mardin 1969 S.K.
+  {
+    id: "sport-green-white",
+    name: "Football — Green & White",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "green",
+    secondaryColor: "white",
+  }, // echoes: Konyaspor, Bursaspor, Bodrum F.K., Iğdır F.K., Muğlaspor
+  {
+    id: "sport-green-black",
+    name: "Football — Green & Black",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "green",
+    secondaryColor: "black",
+  }, // echoes: Kocaelispor, Ümraniyespor
+  {
+    id: "sport-green-blue",
+    name: "Football — Green & Blue",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "green",
+    secondaryColor: "blue",
+  }, // echoes: Çaykur Rizespor
+  {
+    id: "sport-green-yellow",
+    name: "Football — Green & Yellow",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "green",
+    secondaryColor: "yellow",
+  }, // echoes: Esenler Erokspor
+  {
+    id: "sport-orange-green",
+    name: "Football — Orange & Green",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "orange",
+    secondaryColor: "green",
+  }, // echoes: Alanyaspor
+  {
+    id: "sport-orange-navy",
+    name: "Football — Orange & Navy",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "orange",
+    secondaryColor: "navy",
+  }, // echoes: İstanbul Başakşehir
+  {
+    id: "sport-navy-white",
+    name: "Football — Navy & White",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "navy",
+    secondaryColor: "white",
+  }, // echoes: Kasımpaşa, Sarıyer S.K.
+  {
+    id: "sport-blue-white",
+    name: "Football — Blue & White",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "blue",
+    secondaryColor: "white",
+  }, // echoes: Erzurumspor FK
+  {
+    id: "sport-purple-yellow",
+    name: "Football — Purple & Yellow",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "purple",
+    secondaryColor: "yellow",
+  }, // echoes: Eyüpspor
+  {
+    id: "sport-purple-white",
+    name: "Football — Purple & White",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "purple",
+    secondaryColor: "white",
+  }, // echoes: Ankara Keçiörengücü S.K.
+  {
+    id: "sport-maroon-white",
+    name: "Football — Maroon & White",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "maroon",
+    secondaryColor: "white",
+  }, // echoes: Bandırmaspor
+  {
+    id: "sport-yellow-black",
+    name: "Football — Yellow & Black",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "yellow",
+    secondaryColor: "black",
+  }, // echoes: İstanbulspor
+  {
+    id: "sport-green-red-white",
+    name: "Football — Green, Red & White",
+    paper: "white",
+    shape: "football",
+    attachment: "none",
+    font: "sans",
+    category: "sports",
+    primaryColor: "green",
+    secondaryColor: "red",
+    accentColor: "white",
+  }, // echoes: Amed SFK (tricolor)
 ];
 
 export function getNoteTemplate(id: string): NoteTemplate {
@@ -330,6 +575,27 @@ export function isTemplateAvailable(template: NoteTemplate, now: Date = new Date
 /** Templates a writer is currently allowed to pick from. */
 export function getActiveNoteTemplates(now: Date = new Date()): NoteTemplate[] {
   return noteTemplates.filter((template) => isTemplateAvailable(template, now));
+}
+
+/**
+ * EPIC — Paylaşılan Kartlarda Gelişmiş Filtreleme: the one place "which
+ * template ids count as Standard/Özel Günler/Spor" is decided, so the new
+ * board-search category filter (features/board/repository.ts) and the
+ * write flow's own category picker (TemplatePicker.tsx, unchanged by this
+ * EPIC — its inline `category === undefined || category === "standard"`
+ * check predates this and still works fine there) agree on the same
+ * classification without either duplicating the other's logic. A
+ * template with no `category` field, or an explicit `"standard"`, both
+ * count as Standard — same convention as everywhere else in this file.
+ */
+export function templateIdsForCategory(category: NoteTemplateCategory): string[] {
+  return noteTemplates
+    .filter((template) => {
+      if (category === "sports") return template.category === "sports";
+      if (category === "seasonal") return template.category === "seasonal";
+      return template.category === undefined || template.category === "standard";
+    })
+    .map((template) => template.id);
 }
 
 /**

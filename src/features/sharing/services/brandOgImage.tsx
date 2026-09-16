@@ -12,7 +12,8 @@ export const OG_IMAGE_SIZE = { width: 1200, height: 630 };
  * preview (app/memory/[messageId]/opengraph-image.tsx) uses
  * `renderShareCard` instead, since it needs that note's actual content.
  */
-export function renderBrandOgImage(subtitle: string): ImageResponse {
+export async function renderBrandOgImage(subtitle: string): Promise<ImageResponse> {
+  const fonts = await loadShareFonts();
   return new ImageResponse(
     (
       <div
@@ -32,6 +33,6 @@ export function renderBrandOgImage(subtitle: string): ImageResponse {
         <span style={{ fontSize: 28, color: PDF_COLORS.surface, opacity: 0.85 }}>{subtitle}</span>
       </div>
     ),
-    { ...OG_IMAGE_SIZE, fonts: loadShareFonts() }
+    { ...OG_IMAGE_SIZE, fonts }
   );
 }

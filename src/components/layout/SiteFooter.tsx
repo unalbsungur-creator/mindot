@@ -25,7 +25,7 @@ export function SiteFooter() {
         <BrandMark tone="brand" className="h-5 w-5 shrink-0" />
         <p className="text-xs text-ink-soft">{dictionary.footer.tagline}</p>
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:justify-end">
-          <nav aria-label="Legal" className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs sm:justify-end">
+          <nav aria-label={dictionary.footer.legalNavLabel} className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs sm:justify-end">
             <Link href="/privacy" className="text-ink-soft hover:text-navy">{dictionary.footer.privacy}</Link>
             <Link href="/terms" className="text-ink-soft hover:text-navy">{dictionary.footer.terms}</Link>
             <Link href="/community-guidelines" className="text-ink-soft hover:text-navy">{dictionary.footer.guidelines}</Link>

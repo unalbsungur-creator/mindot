@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Badge } from "@/components/ui/Badge";
 import { DotCtaButton } from "@/components/ui/DotCtaButton";
+import { StarField } from "@/components/ui/StarField";
 import { PageContainer } from "@/components/layout/PageContainer";
 import type { NoteData } from "@/features/notes/types";
 import { useLocale } from "@/i18n/LocaleProvider";
@@ -28,12 +29,32 @@ import { HeroBrandComposition } from "./HeroBrandComposition";
  * `activeCount` and `heroNotes` are both fetched server-side (app/page.tsx)
  * — this stays a client component (useLocale for translated copy) but
  * carries no data-fetching of its own.
+ *
+ * EPIC 038: a static, decorative star-field atmosphere (`StarField`, see
+ * src/components/ui/StarField.tsx) sits behind all of the above. Very low
+ * opacity (~0.12) over the existing navy — the asset itself is never
+ * swapped in at full strength, so MINDOT's own navy stays the dominant
+ * tone.
  */
 export function HomeHero({ activeCount, heroNotes }: { activeCount: number; heroNotes: NoteData[] }) {
   const { locale, dictionary } = useLocale();
 
+  // `Message.authorName` is the literal, untranslated string "anonymous" for
+  // an anonymous submission (see submitMessage in features/messages/actions.ts
+  // — the real name is discarded server-side, never just hidden). That raw
+  // DB placeholder flows straight through `toHeroNoteData` (page.tsx) since
+  // locale isn't known server-side; translated here, the one place these
+  // notes reach a component with `useLocale()`, into the same fallback word
+  // the write-flow preview already uses for an anonymous byline — no new
+  // translation key. Never touches a real name or the anonymity decision
+  // itself, only this one placeholder value's display text.
+  const localizedHeroNotes = heroNotes.map((note) =>
+    note.authorName === "anonymous" ? { ...note, authorName: dictionary.write.previewAuthorFallback } : note
+  );
+
   return (
     <section className="relative overflow-hidden bg-navy py-8 sm:py-10 lg:py-10">
+      <StarField opacity={0.12} />
       <PageContainer className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[0.9fr_2.4fr_1.9fr] lg:gap-6">
         <div className="order-2 flex flex-row items-center justify-center gap-6 lg:order-1 lg:flex-col lg:items-start lg:gap-5">
           <Image
@@ -78,7 +99,7 @@ export function HomeHero({ activeCount, heroNotes }: { activeCount: number; hero
         </div>
 
         <div className="order-3">
-          <HeroBrandComposition notes={heroNotes} />
+          <HeroBrandComposition notes={localizedHeroNotes} />
         </div>
       </PageContainer>
     </section>

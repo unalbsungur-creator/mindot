@@ -1,5 +1,6 @@
 import { messageRepository } from "@/features/messages/repository";
 import { userRepository } from "@/features/users/repository";
+import { templateIdsForCategory } from "@/features/notes/config/templates";
 import type { BoardSearchFilters, BoardTile, BoardTileAuthor, BoardTileMessage, BoardTimeRange, PublicMessageDetail } from "./types";
 
 /**
@@ -40,6 +41,7 @@ export async function getTile(x: number, y: number, range?: BoardTimeRange): Pro
       id: message.id,
       content: message.content,
       templateId: message.templateId,
+      fontFamily: message.fontFamily,
       position: { x: message.positionX as number, y: message.positionY as number },
       rotation: message.rotation as number,
       language: message.language,
@@ -85,6 +87,7 @@ export async function getPublicMessageById(id: string): Promise<PublicMessageDet
     id: message.id,
     content: message.content,
     templateId: message.templateId,
+    fontFamily: message.fontFamily,
     position: { x: message.positionX, y: message.positionY },
     rotation: message.rotation,
     language: message.language,
@@ -108,11 +111,28 @@ export async function getPublicMessageById(id: string): Promise<PublicMessageDet
  * second, unbounded way to browse the whole board outside the tile
  * system (see CLAUDE.md's "Scaling principles": the board is
  * spatially-partitioned by tile, never "load everything").
+ *
+ * EPIC "Paylaşılan Kartlarda Gelişmiş Filtreleme": `filters.category` is
+ * the new third filter, subject to the exact same "at least one filter
+ * required" rule — a real category (anything but the caller simply
+ * omitting it, which means "no category restriction") counts just like a
+ * non-empty keyword or date bound does. Resolved to a concrete template
+ * id list via `templateIdsForCategory` right here (not earlier, not by
+ * the caller) — `messageRepository.searchApproved` only ever deals in
+ * plain template ids, never `NoteTemplateCategory` itself; see
+ * `BoardSearchFilters`'s own doc comment in ./types.ts for why.
  */
 export async function searchPublicMessages(filters: BoardSearchFilters): Promise<PublicMessageDetail[]> {
-  if (!filters.keyword && !filters.from && !filters.to) return [];
+  if (!filters.keyword && !filters.from && !filters.to && !filters.category) return [];
 
-  const matches = await messageRepository.searchApproved({ ...filters, limit: SEARCH_RESULT_LIMIT });
+  const templateIds = filters.category ? templateIdsForCategory(filters.category) : undefined;
+  const matches = await messageRepository.searchApproved({
+    keyword: filters.keyword,
+    from: filters.from,
+    to: filters.to,
+    templateIds,
+    limit: SEARCH_RESULT_LIMIT,
+  });
   const placed = matches.filter(
     (message): message is typeof message & { tileX: number; tileY: number; positionX: number; positionY: number; rotation: number } =>
       message.tileX !== null && message.tileY !== null && message.positionX !== null && message.positionY !== null && message.rotation !== null
@@ -131,6 +151,7 @@ export async function searchPublicMessages(filters: BoardSearchFilters): Promise
       id: message.id,
       content: message.content,
       templateId: message.templateId,
+      fontFamily: message.fontFamily,
       position: { x: message.positionX, y: message.positionY },
       rotation: message.rotation,
       language: message.language,

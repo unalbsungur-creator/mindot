@@ -119,9 +119,12 @@ export const users = pgTable("users", {
   // RBAC model everything else already checks, just a second way to prove
   // identity for it — see "Public identifier strategy"-style reasoning above.
   // Never exposed through `User`/`toUser()` (features/users/repository.ts) —
-  // only a narrow, dedicated `getCredentialsByUsername` read touches these,
-  // so a password hash can never leak into `/admin/users`' listing or any
-  // other place a plain `User` object already flows to a client.
+  // only a narrow, dedicated `getCredentialsByEmail` read touches these, so
+  // a password hash can never leak into `/admin/users`' listing or any
+  // other place a plain `User` object already flows to a client. EPIC 036:
+  // sign-in is looked up by `email` now, not `username` — this column
+  // stays (still unique, still populated for the one admin row) but is no
+  // longer the credentials lookup key.
   username: text("username").unique(),
   // scrypt hash, self-describing as "scrypt:<saltHex>:<hashHex>" — see
   // features/users/lib/password.ts. Null for every Google-only account.
@@ -195,6 +198,14 @@ export const messages = pgTable(
     // References a NoteTemplate.id from the code-defined template registry
     // (features/notes/config/templates.ts) — templates aren't database rows.
     templateId: text("template_id").notNull(),
+    // EPIC — Kart Yazı Tipi Seçenekleri: the writer's chosen text typeface
+    // ("modern" | "classic" | "handwritten" | "typewriter") — independent
+    // of templateId's own paper/shape. NOT NULL DEFAULT 'modern' so this
+    // additive column backfills every pre-existing row to "modern" as part
+    // of the migration itself (a plain constant-default ADD COLUMN, not a
+    // full table rewrite) — no app-level `?? "modern"` fallback needed
+    // anywhere downstream.
+    fontFamily: text("font_family").notNull().default("modern"),
     invitationId: text("invitation_id").references(() => invitations.id),
     status: messageStatusEnum("status").notNull().default("pending"),
     // Null until the message is approved and placed — see placement.ts.
@@ -250,6 +261,33 @@ export const messages = pgTable(
     consentAccepted: boolean("consent_accepted").notNull().default(false),
     consentVersion: text("consent_version"),
     consentAcceptedAt: timestamp("consent_accepted_at", { withTimezone: true }),
+    // EPIC: Published Note Edit + Re-approval — a proposed content change
+    // to an already-*approved* message, awaiting the same human moderation
+    // "approved" itself already requires. Deliberately NOT a new
+    // `messageStatusEnum` value: `status` stays "approved" for the entire
+    // life of a pending revision, so every existing public read path
+    // (board tile query, homepage hero notes, share-card rendering, the
+    // personal wall) keeps reading `content` — the live, already-approved
+    // text — with zero changes, and a pending edit is invisible to anyone
+    // but its author and an admin by construction, not by an added filter
+    // anywhere. `pendingContent` null means "no revision in flight"; that
+    // (not a status value) is the flag every revision query/action
+    // branches on. Mirrors `moderationReason`'s own established shape:
+    // one slot, overwritten by the next transition, no separate history
+    // table — see that column's comment above for why a full audit table
+    // was deliberately rejected for the same kind of field.
+    pendingContent: text("pending_content"),
+    revisionSubmittedAt: timestamp("revision_submitted_at", { withTimezone: true }),
+    // The admin's decision on the most recent revision — set by both
+    // approve (content applied, then cleared alongside pendingContent) and
+    // reject (content discarded, reason kept until the author's next
+    // submission clears it). Same "who/when" shape as moderatedAt/
+    // moderatedBy above, kept as its own pair rather than reused, since
+    // approving/rejecting a *revision* is a distinct decision from the
+    // original approve/reject of the message itself.
+    revisionReviewedAt: timestamp("revision_reviewed_at", { withTimezone: true }),
+    revisionReviewedBy: text("revision_reviewed_by").references(() => users.id),
+    revisionRejectionReason: text("revision_rejection_reason"),
   },
   (table) => [
     // The public tile query: approved messages for one tile.

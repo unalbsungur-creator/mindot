@@ -146,6 +146,7 @@ function ReportCard({
         content: item.message.content,
         authorName: item.message.authorName,
         templateId: item.message.templateId,
+        fontFamily: item.message.fontFamily,
         size: "sm",
         rotation: 0,
         position: { top: "0%", left: "0%" },

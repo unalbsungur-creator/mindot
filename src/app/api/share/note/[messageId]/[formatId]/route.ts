@@ -31,12 +31,18 @@ export async function GET(request: NextRequest, context: { params: Promise<{ mes
   const region = await resolveCaptureRegion(message, captureMode);
   const format = getShareFormat(formatId);
 
-  const image = renderShareCard({
-    primary: toShareCardNote(region.primary),
-    surrounding: region.surrounding.map(toShareCardNote),
-    format,
-    slogan: sloganForLanguage(message.language),
-  });
+  let image;
+  try {
+    image = await renderShareCard({
+      primary: toShareCardNote(region.primary),
+      surrounding: region.surrounding.map(toShareCardNote),
+      format,
+      slogan: sloganForLanguage(message.language),
+    });
+  } catch (error) {
+    console.error("renderShareCard failed", { formatId, captureMode, error: error instanceof Error ? error.message : String(error) });
+    return NextResponse.json({ error: "render-failed" }, { status: 500 });
+  }
 
   // Approved placement is permanent (see "Board / tile architecture" in
   // CLAUDE.md), so the same messageId+mode+format always renders the same

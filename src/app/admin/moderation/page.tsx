@@ -14,14 +14,19 @@ export default async function ModerationPage() {
   // EPIC: Yönetim Panelinde Statü Grupları — four independent lists now,
   // one per category, instead of the old "reviewed" (approved+rejected
   // combined).
-  const [pending, approved, archived, rejected] = authorized
+  const [pending, approved, archived, rejected, pendingRevisions] = authorized
     ? await Promise.all([
         messageRepository.listPending(),
         messageRepository.listApproved(),
         messageRepository.listArchived(),
         messageRepository.listRejected(),
+        // EPIC: Published Note Edit + Re-approval — a fifth, independent
+        // list: an approved message carrying a pending content revision.
+        // `status` never left "approved" for these, so they'd otherwise be
+        // silently absent from every other category here.
+        messageRepository.listPendingRevisions(),
       ])
-    : [[], [], [], []];
+    : [[], [], [], [], []];
 
   // EPIC 014: resolve moderator display names for the "Moderated at" line —
   // one batched lookup across all four lists, the same
@@ -30,7 +35,7 @@ export default async function ModerationPage() {
   // id, never rendered directly.
   const moderatorIds = Array.from(
     new Set(
-      [...pending, ...approved, ...archived, ...rejected]
+      [...pending, ...approved, ...archived, ...rejected, ...pendingRevisions]
         .map((message) => message.moderatedBy)
         .filter((id): id is string => id !== null)
     )
@@ -47,6 +52,7 @@ export default async function ModerationPage() {
       approved={approved}
       archived={archived}
       rejected={rejected}
+      pendingRevisions={pendingRevisions}
       moderatorNameById={moderatorNameById}
     />
   );

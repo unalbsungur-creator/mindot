@@ -1,0 +1,1 @@
+ALTER TABLE "messages" ADD COLUMN "font_family" text DEFAULT 'modern' NOT NULL;

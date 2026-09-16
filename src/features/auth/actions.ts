@@ -39,9 +39,9 @@ export type AdminSignInResult = { ok: true } | { ok: false; error: AdminSignInEr
  * the user. Removed; whether `signIn()` threw is the correct, sufficient
  * signal.
  */
-export async function adminSignIn(username: string, password: string): Promise<AdminSignInResult> {
+export async function adminSignIn(email: string, password: string): Promise<AdminSignInResult> {
   try {
-    await signIn("credentials", { username, password, redirect: false });
+    await signIn("credentials", { email, password, redirect: false });
     return { ok: true };
   } catch (error) {
     if (error instanceof AuthError) {

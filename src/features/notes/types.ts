@@ -29,15 +29,56 @@ export type NoteShape =
   | "frost"
   | "diploma"
   | "burst"
-  | "ribbon";
+  | "ribbon"
+  // EPIC 039: the one shape for the "Spor" category — a round, two-tone
+  // "football" card. Never reused by a standard/seasonal template's
+  // `shape`, exactly like every other occasion-only shape above.
+  | "football";
 
 export type NoteAttachment = "none" | "tape" | "pin";
 
 export type NoteFont = "hand" | "sans";
 
+/**
+ * EPIC — Kart Yazı Tipi Seçenekleri: an independent, user-chosen typeface
+ * for a note's own text — separate from `NoteTemplate.font` above (which
+ * is a property of the *template*'s paper design, still read by nothing
+ * outside `config/templates.ts`/`TemplatePicker`'s own preview swatches).
+ * Stored on the message itself (`NoteData.fontFamily`/`Message.fontFamily`,
+ * see features/messages/types.ts), defaulting to `"modern"` for any
+ * message that predates this feature — see `noteTextScaleClasses` in
+ * `lib/textScale.ts`, the one place both this and the EPIC 045 length-based
+ * size tiering come together.
+ */
+export type NoteTextFontFamily = "modern" | "classic" | "handwritten" | "typewriter";
+
 export type NoteSize = "sm" | "md" | "lg";
 
-export type NoteTemplateCategory = "standard" | "seasonal";
+export type NoteTemplateCategory = "standard" | "seasonal" | "sports";
+
+/**
+ * EPIC 039: a closed, small color vocabulary for the "Spor" (sports)
+ * category's round two-tone cards — never free text. Two purposes: (1)
+ * `Note.tsx`/`lib/sportsBall.ts` map each key to one representative hex so
+ * every ball renders consistently, and (2) each key has a translated word
+ * in every locale (`Dictionary.write.sportsColorNames`) that builds the
+ * card's `aria-label` (e.g. "Sports card — yellow and red") — the only
+ * user-facing description of a sports card's identity. A club's real name
+ * is never stored on a `NoteTemplate` at all (see config/templates.ts's
+ * sports entries) precisely so it can never leak into any UI, accidental
+ * console log, or future careless render.
+ */
+export type SportsColorKey =
+  | "yellow"
+  | "red"
+  | "navy"
+  | "black"
+  | "white"
+  | "green"
+  | "maroon"
+  | "blue"
+  | "orange"
+  | "purple";
 
 /**
  * EPIC: Özel Günler İçin Tercih Edilebilir Post-it Tasarımları. A small,
@@ -101,10 +142,26 @@ export interface NoteTemplate {
    * static baked-in image; Note.tsx keeps rendering its paper/shape/
    * attachment/font/decoration system for every other context (board,
    * live write-flow preview, PDF, share cards).
+   *
+   * EPIC 039: optional now — `category: "sports"` templates have no PNG at
+   * all (see `primaryColor`/`secondaryColor` below); TemplatePicker
+   * branches on `category`/`shape` to render a CSS ball instead of an
+   * `<Image>` for those, everything else keeps requiring a real image.
    */
-  image: string;
-  imageWidth: number;
-  imageHeight: number;
+  image?: string;
+  imageWidth?: number;
+  imageHeight?: number;
+  /**
+   * EPIC 039: `category: "sports"` only — the round card's two (optionally
+   * three, with `accentColor`) panel colors, drawn by
+   * `features/notes/lib/sportsBall.ts` and reused identically by both
+   * TemplatePicker's picker option and Note.tsx's real-content rendering.
+   * See `SportsColorKey`'s doc comment above for why this is a closed
+   * color vocabulary rather than free text or a team name.
+   */
+  primaryColor?: SportsColorKey;
+  secondaryColor?: SportsColorKey;
+  accentColor?: SportsColorKey;
 }
 
 /**
@@ -123,4 +180,6 @@ export interface NoteData {
   rotation: number;
   position: { top: string; left: string };
   language?: string;
+  /** EPIC — Kart Yazı Tipi Seçenekleri: defaults to `"modern"` when absent (e.g. any `NoteData` built before this field existed — sample notes, older call sites) — never left `undefined` all the way down to Note.tsx's own rendering logic. */
+  fontFamily?: NoteTextFontFamily;
 }

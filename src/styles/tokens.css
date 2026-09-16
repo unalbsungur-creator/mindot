@@ -47,9 +47,19 @@
   --motion-base: 250ms;
   --motion-slow: 450ms;
 
-  /* Z-index scale — apply via arbitrary values, e.g. z-[var(--z-header)] */
+  /* Z-index scale — apply via arbitrary values, e.g. z-[var(--z-header)].
+     Layer order (low to high): board notes -> in-page panels (dropdowns/
+     search bars that overlay page content but must still sit under the
+     persistent site chrome) -> the sticky header itself -> true overlays
+     (popovers/dialogs that must render above absolutely everything,
+     including the header they may be anchored to). EPIC 047: --z-panel
+     was introduced specifically so an in-page panel (e.g. the board's
+     search/filter bar) can float above board content without outranking
+     the header's own stacking context — see BoardDiscoveryPanel and
+     NotificationBell. */
   --z-note: 10;
   --z-note-hover: 20;
+  --z-panel: 40;
   --z-header: 50;
   --z-overlay: 100;
 }

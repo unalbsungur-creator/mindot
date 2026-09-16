@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Fraunces, Caveat } from "next/font/google";
+import { Geist, Fraunces, Caveat, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -21,6 +21,17 @@ const fraunces = Fraunces({
 
 const caveat = Caveat({
   variable: "--font-caveat",
+  subsets: ["latin"],
+});
+
+// EPIC — Kart Yazı Tipi Seçenekleri: "Daktilo" (typewriter) option — the
+// same self-hosted-at-build-time next/font/google mechanism as the three
+// fonts above, so this never depends on a runtime CDN either. Geist's own
+// monospace companion, chosen deliberately over a generic monospace stack
+// so it visually pairs with `--font-geist-sans` ("Modern") the way Fraunces
+// ("Klasik") and Caveat ("El Yazısı") already pair with this design system.
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
@@ -76,7 +87,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${fraunces.variable} ${caveat.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${fraunces.variable} ${caveat.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-canvas text-ink">
         <StructuredData />

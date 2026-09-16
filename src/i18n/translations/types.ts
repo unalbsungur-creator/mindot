@@ -36,11 +36,30 @@ export interface Dictionary {
     heading: string;
     paragraphs: [string, string, string, string];
   };
+  /**
+   * EPIC 036: the real physical Pano photos on /about — a distinct section
+   * from `story` above. `story` is MINDOT's existing abstract origin
+   * narrative (the Kayseri market board, 1984-1994); `panoStory` presents
+   * the actual archival photographs as supporting evidence, so the two
+   * stay separate keys rather than merging into one. `closing` intentionally
+   * has no final tagline field — the section reuses `boardPage.slogan`
+   * ("Aklında kalmasın.") rather than duplicating that string a third time.
+   */
+  panoStory: {
+    heading: string;
+    lead: string;
+    paragraphs: [string, string, string];
+    origin: string;
+    closing: string;
+    photoAlt: [string, string, string];
+  };
   footer: {
     tagline: string;
     privacy: string;
     terms: string;
     guidelines: string;
+    /** i18n audit: accessible name for the footer's legal-links `<nav>` landmark (SiteFooter.tsx) — previously a hardcoded "Legal". */
+    legalNavLabel: string;
   };
   common: {
     language: string;
@@ -49,6 +68,8 @@ export interface Dictionary {
     adminSectionsLabel: string;
     /** EPIC 022: accessible trailing word after a numeric AdminNav badge count (e.g. "5 pending") — the visible digit is aria-hidden, this is what a screen reader actually announces alongside it. Reused for both the Moderation (pending messages) and Reports (open reports) badges rather than two separate words. */
     adminNavPendingCountLabel: string;
+    /** i18n audit: accessible name for the header's primary `<nav>` landmark (SiteHeader.tsx) — previously a hardcoded "Primary". */
+    primaryNavLabel: string;
   };
   write: {
     title: string;
@@ -59,6 +80,53 @@ export interface Dictionary {
     templateLabel: string;
     templateStandardLabel: string;
     templateOccasionLabel: string;
+    /** EPIC 039: category chip labels for the "Bir not seç" category + horizontal-rail picker. "Standard"/"Special occasions" reuse the two keys above — these are the two new categories. */
+    templateCategoryAllLabel: string;
+    templateCategorySportsLabel: string;
+    /** EPIC 039: accessible names for each category rail's scroll buttons. */
+    templateRailPrevLabel: string;
+    templateRailNextLabel: string;
+    /**
+     * EPIC 039: builds a sports card's `aria-label` — the only place a
+     * sports template's identity is ever described to anyone, since no
+     * team name/logo ever appears in the UI. Contains the literal tokens
+     * `{primary}`/`{secondary}` (and, for the one three-color entry,
+     * `{accent}`; safe to leave unreplaced/unused for a two-color card),
+     * replaced with the matching `sportsColorNames` word below — e.g.
+     * "Sports card — yellow and red".
+     */
+    sportsCardAriaLabel: string;
+    /** EPIC 039: the closed `SportsColorKey` vocabulary (see features/notes/types.ts), translated — used only to build `sportsCardAriaLabel` above, never shown as standalone UI text. */
+    sportsColorNames: Record<
+      "yellow" | "red" | "navy" | "black" | "white" | "green" | "maroon" | "blue" | "orange" | "purple",
+      string
+    >;
+    /**
+     * i18n audit: a sports/football template's own display name — shown
+     * outside the picker itself (moderation queue, private archive), where
+     * `sportsCardAriaLabel`'s full sentence would be too long. Composed by
+     * `features/notes/lib/templateDisplayName.ts` as
+     * "{sportsCardNamePrefix} — {color} & {color}" from `sportsColorNames`,
+     * the same color vocabulary `sportsCardAriaLabel` already uses — never a
+     * second, separately-translated set of "Football — X & Y" strings.
+     */
+    sportsCardNamePrefix: string;
+    /**
+     * i18n audit: display names for every non-sports note template
+     * (standard + seasonal, `features/notes/config/templates.ts`), keyed by
+     * template id — read via `templateDisplayName()`, never
+     * `template.name` directly. A template id missing here falls back to
+     * its registry `name` (English) rather than breaking, so registering a
+     * new template never requires a synchronized 5-locale dictionary update
+     * before it can ship.
+     */
+    templateNames: Record<string, string>;
+    /** EPIC — Kart Yazı Tipi Seçenekleri: "Yazı tipi" heading + the four pill button labels (each button also renders in its own font — see WriteThoughtForm.tsx). */
+    fontFamilyLabel: string;
+    fontModernLabel: string;
+    fontClassicLabel: string;
+    fontHandwrittenLabel: string;
+    fontTypewriterLabel: string;
     nameLabel: string;
     namePlaceholder: string;
     anonymousLabel: string;
@@ -108,11 +176,12 @@ export interface Dictionary {
     revokedBody: string;
   };
   /** EPIC 030: /admin/login — the admin-only, Google-independent sign-in form. Never shown to or used by normal users; `invalidCredentials` is one deliberately generic message covering every rejection reason (wrong password, unknown username, non-admin, suspended, locked out) so the form never hints which one applied. */
+  /** EPIC 036: login identity is email, not username — see AdminLoginPageContent. */
   adminLogin: {
     title: string;
     subtitle: string;
-    usernameLabel: string;
-    usernamePlaceholder: string;
+    emailLabel: string;
+    emailPlaceholder: string;
     passwordLabel: string;
     passwordPlaceholder: string;
     signInButton: string;
@@ -177,6 +246,17 @@ export interface Dictionary {
     aiCategoriesLabel: string;
     aiReasonLabel: string;
     aiNoCategories: string;
+    /** EPIC: Yönetim Paneli Yayındaki Kartların Kompakt Görünümü — the approved-card accordion toggle's two label states. */
+    showDetailsAction: string;
+    hideDetailsAction: string;
+    /** EPIC: Published Note Edit + Re-approval — a distinct badge/heading vocabulary for a pending *revision* on an already-published message, reusing `approve`/`reject`/`approving`/`rejecting` above for the actual buttons (same words, different action bound underneath). */
+    pendingRevisionsHeading: string;
+    emptyPendingRevisions: string;
+    revisionBadge: string;
+    revisionCurrentLabel: string;
+    revisionProposedLabel: string;
+    revisionRejectConfirmTitle: string;
+    revisionRejectConfirmBody: string;
   };
   /** EPIC 012: User Content Reporting — the public report dialog reachable from an approved message on the board. Reason labels are also reused by `reportsAdmin` below so the same 8-value vocabulary is never translated twice. */
   report: {
@@ -337,6 +417,8 @@ export interface Dictionary {
     redeemError: string;
     redeemSuccess: string;
     physicalHeading: string;
+    /** EPIC 053: shown instead of the order-number panel while the physical-gift flow isn't live yet (DILEKKUTUM_URL unset) — same fail-safe shape as `shoppierUnavailable`. */
+    physicalUnavailable: string;
     physicalInstructions: string;
     physicalSteps: [string, string, string, string, string];
     orderNumberLabel: string;
@@ -353,6 +435,14 @@ export interface Dictionary {
     accessGranted: string;
     existingProjectsHeading: string;
     startAnotherButton: string;
+    /**
+     * i18n audit: display names for each frame template
+     * (`features/memories/config/frameTemplates.ts`), keyed by frame id —
+     * shown at the frame-selection step and the admin order detail page.
+     * Same fallback-safe `Record<string, string>` pattern as
+     * `write.templateNames`.
+     */
+    frameNames: Record<string, string>;
   };
   adminAccessCodes: {
     title: string;
@@ -440,6 +530,15 @@ export interface Dictionary {
     noResults: string;
     loading: string;
     error: string;
+    dateFilterLabel: string;
+    dateToday: string;
+    dateThisWeek: string;
+    dateThisMonth: string;
+    dateThisYear: string;
+    dateSpecificDay: string;
+    dateSpecificDayInputLabel: string;
+    filtersToggleLabel: string;
+    filtersPanelLabel: string;
   };
   like: {
     action: string;
@@ -467,6 +566,13 @@ export interface Dictionary {
     premiumBody: string;
     premiumDownloadButton: string;
     premiumDownloadHint: string;
+    /**
+     * i18n audit: display names for each share format
+     * (`features/sharing/config/shareFormats.ts`), keyed by format id —
+     * shown as the Square/Story picker pills. Same fallback-safe
+     * `Record<string, string>` pattern as `write.templateNames`.
+     */
+    formatNames: Record<string, string>;
   };
   profile: {
     pageTitle: string;
@@ -512,6 +618,18 @@ export interface Dictionary {
     viewMemoryAction: string;
     addToWallAction: string;
     removeFromWallAction: string;
+    /** EPIC: Published Note Edit + Re-approval — a published note's own "Düzenle" flow, kept separate from `moderation`'s admin-facing revision vocabulary above even though they describe the same underlying state, since these are the *author's* words for it. */
+    editAction: string;
+    editDialogTitle: string;
+    editSubmitAction: string;
+    editCancelAction: string;
+    editSuccessMessage: string;
+    editExplanation: string;
+    editPendingBadge: string;
+    editRejectedNotice: string;
+    editErrorEmpty: string;
+    editErrorTooLong: string;
+    editErrorGeneric: string;
   };
   publicWall: {
     notFoundTitle: string;

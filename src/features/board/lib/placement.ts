@@ -58,14 +58,43 @@ const TILE_PX = 720;
  * How many messages get routed into one tile before spiraling out to the
  * next — a density control for *tile assignment*, independent of the
  * adaptive intra-tile position search below (which sizes itself to each
- * note's real footprint regardless of this constant). Left at its
- * original value: today's reported overlap was never caused by a tile
- * genuinely exceeding real capacity (a handful of notes per tile), and
- * changing it would shift which tile every *future* message routes to,
- * which is a bigger blast radius than this fix needs — see the report's
- * "future improvement" notes for when this should be revisited.
+ * note's real footprint regardless of this constant).
+ *
+ * EPIC 047: lowered from 36 — that value assumed a 720px tile could hold 36
+ * real notes with real breathing room, which a direct simulation disproves.
+ * Replaying `computePlacement` against representative content (standard/
+ * polaroid/heart/football templates, short-to-`MESSAGE_MAX_LENGTH` content,
+ * all four fonts) into a single tile shows `resolveCollisionFreePosition`
+ * exhausting genuinely collision-free candidates well before 36 occupants —
+ * as early as the 3rd note for the tallest templates at max content length,
+ * and by the 5th-7th for an ordinary mixed population. Past that point,
+ * every further approval into the same tile silently hits the "genuinely
+ * over capacity" least-overlap fallback (see `resolveCollisionFreePosition`
+ * below) — which is real, visible overlap, not a rare edge case, since any
+ * board tile that simply accumulates more than a handful of messages (the
+ * ordinary, expected outcome of the board being used) was *guaranteed* to
+ * reach it. 2 is the value simulation confirms as collision-free across
+ * every content/template/font combination tried — including an adversarial
+ * worst case (three of the tallest templates back to back, every message
+ * at the full `MESSAGE_MAX_LENGTH`, `handwritten`) — while an ordinary
+ * mixed population (short/medium/long content across five templates and
+ * all four fonts, 60 messages spread over many tiles) produced zero
+ * collisions at 2 versus one at 3 and one at 4. The tile spirals outward to
+ * a fresh one before real crowding starts, instead of relying on the
+ * least-overlap fallback as routine behavior — that fallback remains, as
+ * originally designed, a rare safety net for genuinely pathological
+ * content this constant can't rule out by construction, not the normal
+ * path. Purely a *routing* constant: it only changes which of many tiles a
+ * future approval's sequence number lands in, never an already-approved
+ * message's stored placement (permanent, per this file's own module doc)
+ * or the intra-tile search itself.
  */
-const SLOTS_PER_TILE = 36;
+// Exported (unlike this file's other internal constants) so a maintenance
+// script that needs to reason about tile occupancy without duplicating
+// this number — see EPIC 050's `src/lib/db/recalibratePlacementSequence.ts`
+// — can never silently drift out of sync with the value that actually
+// drives `tileForSequence` below.
+export const SLOTS_PER_TILE = 2;
 
 const MAX_ROTATION_DEG = 8;
 
@@ -126,6 +155,58 @@ export function tileForSequence(sequence: number): { tileX: number; tileY: numbe
   const tileIndex = Math.floor(sequence / SLOTS_PER_TILE);
   const { x, y } = spiralTileCoordinate(tileIndex);
   return { tileX: x, tileY: y };
+}
+
+/**
+ * EPIC 049: the tile-migration escape hatch a repair pass reaches for only
+ * when a genuinely over-capacity tile (more real occupants than
+ * `SLOTS_PER_TILE` was ever designed to guarantee collision-free packing
+ * for — see `repairCollisions.ts`'s module doc) can't be made collision-free
+ * by repositioning alone, no matter how many relaxation sweeps it's given.
+ * Walks the exact same outward spiral `tileForSequence` already uses for
+ * routing brand-new approvals, stepping a full `SLOTS_PER_TILE` at a time
+ * (so every step lands on a genuinely different tile rather than re-testing
+ * the same one), until it finds one the caller doesn't report as already
+ * occupied — landing an over-capacity card in an empty tile is trivially
+ * collision-free by construction (nothing else is there to collide with),
+ * which is the actual guarantee this function exists to provide; it is
+ * not a smarter packer, just a safe place to put what doesn't fit.
+ */
+export function findEmptyTile(occupiedTileKeys: ReadonlySet<string>, startSequence = 0): { tileX: number; tileY: number } {
+  let sequence = startSequence;
+  for (let guard = 0; guard < 1_000_000; guard++) {
+    const tile = tileForSequence(sequence);
+    if (!occupiedTileKeys.has(`${tile.tileX},${tile.tileY}`)) return tile;
+    sequence += SLOTS_PER_TILE;
+  }
+  throw new Error("findEmptyTile: exhausted search guard without finding an empty tile");
+}
+
+/**
+ * EPIC 049 (overflow hardening): the 8 tiles immediately touching
+ * `(tileX, tileY)`, in a fixed clockwise order starting east — used by
+ * `messages/repository.ts`'s `approve()` when the tile a brand-new
+ * approval was routed to turns out to already be genuinely over capacity
+ * (every candidate `resolveCollisionFreePosition` tried there still
+ * overlaps something). Rather than accept that overlap — which would
+ * violate this project's one absolute board rule, no two cards ever
+ * overlap — `approve()` tries placing the new note in each neighbor in
+ * this order first, since a tile next to where it was "supposed" to land
+ * keeps a new card visually close to its natural spot, before ever
+ * falling back to `findEmptyTile`'s guaranteed-but-arbitrary empty tile.
+ * Pure and deterministic: same input, same 8 tiles, same order, always.
+ */
+export function neighborTiles(tileX: number, tileY: number): { tileX: number; tileY: number }[] {
+  return [
+    { tileX: tileX + 1, tileY },
+    { tileX: tileX + 1, tileY: tileY + 1 },
+    { tileX, tileY: tileY + 1 },
+    { tileX: tileX - 1, tileY: tileY + 1 },
+    { tileX: tileX - 1, tileY },
+    { tileX: tileX - 1, tileY: tileY - 1 },
+    { tileX, tileY: tileY - 1 },
+    { tileX: tileX + 1, tileY: tileY - 1 },
+  ];
 }
 
 /**
@@ -213,8 +294,25 @@ export function resolveCollisionFreePosition(
   // finer-grained grid never had. More candidates is strictly safer for
   // collision avoidance; this is a search-resolution knob, not a physical
   // size assumption, so reusing the plain footprint here is intentional.
-  const cols = Math.max(1, Math.floor(packableWidth / (footprint.width + MIN_GAP_PX)));
-  const rows = Math.max(1, Math.floor(packableHeight / (footprint.height + MIN_GAP_PX)));
+  //
+  // EPIC 049: divisor changed from a full footprint step to a half-footprint
+  // step (quadrupling total candidates: 2x cols * 2x rows) — a real repair
+  // run against this project's own legacy over-SLOTS_PER_TILE-36 tiles (6-7
+  // real occupants in one 720x720 tile) proved the previous full-footprint
+  // step under-samples badly once several occupants are already present:
+  // with ~176x150px notes and MIN_GAP_PX=24, a full-footprint step gave
+  // only a 2x2 grid (4 raw candidates) in a tile with easily enough *area*
+  // (720x720 = 518,400px² vs. ~26,400px² per note) for far more — leaving
+  // genuinely collision-free gaps between existing occupants that the
+  // search simply never sampled, so it fell back to a still-overlapping
+  // "least overlap" position despite one existing. The accept/reject rule
+  // itself is completely unchanged (still the real rotated+inflated
+  // `boxFor` overlap check below) — only how densely this samples the
+  // legal range before checking, so this can only find MORE valid
+  // collision-free spots than before, never accept an invalid one it
+  // wouldn't have anyway.
+  const cols = Math.max(1, Math.floor(packableWidth / (footprint.width / 2 + MIN_GAP_PX)));
+  const rows = Math.max(1, Math.floor(packableHeight / (footprint.height / 2 + MIN_GAP_PX)));
   const stepX = cols > 1 ? (maxLeft - minLeft) / (cols - 1) : 0;
   const stepY = rows > 1 ? (maxTop - minTop) / (rows - 1) : 0;
 
@@ -347,6 +445,23 @@ function overlapAmount(a: Box, b: Box, gap: number): number {
   const overlapY = a.halfH + b.halfH + gap - dy;
   if (overlapX <= 0 || overlapY <= 0) return 0;
   return overlapX * overlapY;
+}
+
+/**
+ * EPIC 049: whether two *already-placed* occupants in the same tile
+ * genuinely collide, by the exact same rotation-aware, decorative-overflow-
+ * inflated, `MIN_GAP_PX`-separated geometry `resolveCollisionFreePosition`
+ * itself trusts when placing a *new* note — never a second, looser
+ * definition of "overlap" for a repair tool to disagree with. Exported
+ * specifically for `features/board/lib/repairCollisions.ts`, which detects
+ * and fixes genuine collisions among already-persisted placements (see
+ * that file for why "permanent placement" no longer means "permanently
+ * broken" once a real collision is found).
+ */
+export function hasCollision(a: OccupantFootprint, b: OccupantFootprint): boolean {
+  const boxA = boxFor(a.positionX, a.positionY, a.width, a.height, a.rotation);
+  const boxB = boxFor(b.positionX, b.positionY, b.width, b.height, b.rotation);
+  return overlapAmount(boxA, boxB, MIN_GAP_PX) > 0;
 }
 
 /**

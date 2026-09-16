@@ -1,3 +1,8 @@
+"use client";
+
 import { StatePanel } from "@/components/ui/StatePanel";
-import { getDictionary } from "@/i18n/translations";
-export default function Loading() { return <StatePanel title={getDictionary("en").states.loadingTitle} busy />; }
+import { useLocale } from "@/i18n/LocaleProvider";
+export default function Loading() {
+  const { dictionary } = useLocale();
+  return <StatePanel title={dictionary.states.loadingTitle} busy />;
+}

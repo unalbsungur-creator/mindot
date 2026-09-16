@@ -69,7 +69,20 @@ export function BoardControls({ onPan, onZoomIn, onZoomOut, onReturnToCenter }: 
   const { dictionary } = useLocale();
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-4 flex items-end justify-between px-4 sm:bottom-6 sm:px-6">
+    <div
+      className="pointer-events-none absolute inset-x-0 bottom-4 flex items-end justify-between px-4 sm:bottom-6 sm:px-6"
+      // EPIC 042: `env(safe-area-inset-bottom)` — a notched/home-indicator
+      // phone's unsafe bottom strip — added as *extra* padding on top of
+      // the existing `bottom-4`/`sm:bottom-6` positioning, not a
+      // replacement for it. No Tailwind safe-area plugin exists in this
+      // project (and none is being added — see this EPIC's "no new
+      // dependency" rule), so this is the one inline style needed; it
+      // resolves to `0px` on every device without a safe-area inset
+      // (`env()` with no matching insets falls back to the fallback
+      // value), so desktop and non-notched phones render byte-identical
+      // to before this EPIC.
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+    >
       <div className="pointer-events-auto grid grid-cols-3 grid-rows-3 gap-1">
         <div />
         <ControlButton

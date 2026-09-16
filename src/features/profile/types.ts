@@ -1,3 +1,5 @@
+import type { NoteTextFontFamily } from "@/features/notes/types";
+
 /**
  * The public-facing identity behind a personal wall — deliberately narrow,
  * the same philosophy as BoardTileAuthor: no id, no email, no role,
@@ -22,6 +24,8 @@ export interface PersonalWallNote {
   id: string;
   content: string;
   templateId: string;
+  /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface — rendering metadata, same privacy tier as `templateId`. */
+  fontFamily: NoteTextFontFamily;
   rotation: number;
   language: string;
   createdAt: string;
@@ -64,6 +68,8 @@ export interface ArchiveMessage {
   id: string;
   content: string;
   templateId: string;
+  /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface — rendering metadata, same privacy tier as `templateId`. */
+  fontFamily: NoteTextFontFamily;
   language: string;
   isAnonymous: boolean;
   createdAt: string;
@@ -74,6 +80,10 @@ export interface ArchiveMessage {
   showOnPersonalWall: boolean;
   /** Board tile coordinates, for a "view on board" deep link — only present once published. */
   tile: { x: number; y: number } | null;
+  /** EPIC: Published Note Edit + Re-approval — non-null only while a proposed content edit is awaiting admin review; `state` stays "published" the whole time (see schema.ts's `pendingContent` comment). The owner's own archive is the one place this is ever exposed to a client. */
+  pendingContent: string | null;
+  /** Set only after the most recent revision was rejected; cleared the moment a new one is submitted. */
+  revisionRejectionReason: string | null;
 }
 
 export interface TimeRange {
@@ -105,6 +115,8 @@ export interface MemoryLibraryItem {
   messageId: string;
   noteContent: string | null;
   noteTemplateId: string | null;
+  /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface — rendering metadata, same privacy tier as `noteTemplateId`. */
+  noteFontFamily: NoteTextFontFamily | null;
   noteLanguage: string | null;
   captureMode: "note_only" | "note_with_surrounding";
   outputType: "personal_pdf" | "digital_frame" | "physical_gift";

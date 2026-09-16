@@ -1,148 +1,105 @@
 "use client";
 
-import { useMemo, useRef } from "react";
-import Image from "next/image";
-import { cn } from "@/lib/cn";
+import { useMemo, useState } from "react";
+import { useLocale } from "@/i18n/LocaleProvider";
 import { getActiveNoteTemplates } from "../config/templates";
+import { templateDisplayName } from "../lib/templateDisplayName";
+import { HorizontalTemplateRail } from "./HorizontalTemplateRail";
+import { TemplateCategoryNav, type TemplateCategoryFilter } from "./TemplateCategoryNav";
+import type { NoteTemplate } from "../types";
 
 interface TemplatePickerProps {
   value: string;
   onChange: (templateId: string) => void;
-  /** Accessible group label — e.g. dictionary.write.templateLabel. */
+  /** Accessible group label for the picker as a whole — announced once, ahead of the category chips (the per-category radiogroup itself gets its own, more specific label — see HorizontalTemplateRail's `groupLabel`). */
   label: string;
-  /**
-   * EPIC: Özel Günler İçin Tercih Edilebilir Post-it Tasarımları. Visual
-   * section headings splitting the (single, still keyboard-flat) radiogroup
-   * into "Standard" and "Special occasions" — optional so any other caller
-   * of this component keeps working unchanged with one ungrouped list.
-   */
-  standardLabel?: string;
-  occasionLabel?: string;
+}
+
+function isStandard(template: NoteTemplate) {
+  return template.category === undefined || template.category === "standard";
 }
 
 /**
- * EPIC: Özel ve Standart Post-it Görsellerini Gerçek PNG Dosyalarıyla
- * Değiştir. Each option renders the template's real designed artwork
- * (`template.image`, from `public/images/postits/`) directly — not the
- * general-purpose `Note` component's CSS paper/shape approximation. This
- * is correct specifically *because* this picker's preview content is
- * always the same fixed "Aa" / "— <template name>" placeholder, which the
- * artwork already has baked in; a real note's actual (variable) content
- * and author still render through `Note`'s CSS system everywhere else
- * (board, live write-flow preview, PDF, share cards) — those can never be
- * baked into a static image.
+ * EPIC 039: "Bir Nokta Bırak" Kart Seçimini Kategori + Yatay Kaydırmalı
+ * Tasarıma Dönüştürme. Replaces the old single flat/grouped grid with a
+ * category chip row (`TemplateCategoryNav`) plus one horizontally
+ * scrollable card rail per category (`HorizontalTemplateRail`) — the
+ * underlying selection is still one piece of state (`value`/`onChange`,
+ * unchanged contract), and template ids/availability rules are completely
+ * untouched (`getActiveNoteTemplates`, same as before this EPIC).
  *
- * Templates render in two visually-labeled sections (standard vs. special
- * occasions, split on `template.category`) when `standardLabel`/
- * `occasionLabel` are supplied — but stay one single `role="radiogroup"`
- * with one flat, index-based keyboard nav order (standard first, then
- * occasions) rather than two separate groups, since the user is always
- * choosing exactly one design across both sections.
+ * "All" shows every active template in registration order (the pre-EPIC-039
+ * flat list); "Standard"/"Special occasions"/"Sports" filter on
+ * `NoteTemplate.category`. Switching category only swaps which rail is
+ * mounted — never scrolls the page, never touches `value` itself.
  */
-export function TemplatePicker({ value, onChange, label, standardLabel, occasionLabel }: TemplatePickerProps) {
+export function TemplatePicker({ value, onChange, label }: TemplatePickerProps) {
+  const { dictionary } = useLocale();
+  const t = dictionary.write;
+
+  function templateName(template: NoteTemplate): string {
+    return templateDisplayName(template, dictionary);
+  }
   const templates = useMemo(() => getActiveNoteTemplates(), []);
-  const standardTemplates = useMemo(() => templates.filter((t) => t.category !== "seasonal"), [templates]);
-  const occasionTemplates = useMemo(() => templates.filter((t) => t.category === "seasonal"), [templates]);
-  const showGroups = standardLabel !== undefined && occasionLabel !== undefined && occasionTemplates.length > 0;
-  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  // WAI-ARIA APG radiogroup pattern: arrow keys move focus AND selection
-  // between options (Tab only enters/leaves the group once) — plain Tab-
-  // between-buttons behavior alone under a native `role="radiogroup"`
-  // doesn't match what assistive tech expects from a radio group.
-  function handleKeyDown(event: React.KeyboardEvent) {
-    const currentIndex = templates.findIndex((t) => t.id === value);
-    let nextIndex: number | null = null;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      nextIndex = (currentIndex + 1 + templates.length) % templates.length;
-    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      nextIndex = (currentIndex - 1 + templates.length) % templates.length;
-    }
-    if (nextIndex === null) return;
-    event.preventDefault();
-    onChange(templates[nextIndex].id);
-    buttonRefs.current[nextIndex]?.focus();
-  }
+  const standardTemplates = useMemo(() => templates.filter(isStandard), [templates]);
+  const occasionTemplates = useMemo(() => templates.filter((tpl) => tpl.category === "seasonal"), [templates]);
+  const sportsTemplates = useMemo(() => templates.filter((tpl) => tpl.category === "sports"), [templates]);
 
-  function renderOption(template: (typeof templates)[number]) {
-    const index = templates.indexOf(template);
-    const selected = template.id === value;
+  // Defaults to whichever category the current selection actually belongs
+  // to (so restoring a saved draft, or the initial default template, opens
+  // on a rail that actually shows the selected card) rather than always
+  // starting on "All".
+  const [activeCategory, setActiveCategory] = useState<TemplateCategoryFilter>(() => {
+    const current = templates.find((tpl) => tpl.id === value);
+    if (!current) return "all";
+    if (current.category === "seasonal") return "seasonal";
+    if (current.category === "sports") return "sports";
+    return "standard";
+  });
 
-    return (
-      <button
-        key={template.id}
-        ref={(el) => {
-          buttonRefs.current[index] = el;
-        }}
-        type="button"
-        role="radio"
-        aria-checked={selected}
-        aria-label={template.name}
-        // Roving tabindex (WAI-ARIA APG radiogroup pattern): only the
-        // selected option sits in the Tab order — Tab enters/leaves
-        // the group in one step, arrow keys move within it.
-        tabIndex={selected ? 0 : -1}
-        onClick={() => onChange(template.id)}
-        className="group/option relative w-32 rounded-lg p-1 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
-      >
-        {/*
-          Selection indicator that follows the artwork's own silhouette
-          (heart, organic bloom, cut corners, ...) instead of a plain
-          rectangle around it — achieved by using the SAME PNG as a CSS
-          mask source (its alpha channel), not by re-authoring the shape.
-          Sized slightly larger than the image and sat behind it so it
-          reads as a glow/outline peeking past the artwork's edges.
-        */}
-        <span
-          aria-hidden="true"
-          className={cn(
-            "absolute -inset-1.5 bg-orange transition-opacity duration-[var(--motion-fast)]",
-            selected ? "opacity-100" : "opacity-0 group-hover/option:opacity-40"
-          )}
-          style={{
-            WebkitMaskImage: `url(${template.image})`,
-            maskImage: `url(${template.image})`,
-            WebkitMaskSize: "contain",
-            maskSize: "contain",
-            WebkitMaskRepeat: "no-repeat",
-            maskRepeat: "no-repeat",
-            WebkitMaskPosition: "center",
-            maskPosition: "center",
-          }}
-        />
-        <Image
-          src={template.image}
-          alt=""
-          width={template.imageWidth}
-          height={template.imageHeight}
-          // Real designed artwork — never stretched/cropped/forced into a
-          // square: intrinsic width/height above preserve the source
-          // file's own ratio, object-contain guarantees no crop even if a
-          // parent constraint ever disagrees with that ratio.
-          className="relative h-auto w-full object-contain"
-        />
-      </button>
-    );
-  }
+  const categoryLabels: Record<TemplateCategoryFilter, string> = {
+    all: t.templateCategoryAllLabel,
+    standard: t.templateStandardLabel,
+    seasonal: t.templateOccasionLabel,
+    sports: t.templateCategorySportsLabel,
+  };
 
-  if (!showGroups) {
-    return (
-      <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-3" onKeyDown={handleKeyDown}>
-        {templates.map(renderOption)}
-      </div>
-    );
+  const visibleTemplates =
+    activeCategory === "all"
+      ? templates
+      : activeCategory === "standard"
+        ? standardTemplates
+        : activeCategory === "seasonal"
+          ? occasionTemplates
+          : sportsTemplates;
+
+  function sportsAriaLabel(template: NoteTemplate): string {
+    const colorNames = t.sportsColorNames;
+    const primary = template.primaryColor ? colorNames[template.primaryColor] : "";
+    const secondary = template.secondaryColor ? colorNames[template.secondaryColor] : "";
+    return t.sportsCardAriaLabel.replace("{primary}", primary).replace("{secondary}", secondary);
   }
 
   return (
-    <div role="radiogroup" aria-label={label} className="flex flex-col gap-4" onKeyDown={handleKeyDown}>
-      <div className="flex flex-col gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-ink-soft">{standardLabel}</span>
-        <div className="flex flex-wrap gap-3">{standardTemplates.map(renderOption)}</div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-ink-soft">{occasionLabel}</span>
-        <div className="flex flex-wrap gap-3">{occasionTemplates.map(renderOption)}</div>
-      </div>
+    <div className="flex min-w-0 flex-col gap-3" aria-label={label}>
+      <TemplateCategoryNav active={activeCategory} onChange={setActiveCategory} labels={categoryLabels} />
+      <HorizontalTemplateRail
+        // Remounts on category switch — without this, React reuses the
+        // same scroll container across categories, so a rail scrolled
+        // partway through a long category (e.g. "All") would carry that
+        // same scroll offset into a shorter one, potentially opening on
+        // blank space past its actual content.
+        key={activeCategory}
+        templates={visibleTemplates}
+        value={value}
+        onChange={onChange}
+        groupLabel={`${label} — ${categoryLabels[activeCategory]}`}
+        prevLabel={t.templateRailPrevLabel}
+        nextLabel={t.templateRailNextLabel}
+        sportsAriaLabel={sportsAriaLabel}
+        templateName={templateName}
+      />
     </div>
   );
 }
