@@ -16,6 +16,7 @@ export const de: Dictionary = {
       "MINDOT ist eine grenzenlose digitale Wand, an der Fremde hinterlassen, was sie gerade denken — einen Satz, eine Erinnerung, einen Scherz, eine Frage — für jeden, der vorbeikommt.",
     primaryCta: "Hinterlasse einen Punkt",
     activeCountLabel: "Gedanken an der Wand.",
+    topLikedLabel: "Am beliebtesten an der Wand",
   },
   homeInfoBand: {
     col1Line1: "Hinterlasse einen Gedanken.",

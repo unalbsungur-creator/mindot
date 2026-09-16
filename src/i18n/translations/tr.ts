@@ -16,6 +16,7 @@ export const tr: Dictionary = {
       "MINDOT, hiç tanımadığınız insanların aklından geçenleri bıraktığı sınırsız bir dijital duvar — bir cümle, bir anı, bir şaka, bir soru — oradan geçen herkes için.",
     primaryCta: "Bir Nokta Bırak",
     activeCountLabel: "düşünce duvarda.",
+    topLikedLabel: "DUVAR’da en çok beğenilenler",
   },
   homeInfoBand: {
     col1Line1: "Bir düşünce bırak.",

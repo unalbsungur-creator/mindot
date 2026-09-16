@@ -1,4 +1,4 @@
-import { auth } from "@/features/auth/auth";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getPublicMessageById } from "@/features/board/repository";
 import { memoryRepository, physicalOrderRepository } from "@/features/memories/repository";
 import { userRepository } from "@/features/users/repository";
@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminOrderDetailPage({ params }: PageProps<"/admin/orders/[orderNumber]">) {
   const { orderNumber } = await params;
-  const session = await auth();
-  const authorized = session?.user?.role === "admin";
+  const adminUser = await requireAdmin();
+  const authorized = adminUser !== null;
 
   if (!authorized) {
     return <OrderDetailContent authorized={false} order={null} project={null} message={null} customer={null} />;

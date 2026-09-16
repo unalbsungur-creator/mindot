@@ -1,11 +1,11 @@
-import { auth } from "@/features/auth/auth";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { messageRepository } from "@/features/messages/repository";
 import { userRepository } from "@/features/users/repository";
 import { UsersPageContent } from "./_components/UsersPageContent";
 
 export default async function UsersPage() {
-  const session = await auth();
-  const authorized = session?.user?.role === "admin";
+  const adminUser = await requireAdmin();
+  const authorized = adminUser !== null;
 
   // Same shape as every other admin page: unauthorized visitors never
   // receive any user data in the payload — the fetch happens only after
@@ -20,5 +20,5 @@ export default async function UsersPage() {
       )
     : [];
 
-  return <UsersPageContent authorized={authorized} items={items} currentUserId={session?.user?.id ?? null} />;
+  return <UsersPageContent authorized={authorized} items={items} currentUserId={adminUser?.id ?? null} />;
 }

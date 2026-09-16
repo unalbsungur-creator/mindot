@@ -98,8 +98,18 @@ export function HomeHero({ activeCount, heroNotes }: { activeCount: number; hero
           </div>
         </div>
 
-        <div className="order-3">
+        <div className="order-3 flex flex-col items-center gap-3">
           <HeroBrandComposition notes={localizedHeroNotes} />
+          {/* EPIC: "DUVAR'da en çok beğenilenler" — a small, secondary
+              eyebrow caption naming what the 4 note cards above actually
+              are (real, top-liked approved messages — see
+              listTopLikedApproved in app/page.tsx), not a new section with
+              its own heading weight. Same muted/uppercase caption idiom
+              already used for secondary labels on dark surfaces elsewhere
+              (e.g. MePageContent's boardPage.slogan caption). */}
+          <p className="text-center text-xs font-medium uppercase tracking-wide text-white/50">
+            {dictionary.hero.topLikedLabel}
+          </p>
         </div>
       </PageContainer>
     </section>

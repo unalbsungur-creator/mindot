@@ -16,6 +16,7 @@ export const es: Dictionary = {
       "MINDOT es un muro digital sin límites donde desconocidos dejan lo que están pensando — una frase, un recuerdo, una broma, una pregunta — para quien pase por allí.",
     primaryCta: "Deja un punto",
     activeCountLabel: "pensamientos en el muro.",
+    topLikedLabel: "Los más gustados del Muro",
   },
   homeInfoBand: {
     col1Line1: "Deja un pensamiento.",

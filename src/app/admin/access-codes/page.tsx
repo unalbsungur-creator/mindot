@@ -1,10 +1,10 @@
-import { auth } from "@/features/auth/auth";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { digitalAccessCodeRepository } from "@/features/memories/repository";
 import { AccessCodesPageContent } from "./_components/AccessCodesPageContent";
 
 export default async function AdminAccessCodesPage() {
-  const session = await auth();
-  const authorized = session?.user?.role === "admin";
+  const adminUser = await requireAdmin();
+  const authorized = adminUser !== null;
 
   const codes = authorized ? await digitalAccessCodeRepository.list() : [];
 

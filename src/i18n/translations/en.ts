@@ -16,6 +16,7 @@ export const en: Dictionary = {
       "MINDOT is a limitless digital wall where strangers leave what they're thinking — a line, a memory, a joke, a question — for anyone who happens to pass by.",
     primaryCta: "Leave a Dot",
     activeCountLabel: "thoughts on the wall.",
+    topLikedLabel: "Most liked on the Wall",
   },
   homeInfoBand: {
     col1Line1: "Leave a thought.",

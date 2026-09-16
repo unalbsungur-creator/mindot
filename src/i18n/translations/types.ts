@@ -19,6 +19,8 @@ export interface Dictionary {
     primaryCta: string;
     /** Trailing text after the real, live active-message count — see app/page.tsx. The number itself is formatted, not translated. */
     activeCountLabel: string;
+    /** Small eyebrow caption directly under the hero's 4 note cards (HeroBrandComposition) — these are real top-liked messages (see listTopLikedApproved), and this label names that. */
+    topLikedLabel: string;
   };
   homeInfoBand: {
     col1Line1: string;

@@ -1,10 +1,10 @@
-import { auth } from "@/features/auth/auth";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getOpenReportQueue } from "@/features/reports/repository";
 import { ReportsPageContent } from "./_components/ReportsPageContent";
 
 export default async function ReportsPage() {
-  const session = await auth();
-  const authorized = session?.user?.role === "admin";
+  const adminUser = await requireAdmin();
+  const authorized = adminUser !== null;
 
   // Same shape as /admin/moderation's page.tsx: unauthorized visitors never
   // receive any report/message data in the payload — the fetch happens
@@ -13,5 +13,5 @@ export default async function ReportsPage() {
   // admin status independently regardless of what a client sends.
   const items = authorized ? await getOpenReportQueue() : [];
 
-  return <ReportsPageContent authorized={authorized} items={items} currentUserId={session?.user?.id ?? null} />;
+  return <ReportsPageContent authorized={authorized} items={items} currentUserId={adminUser?.id ?? null} />;
 }

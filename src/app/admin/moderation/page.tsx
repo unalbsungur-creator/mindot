@@ -1,11 +1,11 @@
-import { auth } from "@/features/auth/auth";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { messageRepository } from "@/features/messages/repository";
 import { userRepository } from "@/features/users/repository";
 import { ModerationPageContent } from "./_components/ModerationPageContent";
 
 export default async function ModerationPage() {
-  const session = await auth();
-  const authorized = session?.user?.role === "admin";
+  const adminUser = await requireAdmin();
+  const authorized = adminUser !== null;
 
   // Unauthorized visitors never receive any message content in the
   // rendered payload at all — this check happens before the fetch, not

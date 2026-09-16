@@ -2,11 +2,22 @@ import Image from "next/image";
 import { Note } from "@/features/notes/components/Note";
 import type { NoteData } from "@/features/notes/types";
 
+/**
+ * These were `hidden` below `lg:` entirely (desktop-only), which meant the
+ * hero's 4 real top-liked notes never appeared on mobile at all. Now always
+ * rendered: below `lg:` each note is pulled to a small inward offset and
+ * scaled down (`scale-50` from the corner its own offset anchors, via
+ * `origin-*`) so its otherwise-fixed 144px width (`Note`'s own `sizeClasses.sm`,
+ * unrelated to this wrapper's own `w-*` class — not touched here) fits inside
+ * the ~340px circle without pushing the page into horizontal scroll. `lg:`
+ * values are byte-identical to the original desktop-only offsets/width, so
+ * desktop rendering is unchanged.
+ */
 const CORNER_WRAPPER_CLASSES = [
-  "absolute -left-6 top-[6%] hidden w-32 lg:block lg:w-36",
-  "absolute -right-4 top-[2%] hidden w-28 lg:block lg:w-32",
-  "absolute -left-4 bottom-[10%] hidden w-28 lg:block lg:w-32",
-  "absolute -right-6 bottom-[4%] hidden w-28 lg:block lg:w-32",
+  "absolute -left-2 top-[6%] w-32 origin-top-left scale-50 lg:-left-6 lg:w-36 lg:scale-100",
+  "absolute -right-2 top-[2%] w-28 origin-top-right scale-50 lg:-right-4 lg:w-32 lg:scale-100",
+  "absolute -left-2 bottom-[10%] w-28 origin-bottom-left scale-50 lg:-left-4 lg:w-32 lg:scale-100",
+  "absolute -right-2 bottom-[4%] w-28 origin-bottom-right scale-50 lg:-right-6 lg:w-32 lg:scale-100",
 ];
 
 /**
@@ -24,9 +35,9 @@ const CORNER_WRAPPER_CLASSES = [
  * messages (EPIC: Ana Sayfadaki 4 Mesajın Yeni Yapısı) — this component no
  * longer imports a static placeholder array. Renders however many are
  * actually given (0–4) rather than assuming exactly 4, so a thin dataset
- * degrades gracefully instead of crashing. Hidden below `lg:` per the
- * responsive spec (a controlled reduction to zero on small screens, not a
- * cramped miniature).
+ * degrades gracefully instead of crashing. Visible at every breakpoint —
+ * see `CORNER_WRAPPER_CLASSES`' own doc comment for how mobile stays
+ * overflow-free without a separate mobile-only layout.
  */
 export function HeroBrandComposition({ notes, className }: { notes: NoteData[]; className?: string }) {
   return (

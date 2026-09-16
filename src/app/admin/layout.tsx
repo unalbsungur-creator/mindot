@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { auth } from "@/features/auth/auth";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { messageRepository } from "@/features/messages/repository";
 import { reportRepository } from "@/features/reports/repository";
 import { AdminNav } from "./_components/AdminNav";
@@ -10,8 +10,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Presentational only — every admin page/action independently re-checks
   // role itself before doing anything, exactly as before. This just decides
   // whether the cross-section nav is worth showing.
-  const session = await auth();
-  const isAdmin = session?.user?.role === "admin";
+  const adminUser = await requireAdmin();
+  const isAdmin = adminUser !== null;
 
   // EPIC 022: pending-moderation / open-report counts for the nav badges —
   // fetched here, server-side, only behind the same isAdmin gate as the nav

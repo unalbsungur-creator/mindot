@@ -1,11 +1,11 @@
-import { auth } from "@/features/auth/auth";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { memoryRepository, physicalOrderRepository } from "@/features/memories/repository";
 import { userRepository } from "@/features/users/repository";
 import { OrdersPageContent, type OrderListItem } from "./_components/OrdersPageContent";
 
 export default async function AdminOrdersPage() {
-  const session = await auth();
-  const authorized = session?.user?.role === "admin";
+  const adminUser = await requireAdmin();
+  const authorized = adminUser !== null;
 
   let items: OrderListItem[] = [];
   if (authorized) {

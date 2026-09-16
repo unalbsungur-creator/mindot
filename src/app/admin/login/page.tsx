@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/features/auth/auth";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { AdminLoginPageContent } from "./_components/AdminLoginPageContent";
 
 /**
@@ -9,8 +9,8 @@ import { AdminLoginPageContent } from "./_components/AdminLoginPageContent";
  * `noindex`ed via admin/layout.tsx's shared metadata.
  */
 export default async function AdminLoginPage() {
-  const session = await auth();
-  if (session?.user?.role === "admin") {
+  const adminUser = await requireAdmin();
+  if (adminUser !== null) {
     redirect("/admin");
   }
 
