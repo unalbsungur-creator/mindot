@@ -131,26 +131,42 @@ export interface NoteTemplate {
   /**
    * EPIC: Özel ve Standart Post-it Görsellerini Gerçek PNG Dosyalarıyla
    * Değiştir. The real designed preview artwork for this template — a
-   * `public/images/postits/*.png` path — used only by the write flow's
-   * TemplatePicker (whose preview content is always the fixed "Aa" / "—
-   * <template name>" placeholder these images already have baked in).
-   * `imageWidth`/`imageHeight` are the PNG's real intrinsic pixel
-   * dimensions, required by next/image for a `public/`-referenced (not
-   * statically imported) local image to size itself without stretching or
-   * cropping. Deliberately NOT consumed by the general `Note` component —
-   * a real note's content/author varies per message and can never be a
-   * static baked-in image; Note.tsx keeps rendering its paper/shape/
-   * attachment/font/decoration system for every other context (board,
-   * live write-flow preview, PDF, share cards).
+   * `public/images/postits/*.png` path — used by the write flow's
+   * TemplatePicker. `imageWidth`/`imageHeight` are the PNG's real intrinsic
+   * pixel dimensions, required by next/image for a `public/`-referenced
+   * (not statically imported) local image to size itself without
+   * stretching or cropping.
    *
    * EPIC 039: optional now — `category: "sports"` templates have no PNG at
    * all (see `primaryColor`/`secondaryColor` below); TemplatePicker
    * branches on `category`/`shape` to render a CSS ball instead of an
    * `<Image>` for those, everything else keeps requiring a real image.
+   *
+   * EPIC: Kart Tasarımı Fidelity — when a template also sets `contentArea`
+   * (below), this `image` is no longer *just* the picker's preview: `Note`
+   * itself renders it as the note's real artwork (full card, `object-fit:
+   * contain`), with the user's message/author positioned as an HTML overlay
+   * inside `contentArea` — see `Note.tsx`'s `isImageBacked` branch. A
+   * template with `image` but no `contentArea` is unaffected: `Note` still
+   * renders its usual paper/shape/attachment/decoration reconstruction for
+   * it, exactly as before, and only TemplatePicker reads `image`.
    */
   image?: string;
   imageWidth?: number;
   imageHeight?: number;
+  /**
+   * EPIC: Kart Tasarımı Fidelity — the rectangle (all four values CSS
+   * percentages of the artwork's own box, e.g. `"38%"`) inside `image`
+   * where the real PNG's artwork is clean/empty, so the user's message and
+   * author line can be overlaid there as real HTML text without covering
+   * any decorative element. Located once per template by direct pixel
+   * inspection of the artwork (see the EPIC's own analysis), not a guess —
+   * a template with a differently-shaped clean area needs its own
+   * `contentArea`, never a shared default. Presence of this field is what
+   * switches `Note` into the `image`-backed render path; omit it (as every
+   * other template currently does) to keep the existing CSS reconstruction.
+   */
+  contentArea?: { top: string; left: string; width: string; height: string };
   /**
    * EPIC 039: `category: "sports"` only — the round card's two (optionally
    * three, with `accentColor`) panel colors, drawn by

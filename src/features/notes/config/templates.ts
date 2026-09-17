@@ -186,6 +186,12 @@ export const noteTemplates: NoteTemplate[] = [
   {
     id: "birthday-confetti",
     name: "Birthday Confetti",
+    // EPIC: Kart Tasarımı Fidelity pilot — `paper`/`shape`/`attachment`/
+    // `decoration` below are no longer read for this template's real
+    // rendering (Note.tsx's `isImageBacked` branch takes over the moment
+    // `contentArea` is set); kept as-is only so this row still matches the
+    // `NoteTemplate` shape and so `TemplateCategoryNav`'s "seasonal"
+    // grouping / `isTemplateAvailable` continue to work unchanged.
     paper: "yellow",
     shape: "confetti",
     attachment: "pin",
@@ -193,9 +199,18 @@ export const noteTemplates: NoteTemplate[] = [
     decoration: "confetti",
     category: "seasonal",
     occasion: "birthday",
+    // Replaced with the real, text-free artwork (was a 227×221 thumbnail
+    // with "Aa — Birthday Confetti" baked into its pixels — see the EPIC's
+    // own clean-asset feasibility findings for why that couldn't be reused
+    // directly). Same filename/path, so TemplatePicker needs no change.
     image: "/images/postits/birthday confetti.png",
-    imageWidth: 227,
-    imageHeight: 221,
+    imageWidth: 507,
+    imageHeight: 492,
+    // Center rectangle confirmed empty by direct pixel inspection (>85%
+    // "paper color" fraction across this whole box, zero overlap with the
+    // bunting/balloons/cake/confetti — see the EPIC's own analysis script
+    // output). Left-aligned, vertically centered text reads naturally here.
+    contentArea: { top: "38%", left: "10%", width: "72%", height: "32%" },
   },
   // Upgrades the original scheduling-architecture placeholder into a real,
   // permanently-available design for this EPIC — it was never enabled, so
@@ -268,7 +283,12 @@ export const noteTemplates: NoteTemplate[] = [
     name: "Graduation Honor",
     paper: "blue",
     shape: "diploma",
-    attachment: "pin",
+    // BUG FIX: Kart Tasarımı QA — the real artwork has no pin/attachment at
+    // all (the cap sitting in its own corner already reads as "affixed");
+    // "pin" here rendered a floating orange dot top-center that the
+    // reference image never shows, a real fidelity mismatch caught by
+    // visual QA against graduation honor.png.
+    attachment: "none",
     font: "sans",
     decoration: "graduation-cap",
     category: "seasonal",
