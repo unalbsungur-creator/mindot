@@ -32,8 +32,38 @@ import type { ReactNode } from "react";
 import { HEART_PATH } from "@/features/notes/components/Note";
 import { getNoteTemplate } from "@/features/notes/config/templates";
 import { SPORTS_COLOR_HEX } from "@/features/notes/lib/sportsBall";
-import type { NoteDecoration, NoteShape, NoteTextFontFamily, SportsColorKey } from "@/features/notes/types";
+import type { NoteDecoration, NoteShape, NoteTemplate, NoteTextFontFamily, SportsColorKey } from "@/features/notes/types";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "@/features/memories/services/pdfPalette";
+import { readPublicAsset } from "./publicAsset";
+
+/**
+ * EPIC: Special Day Clean Artwork + Share Visual Consistency — a template
+ * that sets both `image` and `contentArea` (see types.ts) is image-backed
+ * everywhere `Note.tsx` renders it (Picker/Preview/DUVAR); this Satori
+ * renderer must agree, never silently falling back to the CSS/SVG
+ * paper/shape/decoration reconstruction below for one of these templates.
+ * Same predicate as `Note.tsx`'s own `isImageBacked`.
+ */
+export function isImageBacked(template: NoteTemplate): boolean {
+  return Boolean(template.image && template.contentArea);
+}
+
+/**
+ * Loads an image-backed template's real artwork as a `data:` URI — the
+ * same technique `shareMasterImages.ts` already uses for the share master
+ * backgrounds (Satori/`next/og` can't fetch a relative `/public` path at
+ * request time, and this app's `readPublicAsset` already handles both the
+ * Cloudflare ASSETS-binding and local-filesystem cases). Returns `null`
+ * for a non-image-backed template so callers can treat "no artwork to
+ * load" as a plain, typed case rather than an error. `Read fresh per
+ * call — no premature caching, same convention as `loadShareMasterImage`.
+ */
+export async function loadTemplateArtwork(template: NoteTemplate): Promise<string | null> {
+  if (!isImageBacked(template)) return null;
+  const arrayBuffer = await readPublicAsset(template.image!);
+  const buffer = Buffer.from(arrayBuffer);
+  return `data:image/png;base64,${buffer.toString("base64")}`;
+}
 
 /** Tailwind `w-44` (11rem @ 16px root) — Note.tsx's real fixed board/world card width. Every proportion below (padding, corner-cut size, decoration size, attachment size) was measured against this and is scaled by `renderWidth / BASELINE_WIDTH`. */
 const BASELINE_WIDTH = 176;
@@ -72,6 +102,15 @@ export interface MemoryNoteCardInput {
   rotation: number;
   /** Target render width in px; height is derived from content + template, never fixed in advance. */
   width: number;
+  /**
+   * The template's real artwork as a `data:` URI (from `loadTemplateArtwork`
+   * above) — required whenever `templateId` resolves to an image-backed
+   * template (`image` + `contentArea` both set); this component never falls
+   * back to the CSS/SVG paper/shape/decoration reconstruction for one of
+   * those, so the caller must always await `loadTemplateArtwork` first and
+   * pass its result through here rather than omitting it.
+   */
+  artworkDataUri?: string;
 }
 
 function estimateLineCount(content: string, charsPerLine: number): number {
@@ -99,6 +138,14 @@ export function estimateMemoryCardSize(
   const isFootball = template.shape === "football";
   const scale = width / BASELINE_WIDTH;
   const metrics = FONT_METRICS[fontFamily];
+
+  // Image-backed: the card's box is the artwork's own fixed aspect ratio,
+  // exactly like Note.tsx's `aspectRatio: imageWidth / imageHeight` inline
+  // style — never grown by content (content instead shrinks to fit
+  // `contentArea`, mirrored below in `MemoryNoteCard`'s own font sizing).
+  if (isImageBacked(template)) {
+    return { width, height: Math.round(width * (template.imageHeight! / template.imageWidth!)) };
+  }
 
   const lines = estimateLineCount(content, metrics.charsPerLine);
   const paddingY = isHeart ? (28 + 40) * scale : 32 * scale;
@@ -149,6 +196,19 @@ function footballFontScale(contentLength: number): number {
   if (contentLength > 130) return 0.5;
   if (contentLength > 90) return 0.64;
   return 0.82;
+}
+
+/**
+ * Image-backed cards' own fixed `contentArea` box needs its own smaller
+ * tuned sizes for the same reason `IMAGE_BACKED_TEXT_SCALE`
+ * (features/notes/lib/textScale.ts) does — mirrors that table's "modern"
+ * tier (its numbers, in px at a 16px root) rather than `FONT_METRICS`
+ * above, which is sized for a standard card's much larger padded box.
+ */
+export function imageBackedFontSizePx(contentLength: number): number {
+  if (contentLength > 130) return 7.36; // 0.46rem
+  if (contentLength > 90) return 8.64; // 0.54rem
+  return 9.28; // 0.58rem — kept in sync with IMAGE_BACKED_TEXT_SCALE's "modern"/"classic" default tier (lib/textScale.ts); a real ~90-char message was confirmed overflowing the smaller Special Day contentArea boxes at the old 0.78rem value, both here and in the DOM, and both were fixed together.
 }
 
 /**
@@ -336,14 +396,52 @@ function decorationIcon(decoration: NoteDecoration): ReactNode {
   }
 }
 
-export function MemoryNoteCard({ content, authorName, templateId, fontFamily, rotation, width }: MemoryNoteCardInput): ReactNode {
+export function MemoryNoteCard({ content, authorName, templateId, fontFamily, rotation, width, artworkDataUri }: MemoryNoteCardInput): ReactNode {
   const template = getNoteTemplate(templateId);
+  const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily);
+
+  // EPIC: Special Day Clean Artwork + Share Visual Consistency — the exact
+  // same artwork + contentArea Note.tsx renders in Picker/Preview/DUVAR,
+  // never the CSS/SVG reconstruction below. `artworkDataUri` is required
+  // (not optional-with-fallback) for an image-backed template — a missing
+  // one is a caller bug (forgot to await `loadTemplateArtwork`), not a
+  // reason to silently draw the wrong card.
+  if (isImageBacked(template)) {
+    if (!artworkDataUri) {
+      throw new Error(`MemoryNoteCard: image-backed template "${templateId}" requires artworkDataUri`);
+    }
+    const area = template.contentArea!;
+    const fontSize = imageBackedFontSizePx(content.length) * (width / BASELINE_WIDTH);
+    return (
+      <div style={{ position: "relative", display: "flex", width, height, transform: `rotate(${rotation}deg)`, overflow: "hidden" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- Satori server-side render, not an optimizable next/image asset */}
+        <img src={artworkDataUri} alt="" width={width} height={height} style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "contain" }} />
+        <div
+          style={{
+            position: "absolute",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            top: `${parseFloat(area.top)}%`,
+            left: `${parseFloat(area.left)}%`,
+            width: `${parseFloat(area.width)}%`,
+            height: `${parseFloat(area.height)}%`,
+          }}
+        >
+          <span style={{ display: "flex", fontFamily: FONT_METRICS[fontFamily].family, fontSize, lineHeight: 1.25, color: PDF_COLORS.ink }}>{content}</span>
+          {authorName && (
+            <span style={{ display: "flex", marginTop: fontSize * 0.5, fontSize: fontSize * 0.85, color: PDF_COLORS.inkSoft }}>— {authorName}</span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const isHeart = template.shape === "heart";
   const isPolaroid = template.shape === "polaroid";
   const isFolded = template.shape === "folded";
   const isFootball = template.shape === "football";
   const scale = width / BASELINE_WIDTH;
-  const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily);
   const shape = shapeStyleFor(template.shape, width, height, scale);
   const metrics = FONT_METRICS[fontFamily];
   const satoriFontFamily = metrics.family;

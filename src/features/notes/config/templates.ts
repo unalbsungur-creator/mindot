@@ -206,11 +206,17 @@ export const noteTemplates: NoteTemplate[] = [
     image: "/images/postits/birthday confetti.png",
     imageWidth: 507,
     imageHeight: 492,
-    // Center rectangle confirmed empty by direct pixel inspection (>85%
-    // "paper color" fraction across this whole box, zero overlap with the
-    // bunting/balloons/cake/confetti — see the EPIC's own analysis script
-    // output). Left-aligned, vertically centered text reads naturally here.
-    contentArea: { top: "38%", left: "10%", width: "72%", height: "32%" },
+    // Center rectangle confirmed empty by direct pixel inspection (>=94%
+    // "paper color" fraction across this whole box at every row/column,
+    // zero overlap with the bunting/hearts/balloons/ribbon/cake/confetti —
+    // see the EPIC's own analysis script output). Enlarged from an earlier,
+    // more conservative box after real DOM measurement showed
+    // MESSAGE_MAX_LENGTH content overflowing it (author line rendering
+    // ~46px past the box's own bottom edge) — paired with
+    // `IMAGE_BACKED_TEXT_SCALE` (lib/textScale.ts) so long content shrinks
+    // enough to actually fit this real, artwork-safe area rather than the
+    // box being stretched into decorated space to compensate.
+    contentArea: { top: "27%", left: "13%", width: "66%", height: "41%" },
   },
   // Upgrades the original scheduling-architecture placeholder into a real,
   // permanently-available design for this EPIC — it was never enabled, so
@@ -222,6 +228,10 @@ export const noteTemplates: NoteTemplate[] = [
   {
     id: "valentines-heart",
     name: "Valentine's Note",
+    // EPIC: Special Day Clean Artwork — see birthday-confetti's own comment
+    // above for the full rationale; `paper`/`shape`/`attachment`/
+    // `decoration` below are inert for this template's real rendering once
+    // `contentArea` is set.
     paper: "pink",
     shape: "heart",
     attachment: "none",
@@ -229,9 +239,15 @@ export const noteTemplates: NoteTemplate[] = [
     decoration: "hearts",
     category: "seasonal",
     occasion: "valentines",
+    // Replaced with real, text-free artwork (was a 212×218 thumbnail with
+    // "Aa — Valentine's Note" baked into its pixels).
     image: "/images/postits/valentines note.png",
-    imageWidth: 212,
-    imageHeight: 218,
+    imageWidth: 507,
+    imageHeight: 492,
+    // Clean rectangle confirmed by direct pixel inspection (row/column
+    // "paper color" purity scan + visual debug-box verification) — clear of
+    // the corner heart clusters, floral sprigs, and the top-right ribbon tag.
+    contentArea: { top: "30%", left: "18%", width: "64%", height: "42%" },
   },
   {
     id: "mothers-day-bloom",
@@ -243,9 +259,16 @@ export const noteTemplates: NoteTemplate[] = [
     decoration: "florals",
     category: "seasonal",
     occasion: "mothers-day",
+    // Replaced with real, text-free artwork (was a 218×224 thumbnail with
+    // "Aa — Mother's Day Bloom" baked into its pixels).
     image: "/images/postits/mothers day bloom.png",
-    imageWidth: 218,
-    imageHeight: 224,
+    imageWidth: 500,
+    imageHeight: 500,
+    // Narrower than most other Special Day boxes — this artwork's floral
+    // clusters (top-left) and ribbon-wrapped tulips (bottom-right) intrude
+    // diagonally further than a typical two-corner layout, confirmed by
+    // pixel scan; the safe rectangle sits centered, clear of both.
+    contentArea: { top: "28%", left: "31%", width: "44%", height: "48%" },
   },
   // Deliberately not "Mother's Day with a different paper color": different
   // paper, different shape (soft organic "bloom" vs. angular cut-corner
@@ -260,9 +283,15 @@ export const noteTemplates: NoteTemplate[] = [
     decoration: "compass",
     category: "seasonal",
     occasion: "fathers-day",
+    // Replaced with real, text-free artwork (was a 206×205 thumbnail with
+    // "Aa — Father's Day Craft" baked into its pixels). The artwork itself
+    // carries a fixed "Best Dad Ever" corner tag (bottom-right, part of the
+    // stock design, not a template placeholder) — `contentArea` stays clear
+    // of it, same as it stays clear of the tie/gift/heart-tag decorations.
     image: "/images/postits/fathers day craft.png",
-    imageWidth: 206,
-    imageHeight: 205,
+    imageWidth: 500,
+    imageHeight: 500,
+    contentArea: { top: "32%", left: "24%", width: "56%", height: "40%" },
   },
   {
     id: "new-year-frost",
@@ -274,9 +303,12 @@ export const noteTemplates: NoteTemplate[] = [
     decoration: "snowflake",
     category: "seasonal",
     occasion: "new-year",
+    // Replaced with real, text-free artwork (was a 231×189 thumbnail with
+    // "Aa — New Year Frost" baked into its pixels).
     image: "/images/postits/new year frost.png",
-    imageWidth: 231,
-    imageHeight: 189,
+    imageWidth: 500,
+    imageHeight: 500,
+    contentArea: { top: "30%", left: "30%", width: "50%", height: "48%" },
   },
   {
     id: "graduation-honor",
@@ -293,9 +325,14 @@ export const noteTemplates: NoteTemplate[] = [
     decoration: "graduation-cap",
     category: "seasonal",
     occasion: "graduation",
+    // Replaced with real, text-free artwork (was a 217×195 thumbnail with
+    // "Aa — Graduation Honor" baked into its pixels). The artwork carries a
+    // fixed "DREAM / LEARN / ACHIEVE" book-spine detail bottom-right (part
+    // of the stock design) — `contentArea` stays clear of it.
     image: "/images/postits/graduation honor.png",
-    imageWidth: 217,
-    imageHeight: 195,
+    imageWidth: 500,
+    imageHeight: 500,
+    contentArea: { top: "31%", left: "32%", width: "46%", height: "50%" },
   },
   {
     id: "celebration-spark",
@@ -307,9 +344,18 @@ export const noteTemplates: NoteTemplate[] = [
     decoration: "sparkle",
     category: "seasonal",
     occasion: "celebration",
+    // Replaced with real, text-free artwork (was a 222×202 thumbnail with
+    // "Aa — Celebration Spark" baked into its pixels). Unlike every other
+    // Special Day artwork, this one's own center is genuinely transparent
+    // (a decorative *frame*, not a filled card — confirmed via raw alpha
+    // sampling: alpha=0 at 50%/50%), so `contentArea` sits in that
+    // transparent region rather than a painted paper color; verified in
+    // real-browser QA that this reads fine over the board's own light
+    // background, not as a visual defect.
     image: "/images/postits/celebration spark.png",
-    imageWidth: 222,
-    imageHeight: 202,
+    imageWidth: 720,
+    imageHeight: 720,
+    contentArea: { top: "28%", left: "32%", width: "56%", height: "42%" },
   },
   // General-purpose — not tied to a specific date the way the other seven
   // are, per this EPIC's "Tebrik / Özel Gün" spec.
@@ -323,9 +369,14 @@ export const noteTemplates: NoteTemplate[] = [
     decoration: "stars",
     category: "seasonal",
     occasion: "congratulations",
+    // Replaced with real, text-free artwork (was a 221×184 thumbnail with
+    // "Aa — Congratulations Note" baked into its pixels). Same genuinely-
+    // transparent-center design as celebration-spark above — see that
+    // entry's comment.
     image: "/images/postits/congratulations note.png",
-    imageWidth: 221,
-    imageHeight: 184,
+    imageWidth: 720,
+    imageHeight: 720,
+    contentArea: { top: "18%", left: "28%", width: "56%", height: "42%" },
   },
   // EPIC 039: "Spor" category — round, two-tone "football" cards. Colors
   // only; no team name/logo/crest/abbreviation is ever stored on these

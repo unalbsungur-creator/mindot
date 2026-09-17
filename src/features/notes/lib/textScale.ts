@@ -94,6 +94,43 @@ const STANDARD_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, s
 };
 
 /**
+ * EPIC: Special Day Image-Backed Cards — an image-backed template's
+ * `contentArea` (see types.ts) is a fixed, real-artwork-derived rectangle
+ * that's deliberately smaller than a standard card's own padded box (it has
+ * to fit inside the artwork's clean region without touching balloons/cake/
+ * ribbons — see each template's own `contentArea` comment in
+ * config/templates.ts), so reusing `STANDARD_TEXT_SCALE`'s sizes measurably
+ * overflows the box at MESSAGE_MAX_LENGTH (confirmed by real DOM
+ * measurement: the standard "dense" tier's author line rendered ~46px below
+ * the content area's own bottom edge). Same idea as `FOOTBALL_TEXT_SCALE`
+ * below (a smaller fixed box needs its own smaller tuned tiers, not a
+ * scaled copy of standard's), tuned empirically against real short/medium/
+ * long Turkish content in the browser rather than guessed.
+ */
+const IMAGE_BACKED_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, string>> = {
+  modern: {
+    default: "text-[0.58rem] leading-tight",
+    compact: "text-[0.54rem] leading-tight",
+    dense: "text-[0.46rem] leading-none",
+  },
+  classic: {
+    default: "text-[0.58rem] leading-tight",
+    compact: "text-[0.54rem] leading-tight",
+    dense: "text-[0.46rem] leading-none",
+  },
+  handwritten: {
+    default: "text-[0.92rem] leading-tight",
+    compact: "text-[0.72rem] leading-tight",
+    dense: "text-[0.58rem] leading-none",
+  },
+  typewriter: {
+    default: "text-[0.62rem] leading-tight",
+    compact: "text-[0.46rem] leading-tight",
+    dense: "text-[0.4rem] leading-none",
+  },
+};
+
+/**
  * Football's smaller inset disc — same tiering, scaled down from its own
  * (already smaller than standard) baseline. EPIC 046: `compact`/`dense`
  * tuned tighter than the standard table's own tiers — real DOM measurement
@@ -140,8 +177,13 @@ const FOOTBALL_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, s
  * two are always applied together (see Note.tsx) but kept as separate
  * functions since one depends on content length and the other doesn't.
  */
-export function noteTextScaleClass(contentLength: number, fontFamily: NoteTextFontFamily, context: "standard" | "football"): string {
+export function noteTextScaleClass(
+  contentLength: number,
+  fontFamily: NoteTextFontFamily,
+  context: "standard" | "football" | "imageBacked"
+): string {
   const tier = noteTextSizeTier(contentLength);
-  const table = context === "football" ? FOOTBALL_TEXT_SCALE : STANDARD_TEXT_SCALE;
+  const table =
+    context === "football" ? FOOTBALL_TEXT_SCALE : context === "imageBacked" ? IMAGE_BACKED_TEXT_SCALE : STANDARD_TEXT_SCALE;
   return table[fontFamily][tier];
 }

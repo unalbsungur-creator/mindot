@@ -5,7 +5,7 @@ import { PDF_COLORS, PDF_PAPER_COLORS } from "@/features/memories/services/pdfPa
 import type { FrameTemplate } from "@/features/memories/config/frameTemplates";
 import type { ShareFormat } from "../types";
 import { BrandLockup, logoToneFor, MemorySeal, MemoryWatermark } from "./brandMarkSatori";
-import { estimateMemoryCardSize, MemoryNoteCard } from "./noteCardSatori";
+import { estimateMemoryCardSize, loadTemplateArtwork, MemoryNoteCard } from "./noteCardSatori";
 import { BRAND_FONT_FAMILY, loadShareFonts, SHARE_FONT_FAMILY, type LoadedFont } from "./shareFonts";
 import { getMasterContentRegion, getMasterSafeArea, loadShareMasterImage, type LoadedMasterImage, type MasterSafeArea } from "./shareMasterImages";
 
@@ -92,10 +92,16 @@ export async function renderShareCard(input: ShareCardInput): Promise<ImageRespo
   const master = !input.frame ? await loadShareMasterImage(input.format.id) : null;
   const safeArea = master ? getMasterSafeArea(input.format.id) : null;
   const fonts = await loadShareFonts();
+  // EPIC: Special Day Clean Artwork + Share Visual Consistency — loaded
+  // once here (never per-render-branch) so both composition strategies
+  // below share the exact same artwork bytes Note.tsx itself renders;
+  // `undefined` for a non-image-backed template, in which case
+  // `MemoryNoteCard` takes its existing CSS/SVG path unchanged.
+  const artworkDataUri = (await loadTemplateArtwork(getNoteTemplate(input.primary.templateId))) ?? undefined;
   if (master && safeArea) {
-    return renderWithMasterBackground(input, master, safeArea, getMasterContentRegion(input.format.id), fonts);
+    return renderWithMasterBackground(input, master, safeArea, getMasterContentRegion(input.format.id), fonts, artworkDataUri);
   }
-  return renderFullyDrawnShareCard(input, fonts);
+  return renderFullyDrawnShareCard(input, fonts, artworkDataUri);
 }
 
 function renderWithMasterBackground(
@@ -103,7 +109,8 @@ function renderWithMasterBackground(
   master: LoadedMasterImage,
   safeArea: MasterSafeArea,
   contentRegion: { top: number; bottom: number },
-  fonts: LoadedFont[]
+  fonts: LoadedFont[],
+  artworkDataUri: string | undefined
 ): ImageResponse {
   // Positions the master image so only its `contentRegion` slice (a
   // fraction of the *raw file's* own height) is ever visible, before the
@@ -171,7 +178,7 @@ function renderWithMasterBackground(
             gap: sectionGap,
           }}
         >
-          <MemoryNoteCard content={primary.content} authorName={primary.authorName} templateId={primary.templateId} fontFamily={primary.fontFamily} rotation={0} width={cardWidth} />
+          <MemoryNoteCard content={primary.content} authorName={primary.authorName} templateId={primary.templateId} fontFamily={primary.fontFamily} rotation={0} width={cardWidth} artworkDataUri={artworkDataUri} />
 
           {rows.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16, width: rowWidth, opacity: 0.82 }}>
@@ -236,7 +243,11 @@ function renderWithMasterBackground(
  * (Print, OG) and for any Memory Project `frame`, whose own palette the
  * master art has no variant for.
  */
-function renderFullyDrawnShareCard({ primary, surrounding = [], format, frame, slogan }: ShareCardInput, fonts: LoadedFont[]): ImageResponse {
+function renderFullyDrawnShareCard(
+  { primary, surrounding = [], format, frame, slogan }: ShareCardInput,
+  fonts: LoadedFont[],
+  artworkDataUri: string | undefined
+): ImageResponse {
   const backgroundColor = frame?.background ?? PDF_COLORS.canvas;
   const inkColor = frame?.ink ?? PDF_COLORS.ink;
   const logoTone = frame ? logoToneFor(frame.background) : "brand";
@@ -319,6 +330,7 @@ function renderFullyDrawnShareCard({ primary, surrounding = [], format, frame, s
             fontFamily={primary.fontFamily}
             rotation={0}
             width={cardWidth}
+            artworkDataUri={artworkDataUri}
           />
 
           {rows.length > 0 && (

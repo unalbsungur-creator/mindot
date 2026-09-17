@@ -238,7 +238,11 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
   // aspect-ratio height) never changes with content — only this tier does,
   // so long text (up to MESSAGE_MAX_LENGTH) stays inside the same fixed
   // box instead of deforming or overflowing it. See lib/textScale.ts.
-  const textScaleClass = noteTextScaleClass(note.content.length, fontFamily, isFootball ? "football" : "standard");
+  const textScaleClass = noteTextScaleClass(
+    note.content.length,
+    fontFamily,
+    isImageBacked ? "imageBacked" : isFootball ? "football" : "standard"
+  );
 
   return (
     <article

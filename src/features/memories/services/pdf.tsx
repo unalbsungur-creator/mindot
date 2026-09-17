@@ -1,5 +1,7 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getPublicMessageById } from "@/features/board/repository";
+import { getNoteTemplate } from "@/features/notes/config/templates";
+import { loadTemplateArtwork } from "@/features/sharing/services/noteCardSatori";
 import { resolveCaptureRegion } from "../lib/captureRegion";
 import type { MemoryProject } from "../types";
 import { MemoryPdfDocument } from "./renderer";
@@ -23,7 +25,13 @@ export async function generateMemoryPdf(project: MemoryProject): Promise<Buffer>
 
   const region = await resolveCaptureRegion(message, project.captureMode);
   const frameTemplateId = project.frameTemplateId ?? DEFAULT_FRAME_TEMPLATE_ID;
+  // EPIC: Special Day Clean Artwork + Share Visual Consistency — same real
+  // artwork Note.tsx/Share render for an image-backed template, loaded
+  // once here (`undefined` for a non-image-backed template).
+  const artworkDataUri = (await loadTemplateArtwork(getNoteTemplate(region.primary.templateId))) ?? undefined;
 
-  const buffer = await renderToBuffer(<MemoryPdfDocument region={region} frameTemplateId={frameTemplateId} />);
+  const buffer = await renderToBuffer(
+    <MemoryPdfDocument region={region} frameTemplateId={frameTemplateId} artworkDataUri={artworkDataUri} />
+  );
   return buffer;
 }

@@ -37,6 +37,8 @@ const SECTION_GAP = 22;
 export interface MemoryPdfProps {
   region: CaptureRegion;
   frameTemplateId: string;
+  /** Same contract as `MemoryNoteCardPdfInput.artworkDataUri` — the caller (`pdf.tsx`) loads it once via `loadTemplateArtwork` before rendering. */
+  artworkDataUri?: string;
 }
 
 /**
@@ -64,7 +66,7 @@ export interface MemoryPdfProps {
  * matching Share's `toShareCardNote`/`formatMemoryDate`, so the same
  * message always shows the same date on every MINDOT output.
  */
-export function MemoryPdfDocument({ region, frameTemplateId }: MemoryPdfProps) {
+export function MemoryPdfDocument({ region, frameTemplateId, artworkDataUri }: MemoryPdfProps) {
   const frame = getFrameTemplate(frameTemplateId);
   const logoTone = pdfLogoToneFor(frame.background);
   const showFooterLogo = frame.logoPlacement === "footer";
@@ -114,6 +116,7 @@ export function MemoryPdfDocument({ region, frameTemplateId }: MemoryPdfProps) {
             fontFamily={region.primary.fontFamily}
             rotation={0}
             width={cardWidth}
+            artworkDataUri={artworkDataUri}
           />
 
           {rows.length > 0 && (

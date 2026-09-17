@@ -24,8 +24,13 @@
  * same as Note.tsx's own CSS approach.
  */
 import type { ReactNode } from "react";
-import { Circle, Path, Polygon, Rect, Svg, Text, View } from "@react-pdf/renderer";
-import { scaleHeartPathData, estimateMemoryCardSize as estimateMemoryCardSizeShared } from "@/features/sharing/services/noteCardSatori";
+import { Circle, Image, Path, Polygon, Rect, Svg, Text, View } from "@react-pdf/renderer";
+import {
+  scaleHeartPathData,
+  estimateMemoryCardSize as estimateMemoryCardSizeShared,
+  imageBackedFontSizePx,
+  isImageBacked,
+} from "@/features/sharing/services/noteCardSatori";
 import { getNoteTemplate } from "@/features/notes/config/templates";
 import type { NoteDecoration, NoteShape, NoteTextFontFamily } from "@/features/notes/types";
 import { PDF_FONT_FAMILY, PDF_HAND_FONT_FAMILY, PDF_BRAND_FONT_FAMILY, PDF_MONO_FONT_FAMILY } from "./fonts";
@@ -106,6 +111,8 @@ export interface MemoryNoteCardPdfInput {
   /** Degrees — 0 for the Memory Print's hero card (matches Share's own choice: a print/share hero is shown upright, never board-tilted, for readability). */
   rotation: number;
   width: number;
+  /** Same contract as `MemoryNoteCardInput.artworkDataUri` in noteCardSatori.tsx — required whenever `templateId` is image-backed; the caller loads it once via that file's `loadTemplateArtwork` and passes it to both renderers. */
+  artworkDataUri?: string;
 }
 
 interface ShapeDescriptor {
@@ -367,8 +374,45 @@ function ShadowLayer({ shape, width, height }: { shape: ShapeDescriptor; width: 
   );
 }
 
-export function MemoryNoteCardPdf({ content, authorName, templateId, fontFamily, rotation, width }: MemoryNoteCardPdfInput) {
+export function MemoryNoteCardPdf({ content, authorName, templateId, fontFamily, rotation, width, artworkDataUri }: MemoryNoteCardPdfInput) {
   const template = getNoteTemplate(templateId);
+
+  // EPIC: Special Day Clean Artwork + Share Visual Consistency — same real
+  // artwork + contentArea as Note.tsx/MemoryNoteCard (Satori), never this
+  // file's own vector shape/decoration reconstruction below for one of
+  // these templates.
+  if (isImageBacked(template)) {
+    if (!artworkDataUri) {
+      throw new Error(`MemoryNoteCardPdf: image-backed template "${templateId}" requires artworkDataUri`);
+    }
+    const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily);
+    const area = template.contentArea!;
+    const fontSize = imageBackedFontSizePx(content.length) * (width / BASELINE_WIDTH);
+    return (
+      <View style={{ position: "relative", width, height, transform: `rotate(${rotation}deg)` }}>
+        {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt prop; this is a PDF render target, not DOM */}
+        <Image src={artworkDataUri} style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "contain" }} />
+        <View
+          style={{
+            position: "absolute",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            top: `${parseFloat(area.top)}%`,
+            left: `${parseFloat(area.left)}%`,
+            width: `${parseFloat(area.width)}%`,
+            height: `${parseFloat(area.height)}%`,
+          }}
+        >
+          <Text style={{ fontFamily: FONT_METRICS[fontFamily].family, fontSize, lineHeight: 1.25, color: PDF_COLORS.ink }}>{pdfSafeText(content)}</Text>
+          {authorName && (
+            <Text style={{ marginTop: fontSize * 0.5, fontSize: fontSize * 0.85, color: PDF_COLORS.inkSoft }}>{pdfSafeText(`— ${authorName}`)}</Text>
+          )}
+        </View>
+      </View>
+    );
+  }
+
   const isHeart = template.shape === "heart";
   const isPolaroid = template.shape === "polaroid";
   const isFolded = template.shape === "folded";
