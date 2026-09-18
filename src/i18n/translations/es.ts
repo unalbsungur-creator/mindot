@@ -525,6 +525,8 @@ export const es: Dictionary = {
     dateSpecificDayInputLabel: "Elegir un día específico",
     filtersToggleLabel: "Filtros",
     filtersPanelLabel: "Opciones de filtro",
+    languageFilterLabel: "Idioma",
+    languageAllLabel: "Todos",
   },
   like: {
     action: "Dar me gusta a este pensamiento",

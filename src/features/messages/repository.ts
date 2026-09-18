@@ -71,7 +71,22 @@ export interface MessageRepository {
    * `undefined`/empty applies no template restriction, same as every other
    * optional filter here.
    */
-  searchApproved(options: { keyword?: string; from?: Date; to?: Date; templateIds?: string[]; limit: number }): Promise<Message[]>;
+  /**
+   * EPIC — Duvar Filtreleme: Dil Tercihi — `languages`, resolved by the
+   * caller (`features/board/repository.ts`) to a one-element array from a
+   * single `Locale`, filters on `messages.language` directly — the exact
+   * value stored at submission time, never a content-detection heuristic.
+   * Same "undefined/empty applies no restriction" convention as
+   * `templateIds`.
+   */
+  searchApproved(options: {
+    keyword?: string;
+    from?: Date;
+    to?: Date;
+    templateIds?: string[];
+    languages?: string[];
+    limit: number;
+  }): Promise<Message[]>;
   /**
    * EPIC 014: `reason` is the acting admin's own optional written
    * justification — persisted in the same atomic conditional UPDATE as
@@ -416,13 +431,21 @@ class DrizzleMessageRepository implements MessageRepository {
     return rows.map(toMessage);
   }
 
-  async searchApproved(options: { keyword?: string; from?: Date; to?: Date; templateIds?: string[]; limit: number }): Promise<Message[]> {
+  async searchApproved(options: {
+    keyword?: string;
+    from?: Date;
+    to?: Date;
+    templateIds?: string[];
+    languages?: string[];
+    limit: number;
+  }): Promise<Message[]> {
     const db = getDb();
     const conditions = [eq(messages.status, "approved")];
     if (options.keyword) conditions.push(ilike(messages.content, `%${turkishSearchKeyword(options.keyword)}%`));
     if (options.from) conditions.push(gte(messages.createdAt, options.from));
     if (options.to) conditions.push(lte(messages.createdAt, options.to));
     if (options.templateIds && options.templateIds.length > 0) conditions.push(inArray(messages.templateId, options.templateIds));
+    if (options.languages && options.languages.length > 0) conditions.push(inArray(messages.language, options.languages));
 
     const rows = await db
       .select()

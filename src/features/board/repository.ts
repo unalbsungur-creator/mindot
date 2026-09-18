@@ -121,16 +121,25 @@ export async function getPublicMessageById(id: string): Promise<PublicMessageDet
  * the caller) — `messageRepository.searchApproved` only ever deals in
  * plain template ids, never `NoteTemplateCategory` itself; see
  * `BoardSearchFilters`'s own doc comment in ./types.ts for why.
+ *
+ * EPIC — Duvar Filtreleme: Dil Tercihi — `filters.language` is the fourth
+ * filter, same "at least one filter required" rule. Passed straight
+ * through as a one-element array to `messageRepository.searchApproved`'s
+ * `languages` — `message.language` is already the exact source-of-truth
+ * value stored at submission time, so there's no resolution step here
+ * the way `category` needs (no code→id mapping to do).
  */
 export async function searchPublicMessages(filters: BoardSearchFilters): Promise<PublicMessageDetail[]> {
-  if (!filters.keyword && !filters.from && !filters.to && !filters.category) return [];
+  if (!filters.keyword && !filters.from && !filters.to && !filters.category && !filters.language) return [];
 
   const templateIds = filters.category ? templateIdsForCategory(filters.category) : undefined;
+  const languages = filters.language ? [filters.language] : undefined;
   const matches = await messageRepository.searchApproved({
     keyword: filters.keyword,
     from: filters.from,
     to: filters.to,
     templateIds,
+    languages,
     limit: SEARCH_RESULT_LIMIT,
   });
   const placed = matches.filter(

@@ -527,6 +527,8 @@ export const tr: Dictionary = {
     dateSpecificDayInputLabel: "Belirli bir gün seç",
     filtersToggleLabel: "Filtreler",
     filtersPanelLabel: "Filtre seçenekleri",
+    languageFilterLabel: "Dil",
+    languageAllLabel: "Tümü",
   },
   like: {
     action: "Bu düşünceyi beğen",

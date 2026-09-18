@@ -5,14 +5,17 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { TemplateCategoryNav, type TemplateCategoryFilter } from "@/features/notes/components/TemplateCategoryNav";
 import { useLocale } from "@/i18n/LocaleProvider";
+import { isLocale } from "@/i18n/config";
 import { computeDateRange, EMPTY_DATE_FILTER, type DateFilterMode, type DateFilterState } from "../lib/dateFilterPresets";
 import { BoardDateFilter } from "./BoardDateFilter";
+import { BoardLanguageFilter, type LanguageFilterValue } from "./BoardLanguageFilter";
 import type { PublicMessageDetail } from "../types";
 
 interface DiscoveryFilters {
   keyword: string;
   date: DateFilterState;
   category: TemplateCategoryFilter;
+  language: LanguageFilterValue;
 }
 
 /**
@@ -30,7 +33,7 @@ export interface BoardFilterResult {
   matchedIds: Set<string> | null;
 }
 
-const EMPTY_FILTERS: DiscoveryFilters = { keyword: "", date: EMPTY_DATE_FILTER, category: "all" };
+const EMPTY_FILTERS: DiscoveryFilters = { keyword: "", date: EMPTY_DATE_FILTER, category: "all", language: "all" };
 const VALID_DATE_MODES: DateFilterMode[] = ["none", "today", "week", "month", "year", "day"];
 const VALID_CATEGORIES: TemplateCategoryFilter[] = ["all", "standard", "seasonal", "sports"];
 
@@ -40,6 +43,11 @@ const VALID_CATEGORIES: TemplateCategoryFilter[] = ["all", "standard", "seasonal
  * (see the module doc comment below) — `dateMode`/`category` replace the
  * old raw `from`/`to` params; an unrecognized value for either falls back
  * to "no restriction" rather than ever being sent on to the API.
+ *
+ * EPIC — Duvar Filtreleme: Dil Tercihi — `?language=` follows the exact
+ * same convention: an unrecognized/missing value falls back to `"all"`
+ * (no restriction), reusing the same `isLocale` guard the rest of the app
+ * already validates a `Locale` string with.
  */
 function readInitialFiltersFromUrl(): DiscoveryFilters {
   if (typeof window === "undefined") return EMPTY_FILTERS;
@@ -50,10 +58,13 @@ function readInitialFiltersFromUrl(): DiscoveryFilters {
   const category: TemplateCategoryFilter = VALID_CATEGORIES.includes(rawCategory as TemplateCategoryFilter)
     ? (rawCategory as TemplateCategoryFilter)
     : "all";
+  const rawLanguage = params.get("language");
+  const language: LanguageFilterValue = rawLanguage && isLocale(rawLanguage) ? rawLanguage : "all";
   return {
     keyword: params.get("query") ?? "",
     date: { mode, day: params.get("day") ?? "" },
     category,
+    language,
   };
 }
 
@@ -65,10 +76,10 @@ function isDateFilterSet(date: DateFilterState): boolean {
 }
 
 function hasAnyFilter(filters: DiscoveryFilters): boolean {
-  return Boolean(filters.keyword || isDateFilterSet(filters.date) || filters.category !== "all");
+  return Boolean(filters.keyword || isDateFilterSet(filters.date) || filters.category !== "all" || filters.language !== "all");
 }
 
-/** Writes query/dateMode/day/category into the current URL without touching any other param (notably useBoardCamera's own x/y/z) and without a router navigation — see the module doc comment. */
+/** Writes query/dateMode/day/category/language into the current URL without touching any other param (notably useBoardCamera's own x/y/z) and without a router navigation — see the module doc comment. */
 function writeFiltersToUrl(filters: DiscoveryFilters): void {
   const params = new URLSearchParams(window.location.search);
   if (filters.keyword) params.set("query", filters.keyword);
@@ -79,6 +90,8 @@ function writeFiltersToUrl(filters: DiscoveryFilters): void {
   else params.delete("day");
   if (filters.category !== "all") params.set("category", filters.category);
   else params.delete("category");
+  if (filters.language !== "all") params.set("language", filters.language);
+  else params.delete("language");
   const queryString = params.toString();
   window.history.replaceState(null, "", queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname);
 }
@@ -144,6 +157,7 @@ export function BoardDiscoveryPanel({ onFilterChange }: { onFilterChange: (resul
     if (from) params.set("from", from.toISOString());
     if (to) params.set("to", to.toISOString());
     if (filters.category !== "all") params.set("category", filters.category);
+    if (filters.language !== "all") params.set("language", filters.language);
 
     fetch(`/api/board/search?${params.toString()}`)
       .then((res) => {
@@ -264,18 +278,30 @@ export function BoardDiscoveryPanel({ onFilterChange }: { onFilterChange: (resul
         </form>
 
         {/*
-         * The date-preset/category rows render only inside this dropdown,
-         * anchored to the trigger below — closed by default so the board
-         * keeps its full vertical space (EPIC's "gereksiz büyük filtre
-         * alanı görünmemeli"). `onMouseEnter`/`onMouseLeave` here give
-         * desktop mouse users hover-to-open, leave-to-close for free —
-         * touch devices simply never fire those events, so they fall
+         * The date-preset/category/language rows render only inside this
+         * dropdown, anchored to the trigger below — closed by default so
+         * the board keeps its full vertical space (EPIC's "gereksiz büyük
+         * filtre alanı görünmemeli"). `onMouseEnter`/`onMouseLeave` here
+         * give desktop mouse users hover-to-open, leave-to-close for free
+         * — touch devices simply never fire those events, so they fall
          * through to the trigger button's own `onClick` toggle plus the
          * document-level pointerdown-outside listener above, which is the
          * real mobile mechanism (tap to open, tap the trigger or anywhere
          * outside to close). The dropdown is `position: absolute`, so it
          * overlays the board rather than pushing it down in either state,
          * and never touches the board's own world transform.
+         *
+         * EPIC — Duvar Filtreleme: Hover UX Düzeltmesi — because the panel
+         * below is `position: absolute`, it never contributes to this
+         * wrapper's own rendered box, so this wrapper's hover region alone
+         * only ever covers the trigger button — never the panel. Opening
+         * on enter still works fine from here (entering the button is
+         * always "entering the wrapper," since the button IS the
+         * wrapper's box), but this wrapper's `onMouseLeave` must not be
+         * the only thing driving closing, or leaving the button toward the
+         * panel closes it before the cursor arrives. The panel below now
+         * carries its own matching onMouseEnter/onMouseLeave for exactly
+         * that reason — see its own comment.
          */}
         <div
           ref={filterWrapperRef}
@@ -307,7 +333,29 @@ export function BoardDiscoveryPanel({ onFilterChange }: { onFilterChange: (resul
               id="board-filters-panel"
               role="region"
               aria-label={dictionary.boardDiscovery.filtersPanelLabel}
-              className="absolute right-0 top-full z-[var(--z-panel)] mt-2 flex w-72 max-w-[calc(100vw-1.5rem)] flex-col gap-3 rounded-md border border-border bg-surface p-3 shadow-card"
+              // EPIC — Duvar Filtreleme: Hover UX Düzeltmesi — this panel is
+              // `position: absolute`, so it never contributes to
+              // `filterWrapperRef`'s own layout box (a `position:relative`
+              // ancestor's rendered size ignores absolutely-positioned
+              // descendants entirely). That means the wrapper's hit-test
+              // region for its own `onMouseEnter`/`onMouseLeave` above is
+              // just the trigger button — moving the cursor from the
+              // button down into this panel exits that region first,
+              // firing `onMouseLeave` (closing the panel, unmounting this
+              // element) before the cursor ever arrives. Two changes fix
+              // this: (1) this panel now has its own matching
+              // onMouseEnter/onMouseLeave, independently sustaining the
+              // same `filtersOpen` state while the cursor is over the
+              // panel itself; (2) the previous `mt-2` gap between the
+              // trigger and this panel is removed (spacing now comes from
+              // the panel's own `p-3`, visually equivalent) so the two
+              // hoverable regions are geometrically adjacent with zero
+              // dead space the cursor could get lost in while transiting
+              // between them — this is what actually needs to be
+              // continuous, not just "close enough."
+              onMouseEnter={() => setFiltersOpen(true)}
+              onMouseLeave={() => setFiltersOpen(false)}
+              className="absolute right-0 top-full z-[var(--z-panel)] flex w-72 max-w-[calc(100vw-1.5rem)] flex-col gap-3 rounded-md border border-border bg-surface p-3 shadow-card"
             >
               <BoardDateFilter
                 mode={form.date.mode}
@@ -323,6 +371,13 @@ export function BoardDiscoveryPanel({ onFilterChange }: { onFilterChange: (resul
                 active={form.category}
                 onChange={(category) => applyFilters({ ...form, category })}
                 labels={categoryLabels}
+              />
+
+              <BoardLanguageFilter
+                active={form.language}
+                onChange={(language) => applyFilters({ ...form, language })}
+                groupLabel={dictionary.boardDiscovery.languageFilterLabel}
+                allLabel={dictionary.boardDiscovery.languageAllLabel}
               />
             </div>
           )}

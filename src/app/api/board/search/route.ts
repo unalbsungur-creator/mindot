@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { searchPublicMessages } from "@/features/board/repository";
 import type { NoteTemplateCategory } from "@/features/notes/types";
+import { isLocale } from "@/i18n/config";
 
 const MAX_KEYWORD_LENGTH = 100;
 /** EPIC "Paylaşılan Kartlarda Gelişmiş Filtreleme": the only three real `NoteTemplateCategory` values — "all" is the UI's own "no restriction" choice and is never sent as a query param at all (see BoardDiscoveryPanel), so it's deliberately not in this list. */
@@ -20,6 +21,13 @@ const VALID_CATEGORIES: readonly NoteTemplateCategory[] = ["standard", "seasonal
  * `"all"`; the UI simply omits this param for "no category restriction",
  * same convention `query`/`from`/`to` already use for "not set"). Counts
  * toward the "at least one filter" requirement exactly like the others.
+ *
+ * EPIC — Duvar Filtreleme: Dil Tercihi — `?language=` is a fourth,
+ * optional query param, one of the five `Locale` codes (`isLocale`, the
+ * same guard `src/i18n/config.ts` already exports and the rest of the app
+ * already uses) — never `"all"`, same "UI omits it for no restriction"
+ * convention as `category`. Counts toward the "at least one filter"
+ * requirement exactly like the others.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -41,11 +49,17 @@ export async function GET(request: NextRequest) {
   }
   const category = (categoryParam as NoteTemplateCategory | null) ?? undefined;
 
-  if (!keyword && !from && !to && !category) {
-    return NextResponse.json({ error: "query, from, to, or category is required" }, { status: 400 });
+  const languageParam = searchParams.get("language");
+  if (languageParam && !isLocale(languageParam)) {
+    return NextResponse.json({ error: "language must be one of tr, en, de, fr, es" }, { status: 400 });
+  }
+  const language = languageParam && isLocale(languageParam) ? languageParam : undefined;
+
+  if (!keyword && !from && !to && !category && !language) {
+    return NextResponse.json({ error: "query, from, to, category, or language is required" }, { status: 400 });
   }
 
-  const results = await searchPublicMessages({ keyword, from, to, category });
+  const results = await searchPublicMessages({ keyword, from, to, category, language });
   return NextResponse.json(
     { results },
     { headers: { "Cache-Control": "public, max-age=15, stale-while-revalidate=60" } }

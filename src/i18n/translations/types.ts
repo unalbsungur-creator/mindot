@@ -541,6 +541,8 @@ export interface Dictionary {
     dateSpecificDayInputLabel: string;
     filtersToggleLabel: string;
     filtersPanelLabel: string;
+    languageFilterLabel: string;
+    languageAllLabel: string;
   };
   like: {
     action: string;
