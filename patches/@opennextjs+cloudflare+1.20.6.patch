@@ -1,0 +1,304 @@
+diff --git a/node_modules/@opennextjs/cloudflare/dist/cli/build/bundle-server.js b/node_modules/@opennextjs/cloudflare/dist/cli/build/bundle-server.js
+index f59e677..32659cf 100644
+--- a/node_modules/@opennextjs/cloudflare/dist/cli/build/bundle-server.js
++++ b/node_modules/@opennextjs/cloudflare/dist/cli/build/bundle-server.js
+@@ -9,6 +9,7 @@ import { build } from "esbuild";
+ import { getOpenNextConfig } from "../../api/config.js";
+ import { normalizePath } from "../utils/normalize-path.js";
+ import { patchVercelOgLibrary } from "./patches/ast/patch-vercel-og-library.js";
++import { patchYogaLayoutForWorker, restoreYogaLayoutAtMonorepoRoot } from "./patches/ast/patch-yoga-layout.js";
+ import { patchWebpackRuntime } from "./patches/ast/webpack-runtime.js";
+ import { inlineDynamicRequires } from "./patches/plugins/dynamic-requires.js";
+ import { inlineFindDir } from "./patches/plugins/find-dir.js";
+@@ -54,12 +55,15 @@ export async function bundleServer(buildOpts, projectOpts) {
+     console.log(`\x1b[35m⚙️ Bundling the OpenNext server...\n\x1b[0m`);
+     await patchWebpackRuntime(path.join(dotNextPath, "server"));
+     const useOg = patchVercelOgLibrary(buildOpts);
++    patchYogaLayoutForWorker(buildOpts);
+     const outputPath = path.join(outputDir, "server-functions", "default");
+     const packagePath = getPackagePath(buildOpts);
+     const openNextServer = path.join(outputPath, packagePath, `index.mjs`);
+     const openNextServerBundle = path.join(outputPath, packagePath, `handler.mjs`);
+     const updater = new ContentUpdater(buildOpts);
+-    const result = await build({
++    let result;
++    try {
++        result = await build({
+         entryPoints: [openNextServer],
+         bundle: true,
+         outfile: openNextServerBundle,
+@@ -150,7 +154,14 @@ export async function bundleServer(buildOpts, projectOpts) {
+             js: `import {setInterval, clearInterval, setTimeout, clearTimeout} from "node:timers"`,
+         },
+         platform: "node",
+-    });
++        });
++    } finally {
++        // Always revert the top-level yoga-layout mutation made by
++        // patchYogaLayoutForWorker above, whether this build succeeded
++        // or threw -- see restoreYogaLayoutAtMonorepoRoot's doc comment
++        // for why leaving it patched breaks the next build:cf run.
++        restoreYogaLayoutAtMonorepoRoot(buildOpts);
++    }
+     fs.writeFileSync(openNextServerBundle + ".meta.json", JSON.stringify(result.metafile, null, 2));
+     await updateWorkerBundledCode(openNextServerBundle);
+     const isMonorepo = monorepoRoot !== appPath;
+diff --git a/node_modules/@opennextjs/cloudflare/dist/cli/build/patches/ast/patch-yoga-layout.js b/node_modules/@opennextjs/cloudflare/dist/cli/build/patches/ast/patch-yoga-layout.js
+new file mode 100644
+index 0000000..37717c2
+--- /dev/null
++++ b/node_modules/@opennextjs/cloudflare/dist/cli/build/patches/ast/patch-yoga-layout.js
+@@ -0,0 +1,253 @@
++import { existsSync, readFileSync, writeFileSync, copyFileSync } from "node:fs";
++import path from "node:path";
++import { getPackagePath } from "@opennextjs/aws/build/helper.js";
++
++/**
++ * MINDOT P0 hotfix #3: patches yoga-layout's WASM loader (the layout
++ * engine @react-pdf/layout -> @react-pdf/renderer depends on) to be
++ * Cloudflare-Workers-compatible, the same way this file's neighbor
++ * (patchVercelOgLibrary) already does for @vercel/og's yoga/resvg WASM.
++ *
++ * Root cause (confirmed directly against a real wrangler/Miniflare
++ * preview, not assumed from generic docs): this Workers runtime does
++ * not implement WebAssembly.instantiateStreaming at all
++ * ("WebAssembly.instantiateStreaming is not a function"), and disallows
++ * compiling raw WASM bytes at runtime via
++ * WebAssembly.instantiate(bytes, imports)
++ * ("Wasm code generation disallowed by embedder"). yoga-layout's shipped
++ * Emscripten-generated loader (dist/binaries/yoga-wasm-base64-esm.js)
++ * only knows those two paths, so it can never succeed here on its own.
++ *
++ * Fix: Emscripten's own generated loader supports a documented escape
++ * hatch -- if the Module config object passed into it has an
++ * `instantiateWasm(imports, successCallback)` function, the loader
++ * calls it directly and skips its built-in fetch/instantiate logic
++ * entirely. We patch yoga-layout's two small entry points that call the
++ * Emscripten loader (not the ~2000-line generated loader itself) to
++ * supply that hook, backed by `yoga.wasm` imported with Cloudflare's
++ * `?module` convention -- the exact mechanism this project's own
++ * next/og (Satori) dependency already uses successfully in this same
++ * Worker runtime (next/dist/compiled/@vercel/og/index.edge.js:
++ * `import yoga_wasm from "./yoga.wasm?module"`), resolved at
++ * Worker-bundle time by Wrangler's own bundler (via this package's
++ * `setWranglerExternal` esbuild plugin marking `*.wasm?module` external)
++ * into an already-compiled WebAssembly.Module -- so
++ * `new WebAssembly.Instance(yogaWasmModule, imports)` only instantiates
++ * it (no code generation), which Workers allows.
++ *
++ * Both entry points need patching, confirmed directly by tracing a real
++ * failure through wrangler's own dev-time bundle: yoga-layout ships
++ * *two* independent call sites that each invoke the Emscripten loader
++ * with no config object of their own --
++ *   - `dist/src/load.js` (`yoga-layout/load`, an async function) -- used
++ *     directly by this app's own code (features/memories/services/pdf).
++ *   - `dist/src/index.js` (the package's default export, a top-level
++ *     `await`) -- used internally by @react-pdf/renderer's own SVG
++ *     resolution code (confirmed by name-tracing a real stack: a
++ *     minified `loadYoga3`/`resolveYoga` pair inside handler.mjs,
++ *     distinct from the `loadYoga2` this patch produces for load.js).
++ * Patching only one left the other's un-configured Emscripten loader in
++ * place, still hitting the disallowed sync-instantiate path -- exactly
++ * the failure this patch exists to prevent, so both must be covered.
++ *
++ * There are also *two independent copies* of yoga-layout on disk that
++ * each need the same patch, confirmed directly (not assumed) by
++ * re-checking after the two-entry-point fix above still failed
++ * identically: esbuild's own module resolution for `bundleServer`'s
++ * `build({entryPoints: [openNextServer], ...})` pass does not
++ * consistently resolve every `yoga-layout` import to the same physical
++ * directory. `dist/src/load.js` (imported by this app's own
++ * features/memories/services code) resolves to the *traced* copy under
++ * `outputDir/server-functions/default/node_modules/yoga-layout` (the
++ * one `next build`'s file-tracing step copied there because our route
++ * code imports it directly) -- but `dist/src/index.js` (imported only
++ * internally, by @react-pdf/renderer's own SVG-resolution code, which
++ * next's tracer has no direct visibility into since nothing in our own
++ * source imports it) is never traced/copied at all, and esbuild instead
++ * resolves that import straight to the *real, top-level*
++ * `monorepoRoot/node_modules/yoga-layout` -- confirmed directly by
++ * finding the traced copy's `dist/src/index.js` doesn't even exist,
++ * while the top-level one does and was the one actually loaded at
++ * runtime. So both possible physical roots are patched below; whichever
++ * one(s) exist on disk for a given build get covered.
++ *
++ * This cannot be a source-level change in the app's own code: plain
++ * `next build`'s "collecting page data" step loads route modules
++ * directly under plain Node.js (not Turbopack, not Workers), which does
++ * not understand the `?module` suffix at all -- confirmed directly:
++ * `Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'a' imported from
++ * .../yoga-layout/dist/binaries/yoga.wasm`. Patching here, after
++ * `next build` has already fully finished producing `.next/server/...`
++ * (this runs from `bundleServer`, right where `patchVercelOgLibrary`
++ * already runs, before the esbuild bundling pass), avoids that
++ * entirely -- nothing in this step re-executes the patched module under
++ * plain Node.
++ *
++ * @param buildOpts Build options.
++ * @returns Whether yoga-layout was found and patched.
++ */
++const MARKER = "MINDOT_YOGA_WORKER_PATCH";
++const WASM_IMPORT_LINE = `import yogaWasmModule from '../binaries/yoga.wasm?module'; // ${MARKER}`;
++const INSTANTIATE_WASM_HOOK = `{\n    instantiateWasm(imports, successCallback) {\n      const instance = new WebAssembly.Instance(yogaWasmModule, imports);\n      successCallback(instance);\n      return instance.exports;\n    },\n  }`;
++
++/**
++ * Patches one physical `yoga-layout` package root (both its entry
++ * points, if present). Returns whether anything in this root exists at
++ * all (patched now or already patched previously) -- distinct from
++ * whether a write actually happened, so the caller can tell "this root
++ * doesn't have yoga-layout" apart from "already patched, no-op".
++ */
++const LOAD_JS_IMPORT_LINE = "import loadYogaImpl from '../binaries/yoga-wasm-base64-esm.js';";
++const LOAD_JS_CALL_EXPR = "return wrapAssembly(await loadYogaImpl());";
++const INDEX_JS_IMPORT_LINE = "import loadYoga from '../binaries/yoga-wasm-base64-esm.js';";
++const INDEX_JS_CALL_EXPR = "const Yoga = wrapAssembly(await loadYoga());";
++/**
++ * Reverts a previously-patched entry point back to its pristine,
++ * shipped-by-npm shape (inverse of the two string replacements below).
++ * No-op if the marker isn't present.
++ *
++ * Why this exists: `patchYogaLayoutForWorker` patches yoga-layout roots
++ * in place on disk, including the *real, top-level*
++ * `monorepoRoot/node_modules/yoga-layout` (see the module doc comment).
++ * If that on-disk mutation is left in place after the build finishes, a
++ * *subsequent* `next build` (a plain Node.js process, run at the start
++ * of the next `build:cf` invocation) fails trying to load it --
++ * `?module` is not a suffix plain Node's module loader understands
++ * (confirmed directly: `Cannot find package 'a'`). `npm install`/`npm
++ * ci` does not fix this either, since it treats an already-present
++ * `node_modules/yoga-layout` as up to date and never re-extracts it.
++ * `restoreYogaLayoutAtMonorepoRoot` (below) calls this after every
++ * build, successful or not, so the top-level copy is always pristine
++ * again before the process exits -- no manual `rm -rf
++ * node_modules/yoga-layout` step required, ever.
++ *
++ * This same function also makes `patchYogaRoot` itself idempotent: it
++ * is called unconditionally at the top of `patchYogaRoot`, so re-running
++ * a patch on an already-patched (or half-crashed, still-marked) file
++ * always starts from a known-clean baseline first -- the marker can
++ * never be injected twice.
++ */
++function unpatchYogaRoot(yogaRoot) {
++    const loadJsPath = path.join(yogaRoot, "dist/src/load.js");
++    if (existsSync(loadJsPath)) {
++        const original = readFileSync(loadJsPath, "utf8");
++        if (original.includes(MARKER)) {
++            const unpatched = original
++                .replace(`${LOAD_JS_IMPORT_LINE}\n${WASM_IMPORT_LINE}`, LOAD_JS_IMPORT_LINE)
++                .replace(`return wrapAssembly(await loadYogaImpl(${INSTANTIATE_WASM_HOOK}));`, LOAD_JS_CALL_EXPR);
++            writeFileSync(loadJsPath, unpatched);
++        }
++    }
++    const indexJsPath = path.join(yogaRoot, "dist/src/index.js");
++    if (existsSync(indexJsPath)) {
++        const original = readFileSync(indexJsPath, "utf8");
++        if (original.includes(MARKER)) {
++            const unpatched = original
++                .replace(`${INDEX_JS_IMPORT_LINE}\n${WASM_IMPORT_LINE}`, INDEX_JS_IMPORT_LINE)
++                .replace(`const Yoga = wrapAssembly(await loadYoga(${INSTANTIATE_WASM_HOOK}));`, INDEX_JS_CALL_EXPR);
++            writeFileSync(indexJsPath, unpatched);
++        }
++    }
++}
++function patchYogaRoot(yogaRoot) {
++    // Always start from a known-clean baseline -- see unpatchYogaRoot's
++    // doc comment above for why this makes re-patching idempotent.
++    unpatchYogaRoot(yogaRoot);
++    let found = false;
++    // `dist/src/load.js` -- exported as `yoga-layout/load`, an async
++    // function wrapping a single `loadYogaImpl()` call.
++    const loadJsPath = path.join(yogaRoot, "dist/src/load.js");
++    if (existsSync(loadJsPath)) {
++        found = true;
++        const original = readFileSync(loadJsPath, "utf8");
++        if (!original.includes(MARKER)) {
++            const importLine = LOAD_JS_IMPORT_LINE;
++            const callExpr = LOAD_JS_CALL_EXPR;
++            if (!original.includes(importLine) || !original.includes(callExpr)) {
++                throw new Error(`patchYogaLayoutForWorker: expected load.js shape not found in ${loadJsPath} -- yoga-layout's source may have changed; refusing to silently skip the Worker WASM fix.`);
++            }
++            const patched = original
++                .replace(importLine, `${importLine}\n${WASM_IMPORT_LINE}`)
++                .replace(callExpr, `return wrapAssembly(await loadYogaImpl(${INSTANTIATE_WASM_HOOK}));`);
++            writeFileSync(loadJsPath, patched);
++        }
++    }
++    // `dist/src/index.js` -- the package's default export, used
++    // internally by @react-pdf/renderer's own SVG resolution code via a
++    // top-level `await`, independent of load.js above.
++    const indexJsPath = path.join(yogaRoot, "dist/src/index.js");
++    if (existsSync(indexJsPath)) {
++        found = true;
++        const original = readFileSync(indexJsPath, "utf8");
++        if (!original.includes(MARKER)) {
++            const importLine = INDEX_JS_IMPORT_LINE;
++            const callExpr = INDEX_JS_CALL_EXPR;
++            if (!original.includes(importLine) || !original.includes(callExpr)) {
++                throw new Error(`patchYogaLayoutForWorker: expected index.js shape not found in ${indexJsPath} -- yoga-layout's source may have changed; refusing to silently skip the Worker WASM fix.`);
++            }
++            const patched = original
++                .replace(importLine, `${importLine}\n${WASM_IMPORT_LINE}`)
++                .replace(callExpr, `const Yoga = wrapAssembly(await loadYoga(${INSTANTIATE_WASM_HOOK}));`);
++            writeFileSync(indexJsPath, patched);
++        }
++    }
++    if (!found) {
++        return false;
++    }
++    // Copy the real yoga.wasm binary alongside the base64 loader -- the
++    // same directory patchVercelOgLibrary copies @vercel/og's own
++    // yoga.wasm/resvg.wasm into, and where the relative "?module" import
++    // above resolves from. Shared by both entry points patched above.
++    const wasmDest = path.join(yogaRoot, "dist/binaries/yoga.wasm");
++    if (!existsSync(wasmDest)) {
++        return "needs-wasm";
++    }
++    return true;
++}
++export function patchYogaLayoutForWorker(buildOpts) {
++    const { outputDir, monorepoRoot } = buildOpts;
++    const functionsPath = path.join(outputDir, "server-functions/default");
++    const packagePath = path.join(functionsPath, getPackagePath(buildOpts));
++    const yogaModulePath = "node_modules/yoga-layout";
++    // Every physical location esbuild's own module resolution has been
++    // observed to resolve a `yoga-layout` import to for this build (see
++    // this file's own doc comment above for why there can be more than
++    // one) -- deduplicated, since packagePath === functionsPath when
++    // this isn't a monorepo.
++    const candidateRoots = [
++        ...new Set([packagePath, functionsPath, monorepoRoot].map((root) => path.join(root, yogaModulePath))),
++    ];
++    const wasmSource = path.join(monorepoRoot, "public/wasm/yoga.wasm");
++    let patchedAny = false;
++    for (const yogaRoot of candidateRoots) {
++        const result = patchYogaRoot(yogaRoot);
++        if (result === false)
++            continue;
++        patchedAny = true;
++        if (result === "needs-wasm") {
++            if (!existsSync(wasmSource)) {
++                throw new Error(`patchYogaLayoutForWorker: expected yoga.wasm source not found at ${wasmSource}.`);
++            }
++            copyFileSync(wasmSource, path.join(yogaRoot, "dist/binaries/yoga.wasm"));
++        }
++    }
++    return patchedAny;
++}
++/**
++ * Reverts the *top-level, real* `monorepoRoot/node_modules/yoga-layout`
++ * copy back to its pristine, shipped shape. Call this once after the
++ * esbuild bundling pass that consumes the patched files has finished
++ * (success or failure) -- see `unpatchYogaRoot`'s doc comment above for
++ * why leaving that copy patched breaks the *next* `next build`.
++ *
++ * Deliberately does **not** touch the output-tree copies under
++ * `outputDir` (the traced/`server-functions/default` roots): those are
++ * regenerated fresh by `next build`'s own file-tracing step on every
++ * `build:cf` invocation and are already baked into the esbuild bundle
++ * by the time this runs, so there is nothing to protect by reverting
++ * them too.
++ */
++export function restoreYogaLayoutAtMonorepoRoot(buildOpts) {
++    const { monorepoRoot } = buildOpts;
++    unpatchYogaRoot(path.join(monorepoRoot, "node_modules/yoga-layout"));
++}

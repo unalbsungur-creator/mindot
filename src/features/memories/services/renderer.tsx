@@ -6,12 +6,10 @@ import { getDictionary } from "@/i18n/translations";
 import { getFrameTemplate } from "../config/frameTemplates";
 import type { CaptureRegion } from "../lib/captureRegion";
 import { PdfBrandLockup, PdfSeal, PdfSloganText, PdfWatermark, pdfLogoToneFor } from "./brandMarkPdf";
-import { ensurePdfFontsRegistered, PDF_FONT_FAMILY } from "./fonts";
+import { PDF_FONT_FAMILY } from "./fonts";
 import { estimateMemoryCardSize, MemoryNoteCardPdf, pdfSafeText } from "./noteCardPdf";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "./pdfPalette";
 import { safeTextScale, wrapTextToLines } from "./pdfTextMeasure";
-
-ensurePdfFontsRegistered();
 
 const MAX_SURROUNDING_NOTES = 6;
 const SURROUNDING_PER_ROW = 3;

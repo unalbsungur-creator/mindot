@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "patch-package",
     "dev": "next dev -p 3200",
     "build": "next build",
     "start": "next start",
@@ -40,6 +41,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "patch-package": "^8.0.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5",

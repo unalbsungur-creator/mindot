@@ -1,0 +1,81 @@
+diff --git a/node_modules/pdfkit/js/pdfkit.browser.mjs b/node_modules/pdfkit/js/pdfkit.browser.mjs
+index 0500ff5..c1a7212 100644
+--- a/node_modules/pdfkit/js/pdfkit.browser.mjs
++++ b/node_modules/pdfkit/js/pdfkit.browser.mjs
+@@ -4,6 +4,22 @@ import { cbc, ecb } from '@noble/ciphers/aes';
+ import { create } from 'fontkit';
+ import LineBreaker from 'linebreak';
+ import PNG from 'png-js';
++// PATCHED (MINDOT P0 hotfix, patch-package): self-register the 14 standard
++// PDF fonts — see the call site near the bottom of this file for why.
++import PatchedCourier from './standard-fonts/Courier.mjs';
++import PatchedCourierBold from './standard-fonts/CourierBold.mjs';
++import PatchedCourierBoldOblique from './standard-fonts/CourierBoldOblique.mjs';
++import PatchedCourierOblique from './standard-fonts/CourierOblique.mjs';
++import PatchedHelvetica from './standard-fonts/Helvetica.mjs';
++import PatchedHelveticaBold from './standard-fonts/HelveticaBold.mjs';
++import PatchedHelveticaBoldOblique from './standard-fonts/HelveticaBoldOblique.mjs';
++import PatchedHelveticaOblique from './standard-fonts/HelveticaOblique.mjs';
++import PatchedSymbol from './standard-fonts/Symbol.mjs';
++import PatchedTimesBold from './standard-fonts/TimesBold.mjs';
++import PatchedTimesBoldItalic from './standard-fonts/TimesBoldItalic.mjs';
++import PatchedTimesItalic from './standard-fonts/TimesItalic.mjs';
++import PatchedTimesRoman from './standard-fonts/TimesRoman.mjs';
++import PatchedZapfDingbats from './standard-fonts/ZapfDingbats.mjs';
+ 
+ class EventEmitter {
+   constructor() {
+@@ -7340,5 +7356,38 @@ var iccProfileBase64 = "AAAL0AAAAAACAAAAbW50clJHQiBYWVogB98AAgAPAAAAAAAAYWNzcAAA
+ 
+ registerFile(ICC_PROFILE_PATH, fromBase64(iccProfileBase64));
+ 
++// PATCHED (MINDOT P0 hotfix, patch-package): every `PDFDocument`
++// unconditionally loads the 'Helvetica' standard font at construction time
++// (`initFonts()`'s own default), so this must happen for every consumer of
++// this module, not just ones that remember to call `registerStdFonts()`
++// themselves — registering it here, inside the module whose own
++// `standardFonts` map `getStandardFont`/`PDFFontFactory` read from,
++// guarantees it always runs against the exact same map instance
++// `PDFDocument` reads from — the earlier attempt at this fix (calling
++// `registerStdFonts` from this app's own `fonts.ts`) turned out to hit a
++// *second*, separately-bundled copy of this module in the OpenNext/
++// Cloudflare Worker build (two `pdfkit.browser.mjs` instances in one
++// bundle — confirmed directly by grepping the built `worker.js` for two
++// separate `getStandardFont` regions), so registering "from outside" never
++// reached the copy `PDFDocument` itself uses. Self-registering here is
++// robust to that: however many times this module gets bundled, each copy
++// registers into its own map before anything can read from it.
++registerStdFonts(
++  PatchedCourier,
++  PatchedCourierBold,
++  PatchedCourierBoldOblique,
++  PatchedCourierOblique,
++  PatchedHelvetica,
++  PatchedHelveticaBold,
++  PatchedHelveticaBoldOblique,
++  PatchedHelveticaOblique,
++  PatchedSymbol,
++  PatchedTimesBold,
++  PatchedTimesBoldItalic,
++  PatchedTimesItalic,
++  PatchedTimesRoman,
++  PatchedZapfDingbats
++);
++
+ export { LineWrapper, PDFDocument, PDFDocument as default, registerFile, registerStdFonts };
+ //# sourceMappingURL=pdfkit.browser.mjs.map
+diff --git a/node_modules/pdfkit/package.json b/node_modules/pdfkit/package.json
+index 5d4dd8c..0d31755 100644
+--- a/node_modules/pdfkit/package.json
++++ b/node_modules/pdfkit/package.json
+@@ -74,10 +74,6 @@
+   },
+   "exports": {
+     ".": {
+-      "node": {
+-        "import": "./js/pdfkit.node.mjs",
+-        "require": "./js/pdfkit.js"
+-      },
+       "default": "./js/pdfkit.browser.mjs"
+     },
+     "./output": {

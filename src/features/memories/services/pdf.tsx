@@ -4,6 +4,8 @@ import { getNoteTemplate } from "@/features/notes/config/templates";
 import { loadTemplateArtwork } from "@/features/sharing/services/noteCardSatori";
 import { resolveCaptureRegion } from "../lib/captureRegion";
 import type { MemoryProject } from "../types";
+import { ensurePdfFontsRegistered, ensurePdfYogaWasmUrlConfigured } from "./fonts";
+import { ensurePdfMeasureFontsLoaded } from "./pdfTextMeasure";
 import { MemoryPdfDocument } from "./renderer";
 
 const DEFAULT_FRAME_TEMPLATE_ID = "classic-paper";
@@ -22,6 +24,11 @@ export async function generateMemoryPdf(project: MemoryProject): Promise<Buffer>
   if (!message) {
     throw new MemoryPdfSourceUnavailableError("Source message is no longer public.");
   }
+
+  // Must resolve before the first `<MemoryPdfDocument>` render — see
+  // fonts.ts's and pdfTextMeasure.ts's doc comments for why neither can
+  // stay a synchronous, module-scope call in a Worker runtime.
+  await Promise.all([ensurePdfYogaWasmUrlConfigured(), ensurePdfFontsRegistered(), ensurePdfMeasureFontsLoaded()]);
 
   const region = await resolveCaptureRegion(message, project.captureMode);
   const frameTemplateId = project.frameTemplateId ?? DEFAULT_FRAME_TEMPLATE_ID;

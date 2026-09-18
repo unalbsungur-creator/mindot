@@ -1,6 +1,6 @@
-import path from "node:path";
-import { openSync, type Font } from "fontkit";
+import { create, type Font } from "fontkit";
 import type { NoteTextFontFamily } from "@/features/notes/types";
+import { readPublicAsset } from "@/features/sharing/services/publicAsset";
 
 /**
  * Real glyph-metrics text measurement and manual line-wrapping for the PDF
@@ -56,22 +56,60 @@ import type { NoteTextFontFamily } from "@/features/notes/types";
  */
 export type PdfMeasureFont = NoteTextFontFamily;
 
-const FONT_FILES: Record<PdfMeasureFont, string> = {
-  modern: path.join(process.cwd(), "src/features/memories/assets/fonts/NotoSans-Regular.woff"),
-  classic: path.join(process.cwd(), "src/features/sharing/assets/fonts/Fraunces-Regular.woff"),
-  handwritten: path.join(process.cwd(), "src/features/sharing/assets/fonts/Caveat-Regular.woff"),
-  typewriter: path.join(process.cwd(), "src/features/sharing/assets/fonts/GeistMono-Regular.woff"),
+/**
+ * P0 hotfix (production PDF 500s — EPIC: PDF Worker Font Bundling): same
+ * defect and same fix as fonts.ts's `ensurePdfFontsRegistered` — this used
+ * to `fontkit.openSync(path.join(process.cwd(), "src/features/.../assets/
+ * fonts", ...))`, which throws `no such file or directory` in the deployed
+ * Cloudflare Worker (OpenNext's file tracer can't resolve a `process.cwd()`-
+ * built path). Found only by grepping the built Worker bundle for this
+ * literal path — the original crash in `ensurePdfFontsRegistered` always
+ * threw first, so this second, independent occurrence never actually ran
+ * in production until that one was fixed. Same remedy: read the same
+ * `public/fonts/share/*.woff` bytes via `readPublicAsset`, then hand
+ * fontkit the bytes directly (`create`, not `openSync`) instead of a path.
+ */
+const FONT_PATHS: Record<PdfMeasureFont, string> = {
+  modern: "/fonts/share/NotoSans-Regular.woff",
+  classic: "/fonts/share/Fraunces-Regular.woff",
+  handwritten: "/fonts/share/Caveat-Regular.woff",
+  typewriter: "/fonts/share/GeistMono-Regular.woff",
 };
 
 const fontCache = new Map<PdfMeasureFont, Font>();
+let preloadPromise: Promise<void> | null = null;
+
+/**
+ * Must be awaited (once, before the first PDF render — see `pdf.tsx`'s
+ * `generateMemoryPdf`) before `widestWordWidthPt`/`safeTextScale`/
+ * `wrapTextToLines` below are called: those stay synchronous (they run
+ * mid-JSX-construction in `noteCardPdf.tsx`/`renderer.tsx`, not inside an
+ * async render pass), so the actual byte fetch has to happen ahead of time
+ * into this module's cache rather than on first use.
+ */
+export function ensurePdfMeasureFontsLoaded(): Promise<void> {
+  if (!preloadPromise) {
+    preloadPromise = Promise.all(
+      (Object.keys(FONT_PATHS) as PdfMeasureFont[]).map(async (font) => {
+        const bytes = await readPublicAsset(FONT_PATHS[font]);
+        // These are always single WOFF files, never a TTC/OTC collection —
+        // the same files fonts.ts embeds — so this cast is exact, not speculative.
+        fontCache.set(font, create(Buffer.from(bytes)) as Font);
+      })
+    )
+      .then(() => undefined)
+      .catch((error) => {
+        preloadPromise = null;
+        throw error;
+      });
+  }
+  return preloadPromise;
+}
 
 function loadFont(font: PdfMeasureFont): Font {
-  let loaded = fontCache.get(font);
+  const loaded = fontCache.get(font);
   if (!loaded) {
-    // These are always single WOFF files, never a TTC/OTC collection — the
-    // same files fonts.ts embeds — so this cast is exact, not speculative.
-    loaded = openSync(FONT_FILES[font]) as Font;
-    fontCache.set(font, loaded);
+    throw new Error(`PDF measure font "${font}" used before ensurePdfMeasureFontsLoaded() resolved — call it in generateMemoryPdf first.`);
   }
   return loaded;
 }
