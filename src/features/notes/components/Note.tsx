@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { getNoteTemplate } from "../config/templates";
+import { NoteActionTooltip } from "./NoteActionTooltip";
 import { FrostDrift, renderNoteDecoration } from "../lib/noteDecorations";
 import { footballBallBackground } from "../lib/sportsBall";
 import { noteFontFamilyClass, noteTextScaleClass } from "../lib/textScale";
@@ -692,7 +693,19 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
         // itself (`onActivate` on the `<article>` above).
         <div className="absolute top-2 right-2 flex gap-1 pointer-coarse:gap-1.5">
           {actions.map((action) => (
-            <div key={action.href ?? action.label} className="group/action relative">
+            // BUG FIX: DUVAR Tooltip Clipping. This wrapper used to be a
+            // plain `group/action relative` div holding both the button
+            // and an absolutely positioned `-top-7` tooltip `<span>`, so
+            // that tooltip was clipped twice over — by this card's own
+            // shape `clip-path` (and the heart's `clipPath: url(#…)`),
+            // and by `InfiniteBoard`'s `overflow-hidden` viewport for
+            // notes near the board's top/right edge. `NoteActionTooltip`
+            // portals the very same label out to `document.body` and
+            // positions it from the button's real viewport rect, so no
+            // shape, rotation, or board edge can crop it. Only the
+            // tooltip moved: the button/link itself, its classes, its
+            // handlers and its slot in the toolbar are untouched.
+            <NoteActionTooltip key={action.href ?? action.label} label={action.label}>
               {action.onClick ? (
                 <button
                   type="button"
@@ -740,17 +753,7 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
                   {actionIcons[action.icon]}
                 </Link>
               )}
-              {/* Hover/focus-only label — `aria-hidden` because the link's
-                  own `aria-label` above already carries this text as the
-                  accessible name; this span is a purely visual affordance
-                  (and correctly absent from touch, which has no hover). */}
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-sm bg-navy px-1.5 py-1 text-[10px] font-medium text-white opacity-0 shadow-card transition-opacity duration-[var(--motion-fast)] group-hover/action:opacity-100 group-focus-within/action:opacity-100"
-              >
-                {action.label}
-              </span>
-            </div>
+            </NoteActionTooltip>
           ))}
         </div>
       )}
