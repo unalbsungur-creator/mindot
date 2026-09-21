@@ -641,7 +641,12 @@ export function InfiniteBoard({
                     active={activeNoteId === message.id}
                     onActivate={() => setActiveNoteId(message.id)}
                     actions={[
-                      { href: `/memory/${message.id}`, label: dictionary.memory.preserveAction, icon: "save" },
+                      // "Bu düşünceyi sakla" (save/preserve) intentionally not
+                      // offered here — the free/normal note-card action menu
+                      // is Paylaş + Bildir only. The memory feature itself
+                      // (/memory/[messageId], commercial Digital Frame flow,
+                      // admin access-code tooling) is untouched; this only
+                      // removes its one entry point from the normal card UI.
                       { href: `/share/${message.id}`, label: dictionary.share.shareAction, icon: "share" },
                       { onClick: () => setReportingMessageId(message.id), label: dictionary.report.actionLabel, icon: "report" },
                     ]}
