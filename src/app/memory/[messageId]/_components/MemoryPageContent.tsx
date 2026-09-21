@@ -13,7 +13,6 @@ import {
   type MemoryActionError,
 } from "@/features/memories/actions";
 import { DILEKKUTUM_URL } from "@/features/memories/config/dilekkutum";
-import { getActiveFrameTemplates } from "@/features/memories/config/frameTemplates";
 import { SHOPPIER_PRODUCT_URL } from "@/features/memories/config/shoppier";
 import type { MemoryCaptureMode, MemoryOutputType, MemoryProject, PhysicalOrder } from "@/features/memories/types";
 import { Note } from "@/features/notes/components/Note";
@@ -37,7 +36,7 @@ interface MemoryPageContentProps {
   existingProjects: ExistingProjectView[];
 }
 
-type Step = "capture" | "format" | "preview" | "result";
+type Step = "capture" | "preview" | "result";
 
 const errorMessage = (dictionary: Dictionary): Record<MemoryActionError, string> => ({
   "auth-required": dictionary.write.signInRequired,
@@ -54,13 +53,18 @@ const errorMessage = (dictionary: Dictionary): Record<MemoryActionError, string>
 
 export function MemoryPageContent({ messageId, message, isSignedIn, existingProjects }: MemoryPageContentProps) {
   const { dictionary } = useLocale();
-  const frameTemplates = getActiveFrameTemplates();
 
   const [showWizard, setShowWizard] = useState(existingProjects.length === 0);
   const [step, setStep] = useState<Step>("capture");
   const [captureMode, setCaptureMode] = useState<MemoryCaptureMode>("note_only");
-  const [outputType, setOutputType] = useState<MemoryOutputType>("personal_pdf");
-  const [frameTemplateId, setFrameTemplateId] = useState(frameTemplates[0]?.id ?? "");
+  // No format-selection step anymore (see the "capture" step's Continue
+  // button) — the free wizard only ever produces a visually-shareable
+  // project, so nothing ever sets this beyond its initial value. Kept as
+  // `useState` (rather than a plain const) so `handleCreate`'s existing
+  // `outputType === "physical_gift"`/`"digital_frame"` checks keep
+  // comparing against the full `MemoryOutputType` union instead of a
+  // narrowed literal.
+  const [outputType] = useState<MemoryOutputType>("personal_pdf");
   const [isPending, startTransition] = useTransition();
   const [createError, setCreateError] = useState<MemoryActionError | null>(null);
   const [newProject, setNewProject] = useState<ExistingProjectView | null>(null);
@@ -96,7 +100,6 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
         messageId,
         captureMode,
         outputType,
-        frameTemplateId: outputType === "digital_frame" ? frameTemplateId : undefined,
       });
       if (!result.ok || !result.data) {
         setCreateError(result.error ?? "not-found");
@@ -174,64 +177,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
                   hint={dictionary.memory.captureSurroundingHint}
                 />
               </div>
-              <Button onClick={() => setStep("format")}>{dictionary.memory.continueButton}</Button>
-            </section>
-          )}
-
-          {step === "format" && (
-            <section className="flex flex-col items-center gap-4">
-              <h2 className="font-display text-xl font-medium text-navy">{dictionary.memory.step3Heading}</h2>
-              <div className="grid w-full gap-3 sm:grid-cols-3">
-                <OptionCard
-                  selected={outputType === "personal_pdf"}
-                  onSelect={() => setOutputType("personal_pdf")}
-                  title={dictionary.memory.outputPersonalPdf}
-                  hint={dictionary.memory.outputPersonalPdfHint}
-                />
-                <OptionCard
-                  selected={outputType === "digital_frame"}
-                  onSelect={() => setOutputType("digital_frame")}
-                  title={dictionary.memory.outputDigitalFrame}
-                  hint={dictionary.memory.outputDigitalFrameHint}
-                />
-                <OptionCard
-                  selected={outputType === "physical_gift"}
-                  onSelect={() => setOutputType("physical_gift")}
-                  title={dictionary.memory.outputPhysicalGift}
-                  hint={dictionary.memory.outputPhysicalGiftHint}
-                />
-              </div>
-
-              {outputType === "digital_frame" && (
-                <div className="flex flex-col gap-2">
-                  <span className="text-sm font-medium text-navy">{dictionary.memory.frameLabel}</span>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {frameTemplates.map((frame) => (
-                      <button
-                        key={frame.id}
-                        type="button"
-                        onClick={() => setFrameTemplateId(frame.id)}
-                        aria-pressed={frame.id === frameTemplateId}
-                        className={cn(
-                          "rounded-pill border px-3 py-1.5 text-xs font-medium transition-colors",
-                          frame.id === frameTemplateId
-                            ? "border-navy bg-navy text-white"
-                            : "border-border bg-surface text-ink-soft hover:text-navy"
-                        )}
-                      >
-                        {dictionary.memory.frameNames[frame.id] ?? frame.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <Button variant="ghost" onClick={() => setStep("capture")}>
-                  {dictionary.memory.backButton}
-                </Button>
-                <Button onClick={() => setStep("preview")}>{dictionary.memory.continueButton}</Button>
-              </div>
+              <Button onClick={() => setStep("preview")}>{dictionary.memory.continueButton}</Button>
             </section>
           )}
 
@@ -241,7 +187,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
               <p className="max-w-md text-center text-sm text-ink-soft">{dictionary.memory.previewDisclaimer}</p>
               {createError && <p className="text-sm text-red-600">{errorMessage(dictionary)[createError]}</p>}
               <div className="flex gap-2">
-                <Button variant="ghost" onClick={() => setStep("format")}>
+                <Button variant="ghost" onClick={() => setStep("capture")}>
                   {dictionary.memory.backButton}
                 </Button>
                 <Button onClick={handleCreate} disabled={isPending}>
@@ -280,12 +226,8 @@ function OutcomePanel({ view }: { view: ExistingProjectView }) {
 }
 
 function PersonalPdfPanel({ project }: { project: MemoryProject }) {
-  const { dictionary } = useLocale();
   return (
     <div className="flex flex-col items-center gap-3 text-center">
-      <h3 className="font-display text-lg font-medium text-navy">{dictionary.memory.downloadReadyTitle}</h3>
-      <p className="text-sm text-ink-soft">{dictionary.memory.downloadReadyBody}</p>
-      <Button href={`/api/memories/${project.id}/download`}>{dictionary.memory.downloadButton}</Button>
       <MemoryShareSection projectId={project.id} />
     </div>
   );
@@ -327,7 +269,6 @@ function DigitalAccessPanel({ project, initiallyGranted }: { project: MemoryProj
       {granted ? (
         <>
           <p className="text-sm text-navy">{dictionary.memory.accessGranted}</p>
-          <Button href={`/api/memories/${project.id}/download`}>{dictionary.memory.downloadButton}</Button>
           <MemoryShareSection projectId={project.id} />
         </>
       ) : (

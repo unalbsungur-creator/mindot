@@ -70,7 +70,19 @@ export function BoardControls({ onPan, onZoomIn, onZoomOut, onReturnToCenter }: 
 
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 bottom-4 flex items-end justify-between px-4 sm:bottom-6 sm:px-6"
+      // `fixed`, not `absolute`: this board's own container is only
+      // `min-h-[calc(100dvh-5rem)]` tall, an approximation of the space
+      // left under the header/search bar that can run short on a small
+      // mobile viewport — when it does, the container's bottom edge (and
+      // an `absolute bottom-4` anchored to it) ends up below the fold
+      // entirely, clipping the zoom-out/pan-down buttons. `fixed` anchors
+      // to the real viewport instead, so this cluster stays fully visible
+      // regardless of that container's height. No ancestor between this
+      // and the viewport sets `transform`/`filter`/`will-change:transform`
+      // (which would turn it back into an `absolute`-like containing
+      // block), and on desktop the container's bottom edge already meets
+      // the viewport's, so this renders identically there.
+      className="pointer-events-none fixed inset-x-0 bottom-4 flex items-end justify-between px-4 sm:bottom-6 sm:px-6"
       // EPIC 042: `env(safe-area-inset-bottom)` — a notched/home-indicator
       // phone's unsafe bottom strip — added as *extra* padding on top of
       // the existing `bottom-4`/`sm:bottom-6` positioning, not a

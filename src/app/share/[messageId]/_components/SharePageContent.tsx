@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { Button } from "@/components/ui/Button";
 import type { PublicMessageDetail } from "@/features/board/types";
 import { SHOPPIER_PRODUCT_URL } from "@/features/memories/config/shoppier";
 import type { MemoryCaptureMode } from "@/features/memories/types";
@@ -127,19 +126,12 @@ export function SharePageContent({ messageId, message, pageUrl }: SharePageConte
           />
         </div>
 
-        {/* PAID: the print-quality master — gated behind the existing
-            access-code system (features/memories), never generated here
-            directly. Deliberately routes to the real, already-working
-            /memory/[messageId] flow (sign-in, digital_frame selection,
-            code redemption, Shoppier link-out) instead of re-implementing
-            any part of that inline — see the EPIC report for why. */}
+        {/* COMMERCIAL: a link out to the paid Digital Frame product only —
+            no PDF/print CTA and no access-code entry UI on this free share
+            page. Redeeming a code still only ever happens on the
+            already-working /memory/[messageId] flow, never re-implemented
+            here. */}
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-canvas p-5 text-center">
-          <span className="font-display text-base font-medium text-navy">{dictionary.share.premiumHeading}</span>
-          <p className="text-sm text-ink-soft">{dictionary.share.premiumBody}</p>
-          <Button href={`/memory/${messageId}`} variant="secondary">
-            {dictionary.share.premiumDownloadButton}
-          </Button>
-          <p className="text-xs text-ink-soft">{dictionary.share.premiumDownloadHint}</p>
           {SHOPPIER_PRODUCT_URL ? (
             <a
               href={SHOPPIER_PRODUCT_URL}
