@@ -53,11 +53,11 @@ const FONT_OPTIONS: {
   labelKey: "fontModernLabel" | "fontClassicLabel" | "fontHandwrittenLabel" | "fontTypewriterLabel";
   className: string;
 }[] = [
-  { value: "modern", labelKey: "fontModernLabel", className: noteFontFamilyClass("modern") },
-  { value: "classic", labelKey: "fontClassicLabel", className: noteFontFamilyClass("classic") },
-  { value: "handwritten", labelKey: "fontHandwrittenLabel", className: noteFontFamilyClass("handwritten") },
-  { value: "typewriter", labelKey: "fontTypewriterLabel", className: noteFontFamilyClass("typewriter") },
-];
+    { value: "modern", labelKey: "fontModernLabel", className: noteFontFamilyClass("modern") },
+    { value: "classic", labelKey: "fontClassicLabel", className: noteFontFamilyClass("classic") },
+    { value: "handwritten", labelKey: "fontHandwrittenLabel", className: noteFontFamilyClass("handwritten") },
+    { value: "typewriter", labelKey: "fontTypewriterLabel", className: noteFontFamilyClass("typewriter") },
+  ];
 
 export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = false }: WriteThoughtFormProps) {
   const { locale, dictionary } = useLocale();
@@ -242,44 +242,52 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
-      <div className="flex min-w-0 flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <label htmlFor="content" className="text-sm font-medium text-navy">
-            {dictionary.write.contentLabel}
-          </label>
-          <textarea
-            id="content"
-            value={content}
-            onChange={(event) => {
-              markEdited();
-              setContent(event.target.value);
-            }}
-            placeholder={dictionary.write.contentPlaceholder}
-            rows={5}
-            // EPIC 045: native maxLength hard-blocks any keystroke or paste
-            // past MESSAGE_MAX_LENGTH — the browser truncates a paste that
-            // would exceed it automatically, so no separate paste handler
-            // is needed. [...content].length (used by charCount/overLimit
-            // below) can only exceed this via a pre-EPIC-045 restored draft
-            // (drafts are plain localStorage, saved before this limit
-            // existed) — overLimit's existing red-counter + disabled-submit
-            // behavior already handles that gracefully.
-            maxLength={MESSAGE_MAX_LENGTH}
-            className="w-full rounded-md border border-border bg-surface p-4 text-base leading-relaxed text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
-          />
-          <span
-            className={cn(
-              "self-end text-xs",
-              overLimit ? "text-red-600" : nearLimit ? "text-orange-ink font-medium" : "text-ink-soft"
-            )}
-            aria-live="polite"
-          >
-            {dictionary.write.characterCount
-              .replace("{count}", String(charCount))
-              .replace("{max}", String(MESSAGE_MAX_LENGTH))}
-          </span>
-        </div>
+    <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-8 lg:items-start">
+      <div className="order-1 flex flex-col gap-2 lg:order-none lg:col-start-1 lg:row-start-1">
+        <label htmlFor="content" className="text-sm font-medium text-navy">
+          {dictionary.write.contentLabel}
+        </label>
+        <textarea
+          id="content"
+          value={content}
+          onChange={(event) => {
+            markEdited();
+            setContent(event.target.value);
+          }}
+          placeholder={dictionary.write.contentPlaceholder}
+          rows={5}
+          // EPIC 045: native maxLength hard-blocks any keystroke or paste
+          // past MESSAGE_MAX_LENGTH — the browser truncates a paste that
+          // would exceed it automatically, so no separate paste handler
+          // is needed. [...content].length (used by charCount/overLimit
+          // below) can only exceed this via a pre-EPIC-045 restored draft
+          // (drafts are plain localStorage, saved before this limit
+          // existed) — overLimit's existing red-counter + disabled-submit
+          // behavior already handles that gracefully.
+          maxLength={MESSAGE_MAX_LENGTH}
+          className="w-full rounded-md border border-border bg-surface p-4 text-base leading-relaxed text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
+        />
+        <span
+          className={cn(
+            "self-end text-xs",
+            overLimit ? "text-red-600" : nearLimit ? "text-orange-ink font-medium" : "text-ink-soft"
+          )}
+          aria-live="polite"
+        >
+          {dictionary.write.characterCount
+            .replace("{count}", String(charCount))
+            .replace("{max}", String(MESSAGE_MAX_LENGTH))}
+        </span>
+      </div>
+
+      <div className="order-2 flex min-w-0 flex-col items-center gap-3 rounded-lg border border-border bg-canvas p-8 lg:order-none lg:col-start-2 lg:row-start-1">
+        <span className="text-xs font-medium uppercase tracking-wide text-ink-soft">
+          {dictionary.write.previewLabel}
+        </span>
+        <Note note={previewNote} variant="static" />
+      </div>
+
+      <div className="order-3 flex min-w-0 flex-col gap-6 lg:order-none lg:col-start-1 lg:row-start-2">
 
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium text-navy">{dictionary.write.templateLabel}</span>
@@ -473,12 +481,6 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
         <p className="text-xs text-ink-soft">{dictionary.write.trustNote}</p>
       </div>
 
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-canvas p-8">
-        <span className="text-xs font-medium uppercase tracking-wide text-ink-soft">
-          {dictionary.write.previewLabel}
-        </span>
-        <Note note={previewNote} variant="static" />
-      </div>
     </div>
   );
 }
