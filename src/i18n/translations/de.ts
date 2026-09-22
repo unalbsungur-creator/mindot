@@ -29,7 +29,7 @@ export const de: Dictionary = {
     col4Highlight: "heute inspiriert es Millionen von Punkten.",
   },
   pointsMilestone: {
-    heading: "{target} Punkte",
+    heading: "Ziel: 1 Million Punkte",
     body: "Jeder Gedanke hinterlässt einen Punkt an der Wand.",
     progressLabel: "{count} / {target}",
   },
