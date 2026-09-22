@@ -12,6 +12,7 @@ import { Note } from "@/features/notes/components/Note";
 import { templateDisplayName } from "@/features/notes/lib/templateDisplayName";
 import { MESSAGE_MAX_LENGTH } from "@/features/messages/types";
 import { setMessageWallVisibility, submitMessageRevision } from "@/features/profile/actions";
+import { ArchiveSearchFilter } from "@/features/profile/components/ArchiveSearchFilter";
 import { TimeRangeFilter } from "@/features/profile/components/TimeRangeFilter";
 import type { ArchiveMessage } from "@/features/profile/types";
 import { useLocale } from "@/i18n/LocaleProvider";
@@ -55,8 +56,24 @@ function boardLinkFor(point: { x: number; y: number }): string {
 export function ArchivePageContent({ isSignedIn, messages: initialMessages, page, totalPages }: ArchivePageContentProps) {
   const { dictionary } = useLocale();
   const searchParams = useSearchParams();
-  const hasFilter = searchParams.has("from") || searchParams.has("to");
+  const hasDateFilter = searchParams.has("from") || searchParams.has("to");
+  const hasSearch = (searchParams.get("q") ?? "").trim().length > 0;
+  const hasFilter = hasDateFilter || hasSearch;
   const [messages, setMessages] = useState(initialMessages);
+  // `messages` is local state (not read straight from the prop) so
+  // WallVisibilityToggle/EditMessageAction can apply an optimistic update
+  // without a full re-fetch — but that means it also needs to be
+  // re-synced whenever the *server* sends a genuinely new result set (a
+  // search, date-filter, or page change all reach this component as a new
+  // `initialMessages` prop via a client-side navigation, not a fresh
+  // mount). Adjusted during render (not in an effect) per the React docs'
+  // "adjusting state when a prop changes" pattern, avoiding an extra
+  // render pass.
+  const [prevInitialMessages, setPrevInitialMessages] = useState(initialMessages);
+  if (initialMessages !== prevInitialMessages) {
+    setPrevInitialMessages(initialMessages);
+    setMessages(initialMessages);
+  }
 
   if (!isSignedIn) {
     return (
@@ -77,11 +94,16 @@ export function ArchivePageContent({ isSignedIn, messages: initialMessages, page
       </div>
 
       <TimeRangeFilter />
+      <ArchiveSearchFilter />
 
       {messages.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
           <p className="text-sm text-ink-soft">
-            {hasFilter ? dictionary.archive.emptyMessage : dictionary.archive.emptyMessageAllTime}
+            {hasSearch
+              ? dictionary.archive.emptyMessageSearch
+              : hasDateFilter
+                ? dictionary.archive.emptyMessage
+                : dictionary.archive.emptyMessageAllTime}
           </p>
           {hasFilter ? (
             <Link href="/me/archive" className="text-sm font-medium text-ink-soft hover:text-navy">

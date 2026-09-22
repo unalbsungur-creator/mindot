@@ -166,10 +166,17 @@ export interface MessageRepository {
    *
    * EPIC 024: `offset` is additive and optional (defaults to 0) — every
    * existing caller that only passes `range`/`limit` is unaffected.
+   *
+   * `keyword` (own-archive search): same `ilike` + `turkishSearchKeyword`
+   * content match `searchApproved` already uses for the public board
+   * search, scoped here by the mandatory `authorId` equality condition —
+   * never a caller-supplied identity, so a keyword can only ever match
+   * the authenticated caller's own messages. Optional and additive, same
+   * as `range`/`limit`/`offset`.
    */
   listByAuthor(
     authorId: string,
-    options?: { range?: { from?: Date; to?: Date }; limit?: number; offset?: number }
+    options?: { range?: { from?: Date; to?: Date }; limit?: number; offset?: number; keyword?: string }
   ): Promise<Message[]>;
   /**
    * One author's PUBLIC messages only — filtered in the query itself
@@ -190,9 +197,12 @@ export interface MessageRepository {
    * EPIC 024: total messages matching exactly `listByAuthor`'s own filter
    * (author + optional range, every status) with no `limit`/`offset` —
    * the private archive's pagination `total`. Mirrors `listByAuthor`'s
-   * condition-building so the two can never silently drift apart.
+   * condition-building so the two can never silently drift apart —
+   * including the same optional `keyword` filter, so a search's `total`
+   * (and the pagination it drives) always matches what `listByAuthor`
+   * actually returns for that same keyword.
    */
-  countByAuthorInRange(authorId: string, range?: { from?: Date; to?: Date }): Promise<number>;
+  countByAuthorInRange(authorId: string, range?: { from?: Date; to?: Date }, keyword?: string): Promise<number>;
   /**
    * EPIC 024: total messages matching exactly `listPublicByAuthor`'s own
    * filter (author + approved + named + wall-visible + optional range) —
@@ -732,12 +742,13 @@ class DrizzleMessageRepository implements MessageRepository {
 
   async listByAuthor(
     authorId: string,
-    options?: { range?: { from?: Date; to?: Date }; limit?: number; offset?: number }
+    options?: { range?: { from?: Date; to?: Date }; limit?: number; offset?: number; keyword?: string }
   ): Promise<Message[]> {
     const db = getDb();
     const conditions = [eq(messages.authorId, authorId)];
     if (options?.range?.from) conditions.push(gte(messages.createdAt, options.range.from));
     if (options?.range?.to) conditions.push(lte(messages.createdAt, options.range.to));
+    if (options?.keyword) conditions.push(ilike(messages.content, `%${turkishSearchKeyword(options.keyword)}%`));
 
     const rows = await db
       .select()
@@ -775,11 +786,12 @@ class DrizzleMessageRepository implements MessageRepository {
     return rows.map(toMessage);
   }
 
-  async countByAuthorInRange(authorId: string, range?: { from?: Date; to?: Date }): Promise<number> {
+  async countByAuthorInRange(authorId: string, range?: { from?: Date; to?: Date }, keyword?: string): Promise<number> {
     const db = getDb();
     const conditions = [eq(messages.authorId, authorId)];
     if (range?.from) conditions.push(gte(messages.createdAt, range.from));
     if (range?.to) conditions.push(lte(messages.createdAt, range.to));
+    if (keyword) conditions.push(ilike(messages.content, `%${turkishSearchKeyword(keyword)}%`));
 
     const [row] = await db
       .select({ count: sql<number>`count(*)::int` })

@@ -15,6 +15,12 @@ function parsePage(raw: string | undefined): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
 }
 
+/** `?q=` normalized the same way the repository would want it: trimmed, and an empty/whitespace-only value treated as "no search" rather than an always-true `ilike '%%'`. */
+function parseKeyword(raw: string | undefined): string | undefined {
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 export default async function ArchivePage({ searchParams }: PageProps<"/me/archive">) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -24,11 +30,14 @@ export default async function ArchivePage({ searchParams }: PageProps<"/me/archi
   const sp = await searchParams;
   const range = parseTimeRangeParams(sp);
   const requestedPage = parsePage(typeof sp.page === "string" ? sp.page : undefined);
+  const keyword = parseKeyword(typeof sp.q === "string" ? sp.q : undefined);
 
-  const firstAttempt = await getPrivateArchive(session.user.id, range, {
-    limit: PAGE_SIZE,
-    offset: (requestedPage - 1) * PAGE_SIZE,
-  });
+  const firstAttempt = await getPrivateArchive(
+    session.user.id,
+    range,
+    { limit: PAGE_SIZE, offset: (requestedPage - 1) * PAGE_SIZE },
+    keyword
+  );
   const totalPages = Math.max(1, Math.ceil(firstAttempt.total / PAGE_SIZE));
   const page = Math.min(requestedPage, totalPages);
 
@@ -37,7 +46,7 @@ export default async function ArchivePage({ searchParams }: PageProps<"/me/archi
   const archive =
     page === requestedPage
       ? firstAttempt
-      : await getPrivateArchive(session.user.id, range, { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
+      : await getPrivateArchive(session.user.id, range, { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }, keyword);
 
   return <ArchivePageContent isSignedIn messages={archive.items} page={page} totalPages={totalPages} />;
 }

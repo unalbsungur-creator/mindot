@@ -35,7 +35,13 @@ export function TimeRangeFilter() {
   const to = searchParams.get("to") ?? "";
 
   function apply(nextFrom?: string, nextTo?: string) {
+    // Preserves an active `q` search (if any) — changing the date range is
+    // meant to narrow an existing search, not silently discard it. `page`
+    // is deliberately dropped either way: a new date range always starts
+    // its own results from page 1.
     const params = new URLSearchParams();
+    const q = searchParams.get("q");
+    if (q) params.set("q", q);
     if (nextFrom) params.set("from", nextFrom);
     if (nextTo) params.set("to", nextTo);
     router.push(params.size > 0 ? `${pathname}?${params.toString()}` : pathname);

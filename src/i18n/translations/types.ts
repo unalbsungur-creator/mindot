@@ -615,8 +615,16 @@ export interface Dictionary {
     fromLabel: string;
     toLabel: string;
     applyRange: string;
+    /** Own-archive search — content-only, authenticated-owner-scoped (see getPrivateArchive's own doc comment); never a wall/board-wide search. */
+    searchPlaceholder: string;
+    searchButton: string;
+    clearSearchAction: string;
+    /** Shown only while a search is active; `{query}` is replaced with the raw search text, same `{token}` substitution convention as notifications.paginationLabel. */
+    searchActiveLabel: string;
     emptyMessage: string;
     emptyMessageAllTime: string;
+    /** Shown instead of emptyMessage/emptyMessageAllTime when a search is active and matches nothing. */
+    emptyMessageSearch: string;
     statePending: string;
     statePublished: string;
     stateNotPublished: string;

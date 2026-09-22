@@ -88,8 +88,20 @@ export async function getPublicWall(publicId: string, range?: TimeRange, page?: 
  * behavior (the first `ARCHIVE_LIMIT` messages, no total). `ARCHIVE_LIMIT`
  * is now a page *size*, not a ceiling: `/me/archive` always passes `page`
  * and reads `total` to compute how many pages exist.
+ *
+ * `keyword` (own-archive search): forwarded as-is to both `listByAuthor`
+ * and `countByAuthorInRange` so a search's `total`/pagination always
+ * matches its own filtered results — `userId` here is always the
+ * server-verified session id the caller already resolved (see this
+ * function's own doc comment above), never anything URL/client-supplied,
+ * so a keyword can only ever search that one user's own messages.
  */
-export async function getPrivateArchive(userId: string, range?: TimeRange, page?: { limit: number; offset: number }): Promise<ArchivePage> {
+export async function getPrivateArchive(
+  userId: string,
+  range?: TimeRange,
+  page?: { limit: number; offset: number },
+  keyword?: string
+): Promise<ArchivePage> {
   // Sequential, not Promise.all: independent single-row-set queries on one
   // user's own data — negligible latency difference either way, and
   // sequential avoids any risk of connection-pool contention on whatever
@@ -98,8 +110,9 @@ export async function getPrivateArchive(userId: string, range?: TimeRange, page?
     range,
     limit: page?.limit ?? ARCHIVE_LIMIT,
     offset: page?.offset ?? 0,
+    keyword,
   });
-  const total = await messageRepository.countByAuthorInRange(userId, range);
+  const total = await messageRepository.countByAuthorInRange(userId, range, keyword);
   const memoryProjects = await memoryRepository.listByCreator(userId);
 
   const memoryProjectIdByMessageId = new Map(memoryProjects.map((project) => [project.messageId, project.id]));
