@@ -132,8 +132,9 @@ export const es: Dictionary = {
     previewAuthorFallback: "anónimo",
     submit: "Fijar en el muro",
     submitting: "Fijando…",
-    successTitle: "Va en camino.",
-    successBody: "Tu pensamiento se ha colocado en la cola de revisión y se unirá al muro en cuanto sea aprobado.",
+    successTitle: "Tu pensamiento va en camino.",
+    successBody:
+      "Tu pensamiento ha entrado en la cola de revisión. Una vez aprobado, ocupará su lugar en el muro de MINDOT. Siempre puedes encontrar este pensamiento y tus demás pensamientos en tu Archivo.",
     errorEmpty: "Escribe algo antes de fijarlo.",
     errorTooLong: "Es un poco largo para una sola nota — intenta acortarlo.",
     errorGeneric: "Algo salió mal. Inténtalo de nuevo.",
@@ -143,6 +144,7 @@ export const es: Dictionary = {
     identityAnonymousHint: "No se mostrará nombre ni foto.",
     identityNamedHint: "Tu nombre y tu foto de Google pueden aparecer en la nota.",
     writeAnotherButton: "Escribir otro pensamiento",
+    viewMyThoughtsAction: "Ir a mis pensamientos",
     trustNote: "Anónimo por defecto. Una persona revisa cada pensamiento antes de que se una al muro.",
     consentHeading: "Antes de compartir",
     consentText:

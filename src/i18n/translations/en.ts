@@ -134,8 +134,9 @@ export const en: Dictionary = {
     previewAuthorFallback: "anonymous",
     submit: "Pin it to the wall",
     submitting: "Pinning…",
-    successTitle: "It's on its way.",
-    successBody: "Your thought has been placed in the review queue and will join the wall once it's approved.",
+    successTitle: "Your thought is on its way.",
+    successBody:
+      "Your thought has entered the review queue. Once approved, it will take its place on the MINDOT wall. You can always find this thought and your other thoughts in your Archive.",
     errorEmpty: "Write something before pinning it.",
     errorTooLong: "That's a bit long for one note — try trimming it down.",
     errorGeneric: "Something went wrong. Please try again.",
@@ -145,6 +146,7 @@ export const en: Dictionary = {
     identityAnonymousHint: "No name or photo will be shown.",
     identityNamedHint: "Your name and Google photo may appear on the note.",
     writeAnotherButton: "Write another thought",
+    viewMyThoughtsAction: "Go to My Thoughts",
     trustNote: "Anonymous by default. A person reviews every thought before it joins the wall.",
     consentHeading: "Before you share",
     consentText:

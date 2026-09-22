@@ -132,8 +132,9 @@ export const fr: Dictionary = {
     previewAuthorFallback: "anonyme",
     submit: "Épingler au mur",
     submitting: "Épinglage…",
-    successTitle: "C'est en chemin.",
-    successBody: "Votre pensée a été placée dans la file de vérification et rejoindra le mur une fois approuvée.",
+    successTitle: "Votre pensée est en chemin.",
+    successBody:
+      "Votre pensée a été placée dans la file de modération. Une fois approuvée, elle prendra sa place sur le mur MINDOT. Vous pouvez toujours retrouver cette pensée et vos autres pensées dans votre Archive.",
     errorEmpty: "Écrivez quelque chose avant de l'épingler.",
     errorTooLong: "C'est un peu long pour une seule note — essayez de raccourcir.",
     errorGeneric: "Une erreur s'est produite. Veuillez réessayer.",
@@ -143,6 +144,7 @@ export const fr: Dictionary = {
     identityAnonymousHint: "Aucun nom ni photo ne sera affiché.",
     identityNamedHint: "Votre nom et votre photo Google peuvent apparaître sur la note.",
     writeAnotherButton: "Écrire une autre pensée",
+    viewMyThoughtsAction: "Voir mes pensées",
     trustNote: "Anonyme par défaut. Une personne relit chaque pensée avant qu'elle ne rejoigne le mur.",
     consentHeading: "Avant de partager",
     consentText:

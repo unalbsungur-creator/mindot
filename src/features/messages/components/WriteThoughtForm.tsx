@@ -230,12 +230,10 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
         <h2 className="font-display text-2xl font-medium text-navy">{dictionary.write.successTitle}</h2>
         <p className="text-ink-soft">{dictionary.write.successBody}</p>
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <Button href="/me/archive">{dictionary.write.viewMyThoughtsAction}</Button>
           <Button variant="ghost" onClick={() => setOutcome(null)}>
             {dictionary.write.writeAnotherButton}
           </Button>
-          <Link href="/me/archive" className="text-sm font-medium text-ink-soft hover:text-navy">
-            {dictionary.profile.archiveLinkLabel}
-          </Link>
         </div>
       </div>
     );

@@ -148,6 +148,8 @@ export interface Dictionary {
     identityAnonymousHint: string;
     identityNamedHint: string;
     writeAnotherButton: string;
+    /** Primary action on the post-submit success card — routes to /me/archive so the author can find this thought again without searching the board. */
+    viewMyThoughtsAction: string;
     trustNote: string;
     /** Mandatory content-responsibility consent, shown before either the Google sign-in button or the submit button becomes clickable — see "Mandatory content-responsibility consent" in CLAUDE.md. */
     consentHeading: string;

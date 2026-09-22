@@ -132,8 +132,9 @@ export const de: Dictionary = {
     previewAuthorFallback: "anonym",
     submit: "An die Wand heften",
     submitting: "Wird geheftet…",
-    successTitle: "Unterwegs.",
-    successBody: "Dein Gedanke wurde in die Prüfwarteschlange gestellt und erscheint an der Wand, sobald er freigegeben ist.",
+    successTitle: "Dein Gedanke ist unterwegs.",
+    successBody:
+      "Dein Gedanke wurde in die Prüfwarteschlange aufgenommen. Sobald er freigegeben ist, nimmt er seinen Platz an der MINDOT-Wand ein. Diesen und deine weiteren Gedanken findest du jederzeit in deinem Archiv.",
     errorEmpty: "Schreib etwas, bevor du es anheftest.",
     errorTooLong: "Das ist etwas lang für eine Notiz — versuch es zu kürzen.",
     errorGeneric: "Etwas ist schiefgelaufen. Bitte versuch es erneut.",
@@ -143,6 +144,7 @@ export const de: Dictionary = {
     identityAnonymousHint: "Es wird kein Name oder Foto angezeigt.",
     identityNamedHint: "Dein Name und dein Google-Foto können auf der Notiz erscheinen.",
     writeAnotherButton: "Einen weiteren Gedanken schreiben",
+    viewMyThoughtsAction: "Zu meinen Gedanken",
     trustNote: "Standardmäßig anonym. Ein Mensch prüft jeden Gedanken, bevor er der Wand beitritt.",
     consentHeading: "Bevor du teilst",
     consentText:

@@ -134,8 +134,9 @@ export const tr: Dictionary = {
     previewAuthorFallback: "anonim",
     submit: "Duvara tuttur",
     submitting: "Tutturuluyor…",
-    successTitle: "Yola çıktı.",
-    successBody: "Düşüncen inceleme sırasına alındı, onaylandığında duvara katılacak.",
+    successTitle: "Düşüncen yola çıktı.",
+    successBody:
+      "Düşüncen inceleme sırasına alındı. Onaylandığında MINDOT duvarındaki yerini alacak. Bu düşünceni ve diğer düşüncelerini Arşiv'den her zaman görebilirsin.",
     errorEmpty: "Tutturmadan önce bir şeyler yaz.",
     errorTooLong: "Bu, tek bir not için biraz uzun oldu — kısaltmayı dene.",
     errorGeneric: "Bir şeyler ters gitti. Lütfen tekrar dene.",
@@ -145,6 +146,7 @@ export const tr: Dictionary = {
     identityAnonymousHint: "İsim ya da fotoğraf gösterilmeyecek.",
     identityNamedHint: "Adın ve Google fotoğrafın notta görünebilir.",
     writeAnotherButton: "Başka bir düşünce yaz",
+    viewMyThoughtsAction: "Düşüncelerime Git",
     trustNote: "Varsayılan olarak anonim. Duvara katılmadan önce her düşünceyi bir kişi inceler.",
     consentHeading: "Paylaşmadan önce",
     consentText:
