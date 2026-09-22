@@ -600,7 +600,7 @@ export const en: Dictionary = {
     applyRange: "Apply",
     emptyMessage: "Nothing here yet for this period.",
     emptyMessageAllTime: "You haven't written anything yet.",
-    statePending: "Pending review",
+    statePending: "In review",
     statePublished: "Published",
     stateNotPublished: "Not published",
     viewOnBoardAction: "View on board",
