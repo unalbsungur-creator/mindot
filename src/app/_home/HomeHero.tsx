@@ -8,6 +8,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import type { NoteData } from "@/features/notes/types";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { HeroBrandComposition } from "./HeroBrandComposition";
+import { PointsMilestone } from "./PointsMilestone";
 
 /**
  * The homepage's dark navy hero — one of exactly two sections on the
@@ -96,6 +97,11 @@ export function HomeHero({ activeCount, heroNotes }: { activeCount: number; hero
             </span>
             <span className="text-sm leading-tight text-white/60">{dictionary.hero.activeCountLabel}</span>
           </div>
+          {/* EPIC: Homepage Hero + 1,000,000 Points Compact Layout — the
+              1,000,000-dot goal lives inside the hero itself now, not a
+              separate section below it, so the first viewport stays short.
+              No second CTA here; the button above already covers it. */}
+          <PointsMilestone count={activeCount} />
         </div>
 
         <div className="order-3 flex flex-col items-center gap-3">

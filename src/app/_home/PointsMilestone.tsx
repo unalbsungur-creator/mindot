@@ -1,7 +1,5 @@
 "use client";
 
-import { PageContainer } from "@/components/layout/PageContainer";
-import { Button } from "@/components/ui/Button";
 import { useLocale } from "@/i18n/LocaleProvider";
 
 /**
@@ -13,17 +11,15 @@ import { useLocale } from "@/i18n/LocaleProvider";
 const POINTS_MILESTONE_TARGET = 1_000_000;
 
 /**
- * A small, quiet milestone strip directly beneath the hero — reuses the
- * exact same live approved-count `page.tsx` already computes for
- * `HomeHero`'s `activeCountLabel` (`messageRepository.countApproved()`),
- * just framed against MINDOT's long-term 1,000,000-dot goal instead of a
- * plain running total. No second query, no client-side counting: `count`
- * is the one number, passed down from the server.
- *
- * Deliberately not a marketing banner — no gradient, no oversized card,
- * same restrained navy/orange vocabulary as HomeHero/MeaningStrip above
- * and below it, with only a thin top divider (matching MeaningStrip's own
- * `border-t border-white/10`) to separate it from the hero.
+ * A compact 1,000,000-dot progress readout, embedded directly inside
+ * HomeHero's center column (right beneath its own live active-count line)
+ * rather than a separate section — EPIC: Homepage Hero + 1,000,000 Points
+ * Compact Layout asked for the first viewport to stay short, so this has
+ * no `<section>`/background/border of its own and no CTA (the hero's
+ * existing "Bir Nokta Bırak" button already covers that). Reuses the exact
+ * same live approved-count `page.tsx` passes into `HomeHero` as
+ * `activeCount` (`messageRepository.countApproved()`) — no second query,
+ * no client-side counting.
  */
 export function PointsMilestone({ count }: { count: number }) {
   const { locale, dictionary } = useLocale();
@@ -44,37 +40,25 @@ export function PointsMilestone({ count }: { count: number }) {
   const progressLabel = t.progressLabel.replace("{count}", formattedCount).replace("{target}", formattedTarget);
 
   return (
-    <section className="relative border-t border-white/10 bg-navy py-8 sm:py-10">
-      <PageContainer className="flex flex-col items-center gap-3 text-center">
-        <h2 className="font-display text-xl font-medium text-white sm:text-2xl">
-          {t.heading.replace("{target}", formattedTarget)}
-        </h2>
-
-        <div className="flex w-full max-w-md flex-col items-center gap-1.5">
-          <div
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={POINTS_MILESTONE_TARGET}
-            aria-valuenow={clampedCount}
-            aria-label={progressLabel}
-            className="h-2 w-full overflow-hidden rounded-full bg-white/10"
-          >
-            <div
-              className="h-full rounded-full bg-orange transition-[width] duration-500 ease-[var(--ease-standard)]"
-              style={{ width: `${percent}%` }}
-            />
-          </div>
-          <span aria-hidden="true" className="text-xs text-white/60 tabular-nums">
-            {progressLabel}
-          </span>
-        </div>
-
-        <p className="max-w-md text-balance text-sm text-white/70">{t.body}</p>
-
-        <Button href="/write" variant="secondary" size="sm">
-          {dictionary.hero.primaryCta}
-        </Button>
-      </PageContainer>
-    </section>
+    <div className="flex w-full max-w-sm flex-col gap-1.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-xs font-medium text-white/70">{t.heading.replace("{target}", formattedTarget)}</span>
+        <span className="text-xs text-white/50 tabular-nums">{progressLabel}</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={POINTS_MILESTONE_TARGET}
+        aria-valuenow={clampedCount}
+        aria-label={progressLabel}
+        className="h-1.5 w-full overflow-hidden rounded-full bg-white/10"
+      >
+        <div
+          className="h-full rounded-full bg-orange transition-[width] duration-500 ease-[var(--ease-standard)]"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <p className="text-xs leading-snug text-white/55">{t.body}</p>
+    </div>
   );
 }
