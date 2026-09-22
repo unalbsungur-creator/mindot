@@ -702,7 +702,7 @@ export const en: Dictionary = {
     privacySections: [
       {
         title: "Data controller",
-        body: "MINDOT is operated by [OPERATOR_FULL_NAME], acting as a natural person. For questions about your personal data, or for requests under Turkey's Personal Data Protection Law (KVKK), you can contact [PRIVACY_CONTACT_EMAIL]. Any changes to this contact and request information will be updated on this page.",
+        body: "MINDOT is operated by Ünal Büyüksungur, acting as a natural person. For questions about your personal data, or for requests under Turkey's Personal Data Protection Law (KVKK), you can contact contact@mind-ot.com. Any changes to this contact and request information will be updated on this page.",
       },
       {
         title: "What data we process",
@@ -734,7 +734,7 @@ export const en: Dictionary = {
       },
       {
         title: "Your rights",
-        body: "Under Article 11 of KVKK, you have the right to learn whether your personal data is being processed, to request information about it if so, to learn its purpose and whether it is used accordingly, to know the third parties it has been transferred to, to request correction of incomplete or inaccurate data, to request its deletion or destruction within the conditions set out in applicable law, and to exercise the other rights set out in the Law. You can submit your requests to [PRIVACY_CONTACT_EMAIL].",
+        body: "Under Article 11 of KVKK, you have the right to learn whether your personal data is being processed, to request information about it if so, to learn its purpose and whether it is used accordingly, to know the third parties it has been transferred to, to request correction of incomplete or inaccurate data, to request its deletion or destruction within the conditions set out in applicable law, and to exercise the other rights set out in the Law. You can submit your requests to contact@mind-ot.com.",
       },
     ],
     termsTitle: "Terms of Use",

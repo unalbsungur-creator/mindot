@@ -648,7 +648,7 @@ export const fr: Dictionary = {
     privacySections: [
       {
         title: "Responsable du traitement",
-        body: "MINDOT est exploité par [OPERATOR_FULL_NAME], agissant en tant que personne physique. Pour toute question relative à vos données personnelles, ou pour toute demande relevant de la loi turque sur la protection des données personnelles (KVKK), vous pouvez contacter [PRIVACY_CONTACT_EMAIL]. Toute modification de ces coordonnées de contact et de demande sera mise à jour sur cette page.",
+        body: "MINDOT est exploité par Ünal Büyüksungur, agissant en tant que personne physique. Pour toute question relative à vos données personnelles, ou pour toute demande relevant de la loi turque sur la protection des données personnelles (KVKK), vous pouvez contacter contact@mind-ot.com. Toute modification de ces coordonnées de contact et de demande sera mise à jour sur cette page.",
       },
       {
         title: "Quelles données nous traitons",
@@ -680,7 +680,7 @@ export const fr: Dictionary = {
       },
       {
         title: "Vos droits",
-        body: "En vertu de l'article 11 du KVKK, vous avez le droit de savoir si vos données personnelles sont traitées, d'en demander des informations le cas échéant, de connaître leur finalité et si elles sont utilisées en conséquence, de connaître les tiers auxquels elles ont été transférées, de demander la rectification de données incomplètes ou inexactes, d'en demander la suppression ou la destruction dans les conditions prévues par la loi applicable, et d'exercer les autres droits prévus par la loi. Vous pouvez adresser vos demandes à [PRIVACY_CONTACT_EMAIL].",
+        body: "En vertu de l'article 11 du KVKK, vous avez le droit de savoir si vos données personnelles sont traitées, d'en demander des informations le cas échéant, de connaître leur finalité et si elles sont utilisées en conséquence, de connaître les tiers auxquels elles ont été transférées, de demander la rectification de données incomplètes ou inexactes, d'en demander la suppression ou la destruction dans les conditions prévues par la loi applicable, et d'exercer les autres droits prévus par la loi. Vous pouvez adresser vos demandes à contact@mind-ot.com.",
       },
     ],
     termsTitle: "Conditions d'utilisation",

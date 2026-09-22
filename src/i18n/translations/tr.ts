@@ -650,7 +650,7 @@ export const tr: Dictionary = {
     privacySections: [
       {
         title: "Veri sorumlusu",
-        body: "MINDOT, gerçek kişi olarak faaliyet gösteren [İŞLETMECİ_AD_SOYAD] tarafından işletilmektedir. Kişisel verilerinizle ilgili sorularınız ve KVKK kapsamındaki talepleriniz için [KVKK_ILETISIM_EPOSTA] adresinden iletişime geçebilirsiniz. İletişim ve başvuru bilgilerindeki değişiklikler bu sayfada güncellenir.",
+        body: "MINDOT, gerçek kişi olarak faaliyet gösteren Ünal Büyüksungur tarafından işletilmektedir. Kişisel verilerinizle ilgili sorularınız ve KVKK kapsamındaki talepleriniz için contact@mind-ot.com adresinden iletişime geçebilirsiniz. İletişim ve başvuru bilgilerindeki değişiklikler bu sayfada güncellenir.",
       },
       {
         title: "Hangi verileri işleriz?",
@@ -682,7 +682,7 @@ export const tr: Dictionary = {
       },
       {
         title: "Haklarınız",
-        body: "KVKK’nın 11. maddesi kapsamında kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi isteme, amaçlarını ve uygun kullanılıp kullanılmadığını öğrenme, aktarılan üçüncü kişileri bilme, eksik veya yanlış işlenmiş verilerin düzeltilmesini isteme, mevzuattaki şartlar çerçevesinde silinmesini veya yok edilmesini isteme ve Kanun’da belirtilen diğer haklarınızı kullanma hakkına sahipsiniz. Başvurularınızı [KVKK_ILETISIM_EPOSTA] üzerinden iletebilirsiniz.",
+        body: "KVKK’nın 11. maddesi kapsamında kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi isteme, amaçlarını ve uygun kullanılıp kullanılmadığını öğrenme, aktarılan üçüncü kişileri bilme, eksik veya yanlış işlenmiş verilerin düzeltilmesini isteme, mevzuattaki şartlar çerçevesinde silinmesini veya yok edilmesini isteme ve Kanun’da belirtilen diğer haklarınızı kullanma hakkına sahipsiniz. Başvurularınızı contact@mind-ot.com üzerinden iletebilirsiniz.",
       },
     ],
     termsTitle: "Kullanım Koşulları",

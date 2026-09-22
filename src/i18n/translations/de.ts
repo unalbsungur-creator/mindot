@@ -648,7 +648,7 @@ export const de: Dictionary = {
     privacySections: [
       {
         title: "Verantwortlicher",
-        body: "MINDOT wird von [OPERATOR_FULL_NAME] als natürlicher Person betrieben. Für Fragen zu Ihren personenbezogenen Daten und für Anträge nach dem türkischen Datenschutzgesetz (KVKK) können Sie sich an [PRIVACY_CONTACT_EMAIL] wenden. Änderungen dieser Kontakt- und Antragsangaben werden auf dieser Seite aktualisiert.",
+        body: "MINDOT wird von Ünal Büyüksungur als natürlicher Person betrieben. Für Fragen zu Ihren personenbezogenen Daten und für Anträge nach dem türkischen Datenschutzgesetz (KVKK) können Sie sich an contact@mind-ot.com wenden. Änderungen dieser Kontakt- und Antragsangaben werden auf dieser Seite aktualisiert.",
       },
       {
         title: "Welche Daten wir verarbeiten",
@@ -680,7 +680,7 @@ export const de: Dictionary = {
       },
       {
         title: "Ihre Rechte",
-        body: "Nach Artikel 11 des türkischen Datenschutzgesetzes (KVKK) haben Sie das Recht, zu erfahren, ob Ihre personenbezogenen Daten verarbeitet werden, gegebenenfalls Auskunft darüber zu verlangen, den Zweck der Verarbeitung sowie deren zweckgemäße Nutzung zu erfahren, die Dritten zu kennen, an die Daten übermittelt wurden, die Berichtigung unvollständiger oder unrichtiger Daten zu verlangen, im Rahmen der gesetzlichen Voraussetzungen deren Löschung oder Vernichtung zu verlangen sowie die weiteren im Gesetz genannten Rechte auszuüben. Ihre Anträge können Sie an [PRIVACY_CONTACT_EMAIL] richten.",
+        body: "Nach Artikel 11 des türkischen Datenschutzgesetzes (KVKK) haben Sie das Recht, zu erfahren, ob Ihre personenbezogenen Daten verarbeitet werden, gegebenenfalls Auskunft darüber zu verlangen, den Zweck der Verarbeitung sowie deren zweckgemäße Nutzung zu erfahren, die Dritten zu kennen, an die Daten übermittelt wurden, die Berichtigung unvollständiger oder unrichtiger Daten zu verlangen, im Rahmen der gesetzlichen Voraussetzungen deren Löschung oder Vernichtung zu verlangen sowie die weiteren im Gesetz genannten Rechte auszuüben. Ihre Anträge können Sie an contact@mind-ot.com richten.",
       },
     ],
     termsTitle: "Nutzungsbedingungen",
