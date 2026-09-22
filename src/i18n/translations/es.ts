@@ -32,23 +32,23 @@ export const es: Dictionary = {
     badge: "1984 – 1994 · Kayseri",
     heading: "De dónde vino la idea",
     paragraphs: [
-      "Durante diez años, un pequeño mercado en Kayseri mantuvo un gran tablero de cartón fijado a la pared detrás de su puerta de entrada. A quien entraba se le ofrecía un bolígrafo y se le invitaba a escribir lo que le pareciera que merecía escribirse — una cita, una broma, un pensamiento pasajero, algo que necesitaba decir en voz alta.",
-      "Nadie firmaba con su nombre. No hacía falta. Con los años, el tablero se llenó de las palabras de personas que nunca se conocieron entre sí, dejadas allí para el siguiente visitante.",
-      "Cuando el mercado finalmente cerró, el tablero no se tiró. Se descolgó y se guardó.",
-      "MINDOT continúa esa idea en un espacio sin paredes en absoluto. Cualquiera puede dejar un pensamiento, y este pasa a formar parte de algo mucho más grande de lo que un solo tablero podría haber contenido jamás.",
+      "Durante diez años, un pequeño mercado en Kayseri mantuvo un gran tablero de cartón fijado a la pared detrás de su puerta de entrada. A quien entraba se le entregaba un bolígrafo, con la invitación a dejar por escrito lo que le pareciera que merecía la pena — un dicho, una broma, un pensamiento pasajero o una frase que se le había quedado dentro.",
+      "Nadie tenía que firmar con su nombre. No hacía falta. Con los años, el tablero se llenó de palabras de personas que nunca se habían conocido; cada pensamiento quedaba allí como una pequeña huella para el siguiente visitante.",
+      "Cuando el mercado cerró, el tablero no se tiró. Se descolgó de la pared y se guardó.",
+      "MINDOT continúa esa misma idea en un espacio sin paredes. Cualquiera puede dejar un pensamiento, y ese pensamiento puede formar parte de una historia compartida mucho más grande de lo que un solo tablero podría haber contenido jamás.",
     ],
   },
   panoStory: {
     heading: "La historia de MINDOT",
     lead: "Todo empezó con un panel.",
     paragraphs: [
-      "Hace años existía un panel. La gente dejaba en él sus pensamientos, sentimientos, saludos y pequeñas historias. Con el tiempo, ese panel se convirtió en cientos de pequeños recuerdos que la gente se dejaba unos a otros.",
-      "Han pasado entre 33 y 34 años desde aquellos paneles.",
-      "El papel se ha desgastado, los colores se han desvanecido, pero las palabras escritas en él siguen ahí.",
+      "Hace años existía un panel. La gente dejaba en él sus pensamientos, sentimientos, saludos y pequeñas historias. Con el tiempo, ese panel se convirtió en cientos de pequeños momentos que la gente se dejaba unos a otros.",
+      "Desde entonces han pasado décadas.",
+      "El papel se ha desgastado, los colores se han desvanecido; pero las palabras escritas en él siguen ahí.",
     ],
     origin: "La idea de MINDOT nació precisamente de esos paneles.",
     closing:
-      "Hoy llevamos ese mismo sentimiento al mundo digital: dejar un pensamiento, tocar el día de alguien y llevar un pequeño recuerdo hacia el futuro.",
+      "Hoy llevamos ese mismo sentimiento al mundo digital: dejar un pensamiento, tocar el día de alguien y llevar una pequeña huella hacia el futuro.",
     photoAlt: [
       "Una foto del panel PANO original de 1993, cubierto de notas manuscritas y fotos — el papel está desgastado, pero las palabras siguen siendo legibles.",
       "Una segunda página del PANO, fechada el 18.3.1993, llena de recuerdos manuscritos de un grupo de amigos.",
@@ -633,8 +633,123 @@ export const es: Dictionary = {
     physicalNoOrder: "Sin pedido físico",
     viewProjectAction: "Ver proyecto de recuerdo",
   },
-  onboarding: { reopenLabel: "Cómo funciona MINDOT", closeLabel: "Cerrar", skipLabel: "Omitir", backLabel: "Atrás", nextLabel: "Siguiente", finishLabel: "Explorar MINDOT", stepIndicatorLabel: "Paso {current} de {total}", step1Heading: "Un pensamiento empieza en algún lugar.", step1Body: "Un solo punto puede formar parte de una historia mucho más grande.", step2Heading: "Escribe un pensamiento", step2Body: "Pon un pensamiento en palabras, elige un estilo de nota y decide si compartirlo de forma anónima o con tu nombre.", step2StyleLabel: "Elige un estilo", step3Heading: "Primero lo lee una persona", step3Body: "Cada pensamiento es revisado por una persona antes de hacerse público. Una vez aprobado, ocupa su lugar en el muro infinito.", step3SubmittedLabel: "Enviado", step3BoardLabel: "En el muro", step4Heading: "Preserva lo que importa", step4Body: "Un pensamiento que significa algo puede convertirse más tarde en un recuerdo: uno descargable, una edición enmarcada digital o un regalo impreso." },
+  onboarding: { reopenLabel: "Cómo funciona MINDOT", closeLabel: "Cerrar", skipLabel: "Omitir", backLabel: "Atrás", nextLabel: "Siguiente", finishLabel: "Explorar MINDOT", stepIndicatorLabel: "Paso {current} de {total}", step1Heading: "Un pensamiento empieza en algún lugar.", step1Body: "A veces, una sola frase, un solo sentimiento o una pequeña idea puede dejar una huella en el día de alguien a quien nunca has conocido.", step2Heading: "Deja tu pensamiento.", step2Body: "Escribe tu pensamiento, elige un estilo de nota y una tipografía. Déjalo con tu nombre o de forma anónima, como prefieras.", step2StyleLabel: "Elige un estilo", step3Heading: "Primero lo lee una persona.", step3Body: "Cada pensamiento que envías pasa por una moderación humana antes de hacerse público. Una vez aprobado, ocupa su lugar en el muro infinito.", step3SubmittedLabel: "Enviado", step3BoardLabel: "En el muro", step4Heading: "Luego, compártelo.", step4Body: "Una vez aprobado, puedes ver tu pensamiento en el muro de MINDOT y compartirlo con otras personas mediante las funciones de compartir." },
   states: { unexpectedTitle: "Este momento se interrumpió", unexpectedBody: "MINDOT no pudo abrir este espacio ahora. Tus datos privados no se mostraron.", retry: "Intentar de nuevo", home: "Volver al inicio", board: "Explorar el muro", notFoundTitle: "No se encontró este espacio", notFoundBody: "El enlace puede ser antiguo, privado o no estar disponible.", loadingTitle: "Reuniendo las notas…" },
   notifications: { bellLabel: "Notificaciones", panelTitle: "Notificaciones", unreadCountLabel: "sin leer", unreadBadgeLabel: "Sin leer", markAsRead: "Marcar como leído", markAllAsRead: "Marcar todo como leído", markingAllAsRead: "Marcando…", viewAllLink: "Ver todas las notificaciones", emptyTitle: "Aún no tienes notificaciones", emptyBody: "Aquí verás las novedades cuando ocurran.", loading: "Cargando notificaciones…", error: "No se pudieron cargar las notificaciones.", retry: "Reintentar", typeMessageApproved: "Tu nota fue aprobada.", typeMessageRejected: "Tu nota no fue publicada.", typeReportResolved: "Tu reporte fue resuelto.", typeReportDismissed: "Tu reporte fue descartado.", pageTitle: "Notificaciones", pageSubtitle: "Tu historial completo, de más reciente a más antiguo.", signInRequiredBody: "Inicia sesión para ver tus notificaciones.", paginationPrev: "Anterior", paginationNext: "Siguiente", paginationLabel: "{page} / {total}" },
-  legal: { lastReviewed: "Borrador de lanzamiento · septiembre de 2026", reviewNotice: "Este borrador describe el producto, no es asesoramiento legal y requiere revisión profesional antes del lanzamiento.", privacyTitle: "Política de privacidad", privacyIntro: "MINDOT recopila solo lo necesario para autenticación, publicación moderada y preservación.", privacySections: [{ title: "Cuenta", body: "Google proporciona identificador, correo, nombre e imagen. No se solicita acceso a Gmail, Drive, contactos u otros servicios." }, { title: "Pensamientos e identidad", body: "Cada pensamiento se guarda junto a su propietario para que pueda aparecer en su archivo privado. Los pensamientos anónimos nunca se atribuyen públicamente — ni en el muro, ni en ningún muro personal, ni en una imagen compartida. Los pensamientos con nombre y aprobados pueden aparecer en el muro público; que un pensamiento también aparezca en tu propio muro personal es una decisión aparte. Tu muro personal es privado de forma predeterminada, y tú decides tanto si lo haces público como qué pensamientos con nombre aparecen en él." }, { title: "Moderación e invitaciones", body: "Los envíos esperan revisión humana. Los datos de moderación e invitación no son públicos." }, { title: "Recuerdos y compartir", body: "Proyectos, códigos, PDF y referencias de pedido se limitan al propietario. No se guardan direcciones de envío." }, { title: "Cookies y almacenamiento local", body: "MINDOT usa una única cookie esencial para mantener tu sesión iniciada, y el almacenamiento local de tu navegador para tu idioma de interfaz y una introducción única — nada más de lo que el producto necesita para funcionar. No se usan cookies de publicidad ni de análisis." }, { title: "Operación", body: "Proveedores pueden procesar datos para MINDOT. Retención, eliminación y contacto deben definirse antes del lanzamiento." }], termsTitle: "Condiciones de uso", termsIntro: "Este borrador describe el uso responsable y requiere revisión legal.", termsSections: [{ title: "Usar MINDOT", body: "Usa MINDOT para dejar pensamientos genuinos y preservar notas públicas elegibles. Tú eliges compartir un pensamiento de forma anónima o con tu nombre; un pensamiento con nombre y aprobado puede aparecer en el muro público y, si lo activas, en tu propio muro personal — controlas ambos ajustes en cualquier momento. Eres responsable del contenido enviado a través de tu cuenta." }, { title: "Publicación", body: "Enviar no garantiza publicar. Se requiere revisión humana." }, { title: "Contenido y exportaciones", body: "Comparte solo contenido autorizado; los proyectos privados permanecen protegidos." }, { title: "Comercio", body: "Los flujos digitales y físicos son manuales y configurables; no existe automatización con Shoppier o DilekKutum." }], guidelinesTitle: "Normas de la comunidad", guidelinesIntro: "Ayuda a que MINDOT siga siendo tranquilo, seguro y humano.", guidelinesSections: [{ title: "Un pensamiento, no un ataque", body: "No envíes acoso, amenazas, odio o contenido dañino." }, { title: "Protege la privacidad", body: "No publiques datos privados sin permiso." }, { title: "Elige tu identidad", body: "Las notas anónimas no se atribuyen; las notas con nombre pueden ser públicas tras aprobarse." }, { title: "Respeta el muro", body: "Evita el spam, la suplantación de identidad, el contenido ilegal y los intentos de manipular la moderación. Un preanálisis automatizado puede marcar un envío para una atención más detenida, pero nunca publica ni rechaza nada por sí mismo — una persona revisa cada pensamiento y sigue siendo la única autoridad de publicación." }] },
+  legal: {
+    lastReviewed: "Aviso informativo · septiembre de 2026",
+    reviewNotice:
+      "Este aviso explica de forma clara a las personas usuarias cómo funciona MINDOT actualmente y qué datos se tratan en el proceso. No constituye asesoramiento legal.",
+    privacyTitle: "Política de privacidad",
+    privacyIntro:
+      "MINDOT quiere que compartir un pensamiento sea sencillo, seguro y fácil de entender. Esta política explica qué datos personales se tratan al usar MINDOT, con qué finalidad, con quién pueden compartirse y qué derechos le asisten.",
+    privacySections: [
+      {
+        title: "Responsable del tratamiento",
+        body: "MINDOT es operado por [OPERATOR_FULL_NAME], actuando como persona física. Para consultas sobre sus datos personales, o para solicitudes conforme a la ley turca de protección de datos personales (KVKK), puede ponerse en contacto a través de [PRIVACY_CONTACT_EMAIL]. Cualquier cambio en estos datos de contacto y de solicitud se actualizará en esta página.",
+      },
+      {
+        title: "Qué datos tratamos",
+        body: "Cuando inicia sesión con Google, pueden tratarse datos de identidad básicos proporcionados por Google —su identificador de cuenta, dirección de correo electrónico, nombre visible y foto de perfil— para reconocer su cuenta y crear su sesión. MINDOT no solicita acceso a Gmail, Drive, Contactos ni a otros servicios de Google. Según las funciones que utilice, MINDOT también puede tratar el pensamiento que escriba, el formato de publicación elegido, el nombre visible, el idioma, las preferencias del muro personal, los registros de moderación y denuncias, así como la información de recuerdos/proyectos y de acceso.",
+      },
+      {
+        title: "Pensamientos y elección de identidad",
+        body: "Puede elegir compartir un pensamiento de forma anónima o con su nombre. Los pensamientos enviados de forma anónima nunca se vinculan a usted en el contenido público. Los pensamientos enviados con su nombre, una vez aprobados, pueden aparecer en el muro público. Su muro personal se gestiona por separado y es privado de forma predeterminada; usted decide si lo hace público.",
+      },
+      {
+        title: "Por qué tratamos los datos",
+        body: "Los datos se tratan con fines de autenticación y gestión de la cuenta, recepción y moderación de pensamientos, prevención de problemas de seguridad y abusos, aplicación de sus preferencias, funcionamiento del archivo personal y de las funciones del muro, respuesta a solicitudes de los usuarios y cumplimiento de las obligaciones derivadas de la legislación aplicable. La base jurídica de cada tratamiento se apoya en la condición pertinente prevista en el KVKK para ese tipo de dato y operación; cuando es necesario, se recaba además el consentimiento explícito.",
+      },
+      {
+        title: "Con quién podemos compartir los datos",
+        body: "Los datos pueden compartirse, en la medida necesaria para prestar el servicio MINDOT, con proveedores técnicos de autenticación, alojamiento, base de datos, seguridad, comunicación y servicios similares. Los contenidos que se hayan hecho públicos pueden aparecer en las páginas o imágenes utilizadas para compartirlos. Los contenidos privados no se hacen públicos fuera de la autorización del usuario correspondiente. Cuando los datos se transfieren a proveedores situados en el extranjero, dicha transferencia se realiza mediante un mecanismo jurídico conforme con las disposiciones vigentes del KVKK sobre transferencias internacionales de datos.",
+      },
+      {
+        title: "Cookies y almacenamiento local",
+        body: "MINDOT puede utilizar las cookies de autenticación necesarias para mantener su sesión iniciada. El almacenamiento local de su navegador puede conservar su idioma de interfaz, su estado de introducción (onboarding), un borrador de redacción sin terminar durante una redirección de Google, y identificadores técnicos específicos del usuario que necesitan algunas funciones — todo ello en su propio dispositivo. Ninguno de estos mecanismos se utiliza con fines publicitarios, y la configuración actual de MINDOT no incluye cookies de publicidad ni de análisis.",
+      },
+      {
+        title: "Plazo de conservación",
+        body: "Los datos personales se conservan durante el tiempo necesario para la finalidad para la que fueron tratados, teniendo en cuenta las obligaciones previstas en la legislación aplicable. Cuando desaparece la finalidad que justifica su conservación, los datos correspondientes se eliminan, destruyen o anonimizan de conformidad con la legislación y con métodos técnicamente aplicables. Los plazos de conservación concretos dependen de la categoría de datos y de las obligaciones legales aplicables.",
+      },
+      {
+        title: "Seguridad",
+        body: "MINDOT procura aplicar medidas técnicas y organizativas razonables para prevenir el acceso no autorizado, la pérdida, la alteración o el uso indebido de los datos personales. No obstante, ninguna transmisión de datos por Internet puede garantizarse como completamente libre de riesgo.",
+      },
+      {
+        title: "Sus derechos",
+        body: "En virtud del artículo 11 del KVKK, usted tiene derecho a saber si sus datos personales están siendo tratados, a solicitar información al respecto en caso afirmativo, a conocer su finalidad y si se utilizan conforme a ella, a conocer a los terceros a quienes se hayan transferido, a solicitar la rectificación de datos incompletos o inexactos, a solicitar su eliminación o destrucción dentro de los requisitos previstos por la legislación aplicable, y a ejercer los demás derechos previstos en la ley. Puede dirigir sus solicitudes a [PRIVACY_CONTACT_EMAIL].",
+      },
+    ],
+    termsTitle: "Condiciones de uso",
+    termsIntro:
+      "Al utilizar MINDOT, usted acepta las reglas básicas de uso que se indican a continuación. Estas condiciones tienen por objeto describir la estructura actual del servicio MINDOT.",
+    termsSections: [
+      {
+        title: "¿Qué es MINDOT?",
+        body: "MINDOT es un muro digital de pensamientos donde las personas pueden dejar pensamientos breves, frases, sentimientos y recuerdos. El objetivo principal del servicio es permitir que un pensamiento siga existiendo en un lugar visible, respetando a su autor y su preferencia de publicación.",
+      },
+      {
+        title: "Uso de la cuenta",
+        body: "Puede crear una cuenta de MINDOT iniciando sesión con Google. Usted es responsable del contenido enviado a través de su cuenta y del uso que se haga de ella. No debe compartir los datos de su cuenta con terceros ni utilizar la cuenta de otra persona.",
+      },
+      {
+        title: "Envío de un pensamiento",
+        body: "El pensamiento que envíe se trata conforme a los ajustes de identidad y visibilidad que usted elija. El envío no garantiza su publicación. Cada pensamiento pasa por una moderación humana, y MINDOT se reserva el derecho a no publicar contenido que infrinja las Normas de la comunidad o las reglas aplicables.",
+      },
+      {
+        title: "Responsabilidad sobre el contenido",
+        body: "Solo debe enviar a MINDOT contenido sobre el que tenga derecho a compartir, o para el que cuente con el permiso necesario. Evite compartir información privada de otras personas, contenido protegido por derechos de autor que no esté autorizado a usar, o material ilícito.",
+      },
+      {
+        title: "Publicación anónima y con nombre",
+        body: "Cuando elige la publicación anónima, su pensamiento no se vincula a su nombre en el contenido público. Los pensamientos publicados con nombre y aprobados pueden mostrarse en el área pública o en su muro personal, según las funciones elegidas y las reglas de publicación de MINDOT.",
+      },
+      {
+        title: "Modificación o interrupción del servicio",
+        body: "Las funciones, los formatos de contenido, la infraestructura técnica y las condiciones de uso de MINDOT pueden cambiar con el tiempo. Determinadas funciones pueden suspenderse o retirarse temporalmente por motivos de seguridad, mantenimiento, legales o técnicos.",
+      },
+      {
+        title: "Propiedad intelectual",
+        body: "Los elementos de marca, el diseño, el software y los materiales originales propios del servicio MINDOT pueden estar protegidos por la legislación aplicable en materia de propiedad intelectual. Los derechos sobre el contenido generado por el usuario le pertenecen a este; no obstante, al enviar un contenido, el usuario concede la licencia limitada necesaria para que dicho contenido pueda publicarse en MINDOT y para que funcionen las funciones de publicación elegidas.",
+      },
+      {
+        title: "Contacto y modificaciones",
+        body: "Si se realiza un cambio sustancial en estas condiciones, el texto actualizado se publicará en MINDOT. Puede enviar sus preguntas a través del canal de contacto indicado en la versión vigente.",
+      },
+    ],
+    guidelinesTitle: "Normas de la comunidad",
+    guidelinesIntro:
+      "MINDOT existe para que las personas puedan dejar un pensamiento breve en un espacio seguro y respetuoso. Los siguientes principios ayudan a que el muro siga siendo utilizable para todos.",
+    guidelinesSections: [
+      {
+        title: "Deja un pensamiento, no un ataque",
+        body: "No envíe contenido de acoso, amenazas, señalamientos dirigidos, discursos de odio, intimidación o destinado a causar daño a otra persona.",
+      },
+      {
+        title: "Respeta la privacidad",
+        body: "No comparta la dirección, el número de teléfono, los datos de contacto privados, la información de cuentas, los documentos de identidad ni ninguna otra información privada que identifique directamente a una persona, sin su permiso.",
+      },
+      {
+        title: "Respeta los derechos de autor y de uso",
+        body: "No comparta textos, imágenes u otros contenidos que no le pertenezcan sin contar con los derechos de uso necesarios. No presente la obra de otra persona como propia.",
+      },
+      {
+        title: "Elige tu identidad de forma consciente",
+        body: "Las notas anónimas permanecen sin atribuir en el área pública. Las notas que envíe con su nombre pueden hacerse visibles bajo la identidad de MINDOT que haya elegido una vez aprobadas.",
+      },
+      {
+        title: "Nada de spam ni manipulación",
+        body: "Los contenidos repetitivos sin valor, los envíos automatizados, la suplantación de identidad, los intentos de engañar a la moderación o los esfuerzos por influir artificialmente en la plataforma no son aceptables, ya que perjudican la experiencia de la comunidad.",
+      },
+      {
+        title: "Cómo funciona la moderación",
+        body: "Los pensamientos enviados pasan por una revisión humana antes de su publicación. Un preanálisis técnico puede señalar determinados envíos para una revisión más detenida, pero ningún sistema automatizado publica ni rechaza jamás un pensamiento por sí mismo. La decisión final de publicación corresponde a la moderación humana.",
+      },
+      {
+        title: "Denunciar contenido",
+        body: "Si ve un contenido que infringe las Normas de la comunidad, puede usar la opción «Denunciar» en ese pensamiento. Las denuncias se envían al equipo de moderación para su revisión.",
+      },
+    ],
+  },
 };

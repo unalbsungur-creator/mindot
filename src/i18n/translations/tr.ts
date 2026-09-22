@@ -32,23 +32,23 @@ export const tr: Dictionary = {
     badge: "1984 – 1994 · Kayseri",
     heading: "Fikir nereden geldi",
     paragraphs: [
-      "On yıl boyunca Kayseri'de küçük bir markette, girişteki kapının arkasına sabitlenmiş büyük bir mukavva pano vardı. İçeri giren herkese bir kalem uzatılır ve yazmaya değer bulduğu her şeyi yazması için davet edilirdi — bir söz, bir şaka, geçip giden bir düşünce, içinden geçip de söylemek istediği bir şey.",
-      "Kimse adını yazmazdı. Buna gerek yoktu. Yıllar içinde pano, birbirini hiç tanımamış insanların sözleriyle doldu; her biri bir sonraki ziyaretçinin okuması için orada kaldı.",
-      "Market sonunda kapandığında, pano çöpe atılmadı. Duvardan indirilip saklandı.",
-      "MINDOT, bu fikri hiç duvarı olmayan bir alanda sürdürüyor. Herkes bir düşünce bırakabilir ve bu düşünce, tek bir panonun asla sığdıramayacağı kadar büyük bir şeyin parçası olur.",
+      "On yıl boyunca Kayseri'de küçük bir markette, girişteki kapının arkasına sabitlenmiş büyük bir mukavva pano vardı. İçeri giren herkese bir kalem uzatılır ve aklına yazmaya değer ne varsa bırakması için davet edilirdi — bir söz, bir şaka, geçip giden bir düşünce ya da içinde kalmış bir cümle.",
+      "Kimse adını yazmak zorunda değildi. Buna gerek yoktu. Yıllar içinde pano, birbirini hiç tanımayan insanların sözleriyle doldu; her düşünce bir sonraki ziyaretçinin okuyacağı küçük bir iz olarak orada kaldı.",
+      "Market kapandığında pano çöpe atılmadı. Duvardan indirildi ve saklandı.",
+      "MINDOT, bu fikri duvarları olmayan bir alanda sürdürüyor. Herkes bir düşünce bırakabilir; o düşünce de tek bir panonun taşıyamayacağı kadar büyük bir ortak hikâyenin parçası olabilir.",
     ],
   },
   panoStory: {
     heading: "MINDOT'un Hikâyesi",
     lead: "Her şey bir panoyla başladı.",
     paragraphs: [
-      "Yıllar önce bir pano vardı. İnsanlar üzerine düşüncelerini, duygularını, selamlarını ve küçük hikâyelerini bırakıyordu. Zamanla o pano, insanların birbirlerinden geriye bıraktıkları yüzlerce küçük anıya dönüştü.",
-      "Bu panoların üzerinden 33–34 yıl geçti.",
-      "Kâğıtlar yıprandı, renkler soldu ama üzerlerindeki sözler hâlâ duruyor.",
+      "Yıllar önce bir pano vardı. İnsanlar üzerine düşüncelerini, duygularını, selamlarını ve küçük hikâyelerini bırakıyordu. Zamanla bu pano, insanların birbirlerinden geriye bıraktıkları yüzlerce küçük ana dönüştü.",
+      "Aradan onlarca yıl geçti.",
+      "Kâğıtlar yıprandı, renkler soldu; fakat üzerlerindeki sözler hâlâ duruyor.",
     ],
     origin: "MINDOT fikri işte bu panolardan doğdu.",
     closing:
-      "Bugün aynı duyguyu dijital dünyaya taşıyoruz: Bir düşünce bırakmak, birinin gününe dokunmak ve küçük bir anıyı geleceğe taşımak.",
+      "Bugün aynı duyguyu dijital dünyaya taşıyoruz: Bir düşünce bırakmak, birinin gününe dokunmak ve küçük bir izi geleceğe taşımak.",
     photoAlt: [
       "1993 tarihli, el yazısı notlar ve fotoğraflarla kaplı orijinal PANO'nun fotoğrafı — kâğıt yıpranmış, yazılar hâlâ okunaklı.",
       "İkinci PANO sayfası, 18.3.1993 tarihi ve bir arkadaş grubunun el yazısıyla yazılmış anılarıyla.",
@@ -635,16 +635,123 @@ export const tr: Dictionary = {
     physicalNoOrder: "Fiziksel sipariş yok",
     viewProjectAction: "Anı projesini gör",
   },
-  onboarding: { reopenLabel: "MINDOT nasıl çalışır", closeLabel: "Kapat", skipLabel: "Atla", backLabel: "Geri", nextLabel: "İleri", finishLabel: "MINDOT'u keşfet", stepIndicatorLabel: "Adım {current} / {total}", step1Heading: "Bir düşünce bir yerden başlar.", step1Body: "Tek bir nokta çok daha büyük bir hikayenin parçası olabilir.", step2Heading: "Bir düşünce yaz", step2Body: "Düşünceni kelimelere dök, bir not stili seç ve anonim mi yoksa adınla mı paylaşacağını belirle.", step2StyleLabel: "Bir stil seç", step3Heading: "Önce bir kişi okur", step3Body: "Her düşünce kamuya açılmadan önce bir kişi tarafından incelenir. Onaylandığında sonsuz duvardaki yerini alır.", step3SubmittedLabel: "Gönderildi", step3BoardLabel: "Duvarda", step4Heading: "Değerli olanı koru", step4Body: "Anlam taşıyan bir düşünce daha sonra bir anıya dönüşebilir — indirilebilir bir anı, dijital çerçeveli bir sürüm ya da basılı bir hediye." },
+  onboarding: { reopenLabel: "MINDOT nasıl çalışır", closeLabel: "Kapat", skipLabel: "Atla", backLabel: "Geri", nextLabel: "İleri", finishLabel: "MINDOT'u keşfet", stepIndicatorLabel: "Adım {current} / {total}", step1Heading: "Bir düşünce bir yerden başlar.", step1Body: "Bazen tek bir cümle, tek bir duygu ya da küçük bir fikir, hiç tanımadığın birinin gününde bir iz bırakabilir.", step2Heading: "Düşünceni bırak.", step2Body: "Düşünceni yaz, bir not biçimi ve yazı tipi seç. İstersen adınla, istersen anonim olarak bırak.", step2StyleLabel: "Bir stil seç", step3Heading: "Önce bir kişi okur.", step3Body: "Gönderdiğin her düşünce kamuya açılmadan önce insan moderasyonundan geçer. Uygun bulunan düşünceler sonsuz duvardaki yerini alır.", step3SubmittedLabel: "Gönderildi", step3BoardLabel: "Duvarda", step4Heading: "Sonra paylaş.", step4Body: "Onaylanan düşünceni MINDOT duvarında görebilir ve paylaşım özellikleriyle başkalarına ulaştırabilirsin." },
   states: { unexpectedTitle: "Bu an kesintiye uğradı", unexpectedBody: "MINDOT şu anda bu alanı açamadı. Özel bilgileriniz gösterilmedi.", retry: "Tekrar dene", home: "Ana sayfaya dön", board: "Duvarı keşfet", notFoundTitle: "Bu alan bulunamadı", notFoundBody: "Bağlantı eski, özel veya artık kullanılamıyor olabilir.", loadingTitle: "Notlar bir araya getiriliyor…" },
   notifications: { bellLabel: "Bildirimler", panelTitle: "Bildirimler", unreadCountLabel: "okunmamış", unreadBadgeLabel: "Okunmadı", markAsRead: "Okundu işaretle", markAllAsRead: "Tümünü okundu işaretle", markingAllAsRead: "İşaretleniyor…", viewAllLink: "Tüm bildirimler", emptyTitle: "Henüz bildirimin yok", emptyBody: "Bir gelişme olduğunda burada göreceksin.", loading: "Bildirimler yükleniyor…", error: "Bildirimler yüklenemedi.", retry: "Tekrar dene", typeMessageApproved: "Notun onaylandı.", typeMessageRejected: "Notun yayınlanmadı.", typeReportResolved: "Bildirimin çözüldü.", typeReportDismissed: "Bildirimin reddedildi.", pageTitle: "Bildirimler", pageSubtitle: "Tüm bildirim geçmişin, en yeniden en eskiye.", signInRequiredBody: "Bildirimlerini görmek için giriş yapmalısın.", paginationPrev: "Önceki", paginationNext: "Sonraki", paginationLabel: "{page} / {total}" },
   legal: {
-    lastReviewed: "Lansman taslağı · Eylül 2026", reviewNotice: "Bu taslak ürün açıklamasıdır, hukuki danışmanlık değildir. Yayından önce profesyonel hukuk incelemesi gerekir.",
-    privacyTitle: "Gizlilik Politikası", privacyIntro: "MINDOT yalnızca kimlik doğrulama, denetlenen yayın ve koruma özellikleri için gereken verileri toplar.",
-    privacySections: [{ title: "Hesap bilgileri", body: "Google ile giriş hesap kimliği, e-posta, görünen ad ve profil görselini sağlar; diğer Google hizmetlerine erişim istenmez." }, { title: "Düşünceler ve kimlik", body: "Her düşünce, özel arşivinde görünebilmesi için sahibiyle birlikte saklanır. Anonim düşünceler hiçbir zaman herkese açık olarak sahibine bağlanmaz — ne duvarda, ne herhangi bir kişisel duvarda, ne de paylaşılan bir görselde. İsimli, onaylanmış düşünceler herkese açık duvarda görünebilir; bir düşüncenin kendi kişisel duvarınızda da görünüp görünmeyeceği ayrı bir tercihtir. Kişisel duvarınız varsayılan olarak gizlidir; onu herkese açık hale getirip getirmeyeceğinize ve hangi isimli düşüncelerin orada görüneceğine siz karar verirsiniz." }, { title: "Moderasyon ve davetler", body: "Gönderiler insan incelemesine kadar bekler. Moderasyon ve davet kayıtları kamusal verilere dahil edilmez." }, { title: "Anılar ve paylaşım", body: "Projeler, kodlar, PDF'ler ve sipariş referansları sahip kapsamındadır. Kamusal görseller yalnızca kamusal içerik kullanır. Kargo adresi tutulmaz." }, { title: "Çerezler ve yerel depolama", body: "MINDOT, oturumunuzu açık tutmak için tek bir temel çerez ve arayüz dilinizle tek seferlik bir tanıtım için tarayıcınızın yerel depolamasını kullanır — ürünün çalışması için gerekenden fazlası değil. Reklam veya analiz çerezi kullanılmaz." }, { title: "Operasyon", body: "Hizmet sağlayıcılar MINDOT adına veri işleyebilir. Saklama, silme talepleri ve iletişim kanalı lansmandan önce kesinleştirilmelidir." }],
-    termsTitle: "Kullanım Koşulları", termsIntro: "Bu taslak sorumlu kullanımı açıklar ve lansmandan önce incelenmelidir.",
-    termsSections: [{ title: "MINDOT'u kullanmak", body: "MINDOT'u gerçek düşünceler bırakmak ve uygun herkese açık notları saklamak için kullanın. Bir düşünceyi anonim mi yoksa adınızla mı paylaşacağınızı siz seçersiniz; isimli, onaylanmış bir düşünce herkese açık duvarda ve, açarsanız, kendi kişisel duvarınızda görünebilir — her iki ayarı da istediğiniz zaman kontrol edersiniz. Hesabınızdan gönderilen içerikten siz sorumlusunuz." }, { title: "Yayınlama", body: "Gönderim yayın garantisi vermez. İnsan incelemesi gerekir; moderasyon veya yetkilendirmeyi aşmayın." }, { title: "İçerik ve çıktılar", body: "Yalnızca paylaşma hakkınız olan içeriği gönderin. Özel projeler korumalı kalır." }, { title: "Ticaret durumu", body: "Dijital ve fiziksel akışlar şu anda manuel ve yapılandırılabilirdir; otomatik Shoppier veya DilekKutum entegrasyonu yoktur." }],
-    guidelinesTitle: "Topluluk İlkeleri", guidelinesIntro: "MINDOT sakin bir kamusal duvardır. Düşünceli, güvenli ve insani kalmasına yardım edin.",
-    guidelinesSections: [{ title: "Saldırı değil düşünce", body: "Taciz, tehdit, nefret veya zarar vermeyi amaçlayan içerik göndermeyin." }, { title: "Gizliliği koru", body: "İzin olmadan özel iletişim, kimlik, adres veya tanımlayıcı bilgi yayınlamayın." }, { title: "Kimliği bilinçli seç", body: "Anonim notlar kimliksiz kalır; isimli notlar onaydan sonra MINDOT kimliğinizle görünebilir." }, { title: "Duvara saygı göster", body: "Spam, kimlik taklidi, hukuka aykırı içerik ve moderasyonu manipüle etme girişimlerinden kaçının. Otomatik bir ön tarama, bir gönderiyi daha yakından incelenmesi için işaretleyebilir, ancak hiçbir şeyi kendi başına yayınlamaz veya reddetmez — her düşünceyi bir kişi inceler ve yayın yetkisi yalnızca ona aittir." }],
+    lastReviewed: "Bilgilendirme metni · Eylül 2026",
+    reviewNotice:
+      "Bu metin, MINDOT’un mevcut hizmet ve veri işleme süreçlerini kullanıcıya açık biçimde anlatmak amacıyla hazırlanmıştır. Hukuki danışmanlık niteliğinde değildir.",
+    privacyTitle: "Gizlilik Politikası",
+    privacyIntro:
+      "MINDOT, bir düşünceyi paylaşmayı sade, güvenli ve anlaşılır tutmayı amaçlar. Bu politika, MINDOT’u kullanırken hangi kişisel verilerin neden işlendiğini, kimlerle paylaşılabileceğini ve haklarınızı açıklar.",
+    privacySections: [
+      {
+        title: "Veri sorumlusu",
+        body: "MINDOT, gerçek kişi olarak faaliyet gösteren [İŞLETMECİ_AD_SOYAD] tarafından işletilmektedir. Kişisel verilerinizle ilgili sorularınız ve KVKK kapsamındaki talepleriniz için [KVKK_ILETISIM_EPOSTA] adresinden iletişime geçebilirsiniz. İletişim ve başvuru bilgilerindeki değişiklikler bu sayfada güncellenir.",
+      },
+      {
+        title: "Hangi verileri işleriz?",
+        body: "Google ile giriş yaptığınızda hesabınızı tanımak ve oturumunuzu oluşturmak için Google tarafından sağlanan hesap kimliği, e-posta adresi, görünen ad ve profil görseli gibi temel kimlik bilgileri işlenebilir. MINDOT, Gmail, Drive, Kişiler veya başka Google hizmetlerine erişim istemez. Ayrıca yazdığınız düşünce, seçtiğiniz paylaşım biçimi, görünen isim, dil, kişisel duvar tercihleri, moderasyon ve bildirim kayıtları ile kullandığınız özelliklere bağlı olarak anı/proje ve erişim bilgileri işlenebilir.",
+      },
+      {
+        title: "Düşünceler ve kimlik seçimi",
+        body: "Bir düşünceyi anonim veya adınızla paylaşmayı seçebilirsiniz. Anonim olarak gönderilen düşünceler kamuya açık içerikte sizinle ilişkilendirilmez. Adınızla gönderilen ve onaylanan düşünceler kamuya açık duvarda görünebilir. Kişisel duvarınız ayrıca yönetilir ve varsayılan olarak gizlidir; onu herkese açık hale getirip getirmeyeceğinize siz karar verirsiniz.",
+      },
+      {
+        title: "Verileri neden işleriz?",
+        body: "Veriler; kimlik doğrulama ve hesap yönetimi, düşüncelerin alınması ve moderasyonu, güvenliğin ve kötüye kullanımın önlenmesi, kullanıcı tercihlerinin uygulanması, kişisel arşiv ve duvar özelliklerinin çalıştırılması, kullanıcı taleplerinin yanıtlanması ve mevzuattan doğan yükümlülüklerin yerine getirilmesi amaçlarıyla işlenir. İşlemenin hukuki sebebi, veri ve işlem türüne göre KVKK’da öngörülen şartlardan ilgili olanına dayanır; gerekli olduğu durumlarda açık rıza ayrıca alınır.",
+      },
+      {
+        title: "Kimlerle paylaşılabilir?",
+        body: "Veriler, MINDOT hizmetinin sunulması için gerekli olduğu ölçüde kimlik doğrulama, barındırma, veritabanı, güvenlik, iletişim ve benzeri teknik hizmet sağlayıcılarla paylaşılabilir. Kamuya açık hale getirilen içerikler, bu içeriklerin paylaşılması için kullanılan sayfalarda veya görsellerde gösterilebilir. Özel içerikler, ilgili kullanıcı yetkisi dışında kamuya açılmaz. Yurt dışındaki hizmet sağlayıcılara veri aktarımı söz konusu olduğunda aktarım, KVKK’nın yurt dışına veri aktarımına ilişkin güncel hükümlerine uygun bir hukuki mekanizma üzerinden gerçekleştirilir.",
+      },
+      {
+        title: "Çerezler ve yerel depolama",
+        body: "MINDOT, oturumunuzu sürdürmek için gerekli kimlik doğrulama çerezlerini kullanabilir. Tarayıcınızın yerel depolaması; arayüz dilinizi, tanıtım/onboarding durumunu, Google yönlendirmesi sırasında tamamlanmamış yazı taslağınızı ve bazı özelliklerin çalışması için gereken kullanıcıya özel teknik kimlikleri cihazınızda tutabilir. Bu mekanizmalar reklam amacıyla kullanılmaz ve MINDOT’un mevcut yapısında reklam veya analitik çerezi bulunmaz.",
+      },
+      {
+        title: "Saklama süresi",
+        body: "Kişisel veriler, işlenme amacı için gerekli olduğu süre boyunca ve ilgili mevzuatın öngördüğü yükümlülükler dikkate alınarak saklanır. Bir verinin saklanmasını gerektiren amaç ortadan kalktığında, ilgili veri mevzuata ve teknik olarak uygulanabilir yöntemlere uygun şekilde silinir, yok edilir veya anonim hale getirilir. Kesin saklama süreleri veri kategorisi ve hukuki yükümlülüklere göre belirlenir.",
+      },
+      {
+        title: "Güvenlik",
+        body: "MINDOT, kişisel verilere yetkisiz erişimi, kaybı, değiştirilmesi veya uygunsuz kullanımını önlemek için makul teknik ve idari tedbirler uygulamayı amaçlar. Bununla birlikte internet üzerinden gerçekleştirilen hiçbir veri aktarımının mutlak olarak risksiz olduğu garanti edilemez.",
+      },
+      {
+        title: "Haklarınız",
+        body: "KVKK’nın 11. maddesi kapsamında kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi isteme, amaçlarını ve uygun kullanılıp kullanılmadığını öğrenme, aktarılan üçüncü kişileri bilme, eksik veya yanlış işlenmiş verilerin düzeltilmesini isteme, mevzuattaki şartlar çerçevesinde silinmesini veya yok edilmesini isteme ve Kanun’da belirtilen diğer haklarınızı kullanma hakkına sahipsiniz. Başvurularınızı [KVKK_ILETISIM_EPOSTA] üzerinden iletebilirsiniz.",
+      },
+    ],
+    termsTitle: "Kullanım Koşulları",
+    termsIntro:
+      "MINDOT’u kullanarak aşağıdaki temel kullanım kurallarını kabul etmiş olursunuz. Bu koşullar, MINDOT’un mevcut hizmet yapısını açıklamak amacıyla hazırlanmıştır.",
+    termsSections: [
+      {
+        title: "MINDOT nedir?",
+        body: "MINDOT, insanların kısa düşünceler, sözler, duygular ve anılar bırakabildiği dijital bir düşünce duvarıdır. Hizmetin temel amacı, bir düşüncenin sahibine ve paylaşım tercihine saygı göstererek görünür bir yerde yaşamaya devam etmesini sağlamaktır.",
+      },
+      {
+        title: "Hesap kullanımı",
+        body: "Google ile giriş yaparak bir MINDOT hesabı oluşturabilirsiniz. Hesabınız üzerinden gönderilen içeriklerin ve hesap kullanımının sorumluluğu size aittir. Hesap bilgilerinizi başkalarıyla paylaşmamalı ve başkasının hesabını kullanmamalısınız.",
+      },
+      {
+        title: "Düşünce gönderme",
+        body: "Gönderdiğiniz düşünce, seçtiğiniz kimlik ve görünürlük ayarlarına göre işlenir. Gönderim yapılması, içeriğin mutlaka yayımlanacağı anlamına gelmez. Her düşünce insan moderasyonundan geçer ve MINDOT, Topluluk İlkeleri’ne veya yürürlükteki kurallara aykırı içerikleri yayımlamama hakkını saklı tutar.",
+      },
+      {
+        title: "İçerikten sorumluluk",
+        body: "MINDOT’a yalnızca paylaşma hakkınız bulunan veya paylaşmanız için gerekli izne sahip olduğunuz içerikleri göndermelisiniz. Başka kişilerin özel bilgilerini, telif hakkıyla korunan ve kullanım hakkınız bulunmayan içerikleri veya hukuka aykırı materyalleri paylaşmaktan kaçının.",
+      },
+      {
+        title: "Anonimlik ve isimli paylaşım",
+        body: "Anonim paylaşım seçtiğinizde düşünceniz kamuya açık içerikte adınızla ilişkilendirilmez. İsimli ve onaylanmış düşünceler, seçtiğiniz özelliklere ve MINDOT’un yayınlama kurallarına bağlı olarak kamuya açık alanda veya kişisel duvarınızda gösterilebilir.",
+      },
+      {
+        title: "Hizmetin değişmesi veya durdurulması",
+        body: "MINDOT’un özellikleri, içerik biçimleri, teknik altyapısı ve kullanım koşulları zaman içinde değişebilir. Güvenlik, bakım, hukuki gereklilik veya teknik nedenlerle belirli özellikler geçici olarak durdurulabilir veya kaldırılabilir.",
+      },
+      {
+        title: "Fikri mülkiyet",
+        body: "MINDOT’un marka unsurları, tasarımı, yazılımı ve hizmete ait özgün materyalleri, yürürlükteki fikri mülkiyet mevzuatı kapsamında korunabilir. Kullanıcı tarafından oluşturulan içerik üzerindeki haklar kullanıcıya aittir; ancak içeriğin MINDOT üzerinde yayımlanabilmesi ve seçilen paylaşım özelliklerinin çalışabilmesi için gerekli sınırlı kullanım izni kullanıcı tarafından sağlanmış olur.",
+      },
+      {
+        title: "İletişim ve değişiklikler",
+        body: "Bu koşullarda önemli bir değişiklik yapılması halinde güncel metin MINDOT üzerinde yayımlanır. Güncel sürümde belirtilen iletişim kanalı üzerinden sorularınızı iletebilirsiniz.",
+      },
+    ],
+    guidelinesTitle: "Topluluk İlkeleri",
+    guidelinesIntro:
+      "MINDOT, insanların kısa bir düşünceyi güvenli ve saygılı bir ortamda bırakabilmesi için vardır. Aşağıdaki ilkeler, duvarın herkes için kullanılabilir kalmasına yardımcı olur.",
+    guidelinesSections: [
+      {
+        title: "Düşünce bırak, saldırı değil",
+        body: "Taciz, tehdit, hedef gösterme, nefret söylemi, zorbalık veya başka bir kişiye zarar vermeyi amaçlayan içerikler göndermeyin.",
+      },
+      {
+        title: "Gizliliğe saygı göster",
+        body: "Başka bir kişinin izni olmadan adres, telefon, özel iletişim bilgileri, hesap bilgileri, kimlik belgeleri veya kişiyi doğrudan tanımlayan özel bilgileri paylaşmayın.",
+      },
+      {
+        title: "Telif ve kullanım hakkına dikkat et",
+        body: "Size ait olmayan metinleri, görselleri veya diğer içerikleri gerekli kullanım hakkınız olmadan paylaşmayın. Başkasına ait bir eseri kendi üretiminiz gibi göstermeyin.",
+      },
+      {
+        title: "Kimliğinizi bilinçli seçin",
+        body: "Anonim notlar kamuya açık alanda isimsiz kalır. İsminizle gönderdiğiniz notlar, onaylandığında seçtiğiniz MINDOT kimliğiyle görünür hale gelebilir.",
+      },
+      {
+        title: "Spam ve manipülasyon yok",
+        body: "Tekrarlayan gereksiz içerik, otomatik gönderiler, kimlik taklidi, moderasyonu yanıltma veya platformu yapay biçimde etkilemeye yönelik girişimler topluluk deneyimini bozduğu için uygun değildir.",
+      },
+      {
+        title: "Moderasyon nasıl çalışır?",
+        body: "Gönderilen düşünceler yayımlanmadan önce insan incelemesinden geçer. Teknik bir ön tarama bazı gönderileri daha yakından incelenmek üzere işaretleyebilir; ancak otomatik sistem tek başına bir düşünceyi yayımlamaz veya reddetmez. Nihai yayın kararı insan moderasyonu tarafından verilir.",
+      },
+      {
+        title: "Bildirim yap",
+        body: "Topluluk İlkeleri’ne aykırı bir içerik gördüğünüzde düşünce üzerindeki 'Bildir' seçeneğini kullanabilirsiniz. Bildirimler inceleme için moderasyon ekibine iletilir.",
+      },
+    ],
   },
 };

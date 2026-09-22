@@ -32,23 +32,23 @@ export const en: Dictionary = {
     badge: "1984 – 1994 · Kayseri",
     heading: "Where the idea came from",
     paragraphs: [
-      "For ten years, a small market in Kayseri kept a large cardboard board fixed to the wall behind its entrance door. Anyone who walked in was offered a pen and invited to write whatever felt worth writing — a quote, a joke, a passing thought, something they needed to say out loud.",
-      "Nobody signed their name. Nobody needed to. Over the years the board filled with the words of people who never met each other, left behind for the next visitor to read.",
-      "When the market eventually closed, the board wasn't thrown away. It was taken down and kept.",
-      "MINDOT continues that idea in a space with no walls at all. Anyone can leave a thought, and it becomes part of something far bigger than any single board could ever hold.",
+      "For ten years, a small market in Kayseri kept a large cardboard board fixed to the wall behind its entrance door. Everyone who walked in was handed a pen and invited to leave whatever felt worth writing — a saying, a joke, a passing thought, or a sentence that had stayed with them.",
+      "No one had to sign their name. There was no need to. Over the years the board filled with words from people who had never met, each thought left behind as a small trace for the next visitor to read.",
+      "When the market closed, the board wasn't thrown away. It was taken down from the wall and kept.",
+      "MINDOT carries that same idea into a space with no walls. Anyone can leave a thought, and that thought can become part of a shared story far bigger than any single board could ever hold.",
     ],
   },
   panoStory: {
     heading: "The Story of MINDOT",
     lead: "It all started with a board.",
     paragraphs: [
-      "Years ago, there was a board. People left their thoughts, feelings, greetings, and small stories on it. Over time, that board became hundreds of small memories people left behind for one another.",
-      "33 to 34 years have passed since those boards.",
+      "Years ago, there was a board. People left their thoughts, feelings, greetings, and small stories on it. Over time, that board became hundreds of small moments people left behind for one another.",
+      "Decades have passed since then.",
       "The paper has worn thin and the colors have faded, but the words on it are still there.",
     ],
     origin: "The idea for MINDOT was born from these very boards.",
     closing:
-      "Today we carry that same feeling into the digital world: leaving a thought, touching someone's day, and carrying a small memory into the future.",
+      "Today we carry that same feeling into the digital world: leaving a thought, touching someone's day, and carrying a small trace into the future.",
     photoAlt: [
       "A photo of the original 1993 PANO board, covered in handwritten notes and photos — the paper is worn, but the words are still legible.",
       "A second PANO page, dated 18.3.1993, covered in handwritten memories from a group of friends.",
@@ -644,16 +644,16 @@ export const en: Dictionary = {
     finishLabel: "Explore MINDOT",
     stepIndicatorLabel: "Step {current} of {total}",
     step1Heading: "A thought begins somewhere.",
-    step1Body: "A single point can become part of a much larger story.",
-    step2Heading: "Write a thought",
-    step2Body: "Put a thought into words, pick a note style, and choose whether to share it anonymously or under your name.",
+    step1Body: "Sometimes a single sentence, a single feeling, or a small idea can leave a trace on the day of someone you've never met.",
+    step2Heading: "Leave your thought.",
+    step2Body: "Write your thought, then choose a note style and a font. Leave it under your name, or anonymously — it's up to you.",
     step2StyleLabel: "Choose a style",
-    step3Heading: "A person reads it first",
-    step3Body: "Every thought is reviewed by a person before it becomes public. Once approved, it takes its place on the infinite board.",
+    step3Heading: "A person reads it first.",
+    step3Body: "Every thought you submit goes through human moderation before it becomes public. Once approved, it takes its place on the infinite board.",
     step3SubmittedLabel: "Submitted",
     step3BoardLabel: "On the board",
-    step4Heading: "Preserve what matters",
-    step4Body: "A thought that means something can later become a keepsake — a downloadable memory, a digital framed edition, or a printed gift.",
+    step4Heading: "Then share it.",
+    step4Body: "Once approved, you can see your thought on the MINDOT wall and share it with others using the sharing features.",
   },
   states: {
     unexpectedTitle: "Something interrupted this moment",
@@ -691,33 +691,119 @@ export const en: Dictionary = {
     paginationLabel: "{page} / {total}",
   },
   legal: {
-    lastReviewed: "Launch draft · September 2026",
-    reviewNotice: "This launch draft is a product description, not legal advice. It requires professional legal review before public launch.",
+    lastReviewed: "Informational notice · September 2026",
+    reviewNotice:
+      "This notice is written to explain MINDOT's current service and data-processing practices to users in plain terms. It does not constitute legal advice.",
     privacyTitle: "Privacy Policy",
-    privacyIntro: "MINDOT collects only what is needed to authenticate people, publish moderated thoughts, and provide preservation features.",
+    privacyIntro:
+      "MINDOT aims to keep sharing a thought simple, safe, and easy to understand. This policy explains which personal data is processed when you use MINDOT, why, who it may be shared with, and what rights you have.",
     privacySections: [
-      { title: "Account information", body: "Google sign-in provides your stable account identifier, email, display name, and profile image. MINDOT does not request access to Gmail, Drive, contacts, or other Google services." },
-      { title: "Thoughts and identity", body: "Every thought is stored with its owner so it can appear in their private archive. Anonymous thoughts are never publicly attributed — not on the board, not on any personal wall, not in a shared image. Named, approved thoughts may appear on the public board; whether a thought also appears on your own personal wall is a separate choice. Your personal wall is private by default, and you decide both whether to make it public and which named thoughts appear on it." },
-      { title: "Moderation and invitations", body: "Submitted thoughts remain pending until human review. Moderation records and invitation relationships are internal and are not included in public note or profile data." },
-      { title: "Memories and sharing", body: "Memory Projects, access codes, PDFs, and physical-order references are owner-scoped. Public share images use only already-public content. MINDOT does not store shipping addresses." },
-      { title: "Cookies and local storage", body: "MINDOT uses one essential cookie to keep you signed in, and your browser's local storage for your interface language and a one-time introduction — nothing beyond what the product itself needs to function. No advertising or analytics cookies are set." },
-      { title: "Operations", body: "Service providers may process hosting, database, and authentication data on MINDOT's behalf. Retention, deletion requests, and a launch contact channel must be finalized before production launch." },
+      {
+        title: "Data controller",
+        body: "MINDOT is operated by [OPERATOR_FULL_NAME], acting as a natural person. For questions about your personal data, or for requests under Turkey's Personal Data Protection Law (KVKK), you can contact [PRIVACY_CONTACT_EMAIL]. Any changes to this contact and request information will be updated on this page.",
+      },
+      {
+        title: "What data we process",
+        body: "When you sign in with Google, basic identity information provided by Google — your account identifier, email address, display name, and profile image — may be processed to recognize your account and create your session. MINDOT does not request access to Gmail, Drive, Contacts, or other Google services. Depending on the features you use, MINDOT may also process the thought you write, your chosen sharing format, display name, language, personal-wall preferences, moderation and report records, and memory/project and access information.",
+      },
+      {
+        title: "Thoughts and identity choices",
+        body: "You can choose to share a thought anonymously or under your name. Thoughts submitted anonymously are never linked to you in public content. Thoughts submitted under your name, once approved, may appear on the public board. Your personal wall is managed separately and is private by default; you decide whether to make it public.",
+      },
+      {
+        title: "Why we process data",
+        body: "Data is processed for authentication and account management, receiving and moderating thoughts, preventing security issues and abuse, applying your preferences, operating the personal archive and wall features, responding to user requests, and meeting obligations arising from applicable law. The legal basis for each processing activity relies on the relevant condition set out in KVKK for that type of data and operation; explicit consent is obtained separately where required.",
+      },
+      {
+        title: "Who we may share data with",
+        body: "Data may be shared with authentication, hosting, database, security, communication, and similar technical service providers to the extent necessary to provide the MINDOT service. Content that has been made public may appear on the pages or images used to share that content. Private content is not made public outside the relevant user's own authorization. Where data is transferred to service providers located abroad, that transfer is carried out through a legal mechanism compliant with KVKK's current provisions on cross-border data transfers.",
+      },
+      {
+        title: "Cookies and local storage",
+        body: "MINDOT may use the authentication cookies needed to keep you signed in. Your browser's local storage may keep your interface language, your onboarding status, an unfinished write-form draft during a Google redirect, and technical, user-specific identifiers some features need to work — all on your own device. None of these mechanisms are used for advertising, and MINDOT's current setup does not include any advertising or analytics cookies.",
+      },
+      {
+        title: "Retention period",
+        body: "Personal data is retained for as long as necessary for the purpose it was processed for, taking into account obligations under applicable law. Once the purpose requiring retention no longer applies, the relevant data is deleted, destroyed, or anonymized in a manner compliant with applicable law and technically feasible methods. Exact retention periods depend on the category of data and the applicable legal obligations.",
+      },
+      {
+        title: "Security",
+        body: "MINDOT aims to apply reasonable technical and administrative measures to prevent unauthorized access to, loss of, alteration of, or improper use of personal data. That said, no transmission of data over the internet can be guaranteed to be completely free of risk.",
+      },
+      {
+        title: "Your rights",
+        body: "Under Article 11 of KVKK, you have the right to learn whether your personal data is being processed, to request information about it if so, to learn its purpose and whether it is used accordingly, to know the third parties it has been transferred to, to request correction of incomplete or inaccurate data, to request its deletion or destruction within the conditions set out in applicable law, and to exercise the other rights set out in the Law. You can submit your requests to [PRIVACY_CONTACT_EMAIL].",
+      },
     ],
     termsTitle: "Terms of Use",
-    termsIntro: "These draft terms describe responsible use of MINDOT and must be reviewed before launch.",
+    termsIntro:
+      "By using MINDOT, you accept the basic usage rules set out below. These terms are written to explain MINDOT's current service structure.",
     termsSections: [
-      { title: "Using MINDOT", body: "Use MINDOT to leave genuine thoughts and preserve eligible public notes. You choose whether to share a thought anonymously or under your name; a named, approved thought may appear on the public board and, if you enable it, on your own personal wall — you control both settings at any time. You are responsible for content submitted through your account." },
-      { title: "Publication", body: "Submission does not guarantee publication. Thoughts require human review and may remain unpublished. Do not attempt to bypass moderation or authorization controls." },
-      { title: "Content and exports", body: "Only submit content you are entitled to share. PDFs and share cards reproduce source content and MINDOT branding; private Memory Projects remain restricted." },
-      { title: "Commerce status", body: "Digital purchase and physical fulfillment currently use manual, configurable workflows. No automated Shoppier or DilekKutum integration should be assumed." },
+      {
+        title: "What is MINDOT?",
+        body: "MINDOT is a digital wall of thought where people can leave short thoughts, quotes, feelings, and memories. The service's core purpose is to let a thought go on living somewhere visible, while respecting its owner and their sharing preference.",
+      },
+      {
+        title: "Account use",
+        body: "You can create a MINDOT account by signing in with Google. You are responsible for any content submitted through your account and for how your account is used. You should not share your account details with anyone else, and you should not use someone else's account.",
+      },
+      {
+        title: "Submitting a thought",
+        body: "A thought you submit is processed according to the identity and visibility settings you choose. Submitting a thought does not guarantee it will be published. Every thought goes through human moderation, and MINDOT reserves the right not to publish content that violates the Community Guidelines or applicable rules.",
+      },
+      {
+        title: "Responsibility for content",
+        body: "You should only submit content to MINDOT that you have the right to share, or that you have the necessary permission to share. Avoid sharing other people's private information, copyrighted material you don't have the rights to use, or unlawful content.",
+      },
+      {
+        title: "Anonymous and named sharing",
+        body: "When you choose anonymous sharing, your thought is not linked to your name in public content. Named, approved thoughts may be shown in the public area or on your personal wall, depending on the features you choose and MINDOT's publication rules.",
+      },
+      {
+        title: "Changes to or discontinuation of the service",
+        body: "MINDOT's features, content formats, technical infrastructure, and terms of use may change over time. Specific features may be temporarily suspended or removed for security, maintenance, legal, or technical reasons.",
+      },
+      {
+        title: "Intellectual property",
+        body: "MINDOT's brand elements, design, software, and original service materials may be protected under applicable intellectual property law. Rights in user-generated content belong to the user; however, by submitting content, the user grants the limited license necessary for that content to be published on MINDOT and for the chosen sharing features to work.",
+      },
+      {
+        title: "Contact and changes",
+        body: "If a material change is made to these terms, the updated text will be published on MINDOT. You can send your questions through the contact channel stated in the current version.",
+      },
     ],
     guidelinesTitle: "Community Guidelines",
-    guidelinesIntro: "MINDOT is a quiet public wall. Help keep it thoughtful, safe, and human.",
+    guidelinesIntro:
+      "MINDOT exists so people can leave a short thought in a safe, respectful space. The principles below help keep the wall usable for everyone.",
     guidelinesSections: [
-      { title: "Leave a thought, not an attack", body: "Do not submit harassment, threats, hate, targeted abuse, or content intended to harm another person." },
-      { title: "Protect privacy", body: "Do not publish private contact details, credentials, addresses, or identifying information about someone without permission." },
-      { title: "Choose identity deliberately", body: "Anonymous notes stay publicly unattributed. Named notes may appear under your public MINDOT identity after approval." },
-      { title: "Respect the wall", body: "Avoid spam, impersonation, unlawful content, and attempts to manipulate moderation. An automated pre-screen may flag a submission for closer attention, but it never publishes or rejects anything on its own — a person reviews every thought and remains the sole publication authority." },
+      {
+        title: "Leave a thought, not an attack",
+        body: "Do not submit harassment, threats, targeting, hate speech, bullying, or content intended to harm another person.",
+      },
+      {
+        title: "Respect privacy",
+        body: "Do not share someone else's address, phone number, private contact details, account information, identity documents, or other private information that directly identifies them, without their permission.",
+      },
+      {
+        title: "Respect copyright and usage rights",
+        body: "Do not share text, images, or other content that isn't yours without the necessary usage rights. Do not present someone else's work as your own.",
+      },
+      {
+        title: "Choose your identity consciously",
+        body: "Anonymous notes stay unattributed in public. Notes you submit under your name may become visible under your chosen MINDOT identity once approved.",
+      },
+      {
+        title: "No spam or manipulation",
+        body: "Repetitive low-value content, automated submissions, impersonation, attempts to mislead moderation, or efforts to artificially influence the platform are not acceptable, since they disrupt the community experience.",
+      },
+      {
+        title: "How moderation works",
+        body: "Submitted thoughts go through human review before publication. A technical pre-screen may flag certain submissions for closer attention, but no automated system publishes or rejects a thought on its own. The final publication decision is made by human moderation.",
+      },
+      {
+        title: "Report content",
+        body: "If you see content that violates the Community Guidelines, you can use the 'Report' option on that thought. Reports are sent to the moderation team for review.",
+      },
     ],
   },
 };
