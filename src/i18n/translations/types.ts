@@ -32,6 +32,21 @@ export interface Dictionary {
     col4Line1: string;
     col4Highlight: string;
   };
+  /**
+   * The homepage's 1,000,000-dot milestone strip (see app/_home/PointsMilestone.tsx)
+   * — reuses the same live approved-message count as hero.activeCountLabel,
+   * just framed against a fixed long-term goal instead of a plain running
+   * total. `{target}`/`{count}` are replaced with locale-formatted numbers
+   * (never hardcoded), same `{token}` convention as notifications.paginationLabel.
+   * The CTA reuses hero.primaryCta rather than a duplicate near-identical string.
+   */
+  pointsMilestone: {
+    /** e.g. "{target} Nokta" — the fixed 1,000,000 goal, not the live count. */
+    heading: string;
+    body: string;
+    /** Visible caption AND the progress bar's accessible label — "{count} / {target}". */
+    progressLabel: string;
+  };
   /** Reused by /about — see AboutPageContent — not duplicated under a second key. */
   story: {
     badge: string;

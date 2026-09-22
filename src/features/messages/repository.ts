@@ -138,7 +138,7 @@ export interface MessageRepository {
    * — archived/pending/rejected messages can never gain a like.
    */
   like(messageId: string, identity: { userId?: string; anonymousId?: string }): Promise<{ ok: boolean; likeCount: number; alreadyLiked: boolean }>;
-  /** Total currently-approved (live, unarchived) messages — a single aggregate query, the homepage's active-message counter. */
+  /** Total currently-approved (live, unarchived) messages — a single aggregate query, reused by both the homepage's active-message counter and its 1,000,000-dot milestone strip (see app/page.tsx). */
   countApproved(): Promise<number>;
   /** EPIC 022: total currently-pending messages — a single aggregate query, AdminNav's Moderation badge. */
   countPending(): Promise<number>;

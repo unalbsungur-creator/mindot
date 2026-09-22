@@ -5,6 +5,7 @@ import { isDatabaseConfigured } from "@/lib/env";
 import { HOME_FIXED_MESSAGE_IDS } from "./_home/fixedMessages";
 import { HomeHero } from "./_home/HomeHero";
 import { MeaningStrip } from "./_home/MeaningStrip";
+import { PointsMilestone } from "./_home/PointsMilestone";
 
 // EPIC: Ana Sayfa Dinamik Mesajları / Aktif Mesaj Sayacı — real database
 // data, refreshed periodically rather than on every single request (the
@@ -54,11 +55,12 @@ async function getHomeHeroNotes(): Promise<NoteData[]> {
 }
 
 /**
- * EPIC: MINDOT Ana Sayfa — Tek Sayfalık Final Landing Page. Exactly two
+ * EPIC: MINDOT Ana Sayfa — Tek Sayfalık Final Landing Page. Three
  * sections — Header/Footer are rendered once, in the root layout, not
  * here. Fetches real data (hero's 4 notes, live active-message count)
  * from small, indexed, limited queries — never a full-table
- * fetch-and-sort-in-JS.
+ * fetch-and-sort-in-JS. The 1,000,000-dot milestone strip reuses the same
+ * `activeCount` value as the hero's own counter — one query, two displays.
  *
  * EPIC: Make Database Dependency Safe for Cloudflare Build — this page
  * uses ISR (`export const revalidate` above), so it's prerendered at
@@ -79,6 +81,7 @@ export default async function Home() {
   return (
     <>
       <HomeHero activeCount={activeCount} heroNotes={heroNotes} />
+      <PointsMilestone count={activeCount} />
       <MeaningStrip />
     </>
   );

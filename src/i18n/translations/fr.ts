@@ -28,6 +28,11 @@ export const fr: Dictionary = {
     col4Line1: "Depuis 1994, un petit tableau —",
     col4Highlight: "aujourd'hui il inspire des millions de points.",
   },
+  pointsMilestone: {
+    heading: "{target} points",
+    body: "Chaque pensée laisse un point sur le mur.",
+    progressLabel: "{count} / {target}",
+  },
   story: {
     badge: "1984 – 1994 · Kayseri",
     heading: "D'où vient l'idée",
