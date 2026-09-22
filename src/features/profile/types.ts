@@ -80,6 +80,8 @@ export interface ArchiveMessage {
   showOnPersonalWall: boolean;
   /** Board tile coordinates, for a "view on board" deep link — only present once published. */
   tile: { x: number; y: number } | null;
+  /** This message's exact world-space board point (tile + normalized in-tile position, via `messagePlacementPoint()`) — lets "view on board" focus the actual note instead of just its tile's center. Only present once published, same as `tile`. */
+  boardPoint: { x: number; y: number } | null;
   /** EPIC: Published Note Edit + Re-approval — non-null only while a proposed content edit is awaiting admin review; `state` stays "published" the whole time (see schema.ts's `pendingContent` comment). The owner's own archive is the one place this is ever exposed to a client. */
   pendingContent: string | null;
   /** Set only after the most recent revision was rejected; cleared the moment a new one is submitted. */

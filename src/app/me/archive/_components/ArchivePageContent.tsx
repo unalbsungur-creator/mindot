@@ -7,7 +7,6 @@ import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { TILE_PX } from "@/features/board/lib/worldGeometry";
 import { getNoteTemplate } from "@/features/notes/config/templates";
 import { Note } from "@/features/notes/components/Note";
 import { templateDisplayName } from "@/features/notes/lib/templateDisplayName";
@@ -48,10 +47,9 @@ function stateLabel(dictionary: Dictionary, state: ArchiveMessage["state"]): str
   }[state];
 }
 
-function boardLinkFor(tile: { x: number; y: number }): string {
-  const centerX = Math.round(tile.x * TILE_PX + TILE_PX / 2);
-  const centerY = Math.round(tile.y * TILE_PX + TILE_PX / 2);
-  return `/board?x=${centerX}&y=${centerY}&z=1`;
+/** The board camera URL for a message's own world point — not its tile's center — so "view on board" opens directly on the actual note. */
+function boardLinkFor(point: { x: number; y: number }): string {
+  return `/board?x=${Math.round(point.x)}&y=${Math.round(point.y)}&z=1`;
 }
 
 export function ArchivePageContent({ isSignedIn, messages: initialMessages, page, totalPages }: ArchivePageContentProps) {
@@ -148,8 +146,8 @@ export function ArchivePageContent({ isSignedIn, messages: initialMessages, page
                     <p className="text-xs text-ink-soft">{dictionary.archive.editRejectedNotice}</p>
                   )}
                   <div className="flex flex-wrap items-center gap-3 text-xs font-medium">
-                    {message.tile && (
-                      <Link href={boardLinkFor(message.tile)} className="text-ink-soft hover:text-navy">
+                    {message.boardPoint && (
+                      <Link href={boardLinkFor(message.boardPoint)} className="text-ink-soft hover:text-navy">
                         {dictionary.archive.viewOnBoardAction}
                       </Link>
                     )}

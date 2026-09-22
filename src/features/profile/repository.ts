@@ -1,3 +1,4 @@
+import { messagePlacementPoint } from "@/features/board/lib/worldGeometry";
 import { getPublicMessageById } from "@/features/board/repository";
 import { getFrameTemplate } from "@/features/memories/config/frameTemplates";
 import { digitalAccessCodeRepository, memoryRepository, physicalOrderRepository } from "@/features/memories/repository";
@@ -114,6 +115,10 @@ export async function getPrivateArchive(userId: string, range?: TimeRange, page?
     state: message.status === "pending" ? "pending" : message.status === "approved" ? "published" : "not_published",
     memoryProjectId: memoryProjectIdByMessageId.get(message.id) ?? null,
     tile: message.tileX !== null && message.tileY !== null ? { x: message.tileX, y: message.tileY } : null,
+    boardPoint: messagePlacementPoint(
+      message.tileX !== null && message.tileY !== null ? { x: message.tileX, y: message.tileY } : null,
+      message.positionX !== null && message.positionY !== null ? { x: message.positionX, y: message.positionY } : null
+    ),
     showOnPersonalWall: message.showOnPersonalWall,
     pendingContent: message.pendingContent,
     revisionRejectionReason: message.revisionRejectionReason,

@@ -75,6 +75,26 @@ export function resolveBoardCenterPoint(approvedTileZeroMessageIds: string[]): {
   return { x: TILE_PX / 2, y: TILE_PX / 2 };
 }
 
+/**
+ * A message's exact world-space point from its tile plus its normalized
+ * (0..1) in-tile position — the same math `boardReferencePoint()` above
+ * uses for its one fixed anchor, generalized for any placed message.
+ * `null` if either half of the placement is missing, which is exactly
+ * when a message has never been placed on the board (see `messages`
+ * schema's `tileX`/`positionX` nullability) — callers use that to decide
+ * whether a "view on board" link can be shown at all.
+ */
+export function messagePlacementPoint(
+  tile: TileCoord | null,
+  position: { x: number; y: number } | null
+): { x: number; y: number } | null {
+  if (!tile || !position) return null;
+  return {
+    x: tile.x * TILE_PX + position.x * TILE_PX,
+    y: tile.y * TILE_PX + position.y * TILE_PX,
+  };
+}
+
 export function tileKey(tile: TileCoord): string {
   return `${tile.x},${tile.y}`;
 }
