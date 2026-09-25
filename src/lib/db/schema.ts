@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   boolean,
+  check,
   index,
   integer,
   pgEnum,
@@ -492,6 +493,113 @@ export const physicalOrders = pgTable("physical_orders", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// --- MINDOT Tokens / paid PDF unlocks ---
+// 1 Token unlocks one Memory Project's PDF permanently (re-downloads are
+// free) — tokens are spent per unlock, never per download request.
+// `token_ledger` is the append-only audit source of truth;
+// `token_wallets.balance` is its projection and the row an atomic
+// conditional `UPDATE ... WHERE balance >= n` locks, so the invariant is
+// balance == SUM(ledger.amount) per user. Ledger rows are never updated or
+// deleted — corrections are new `adjustment`/`refund` rows. Every
+// constraint below is the database-level backstop, not a substitute for
+// the repository's atomic write path.
+
+export const tokenLedgerTypeEnum = pgEnum("token_ledger_type", [
+  "grant",
+  "purchase",
+  "subscription",
+  "consume",
+  "refund",
+  "adjustment",
+]);
+export const memoryPdfUnlockSourceEnum = pgEnum("memory_pdf_unlock_source", [
+  "token",
+  "legacy_access_code",
+  "admin",
+  "legacy_grandfathered",
+]);
+
+// No row means a zero balance — created lazily on a user's first ledger entry.
+export const tokenWallets = pgTable(
+  "token_wallets",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => users.id),
+    balance: integer("balance").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("token_wallets_balance_non_negative", sql`${table.balance} >= 0`)]
+);
+
+export const tokenLedger = pgTable(
+  "token_ledger",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    // Signed: +N for grant/purchase/subscription/refund, -N for consume.
+    amount: integer("amount").notNull(),
+    type: tokenLedgerTypeEnum("type").notNull(),
+    // The wallet balance right after this entry — for history display and audit.
+    balanceAfter: integer("balance_after").notNull(),
+    // What this entry is about, e.g. ("memory_project", projectId) for a
+    // consume, ("token_ledger", consumeEntryId) for a refund.
+    referenceType: text("reference_type"),
+    referenceId: text("reference_id"),
+    // Required on every entry, so a retried request/webhook/form submit
+    // can never write the same movement twice.
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    // Future store/web purchases: the provider's own transaction id.
+    externalProvider: text("external_provider"),
+    externalReference: text("external_reference"),
+    // The admin behind a grant/adjustment; null for system-originated entries.
+    createdBy: text("created_by").references(() => users.id),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("token_ledger_amount_non_zero", sql`${table.amount} <> 0`),
+    check("token_ledger_balance_after_non_negative", sql`${table.balanceAfter} >= 0`),
+    // A user's history, newest first.
+    index("token_ledger_user_created_idx").on(table.userId, table.createdAt),
+    // One provider transaction can only ever credit tokens once.
+    uniqueIndex("token_ledger_external_ref_idx")
+      .on(table.externalProvider, table.externalReference)
+      .where(sql`${table.externalProvider} is not null and ${table.externalReference} is not null`),
+  ]
+);
+
+export const memoryPdfUnlocks = pgTable(
+  "memory_pdf_unlocks",
+  {
+    id: text("id").primaryKey(),
+    // Unique: a project's PDF can only ever be unlocked (and charged) once.
+    memoryProjectId: text("memory_project_id")
+      .notNull()
+      .unique()
+      .references(() => memoryProjects.id),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    source: memoryPdfUnlockSourceEnum("source").notNull(),
+    // The consume entry that paid for this unlock; null for non-token sources.
+    ledgerEntryId: text("ledger_entry_id")
+      .unique()
+      .references(() => tokenLedger.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      "memory_pdf_unlocks_token_has_ledger_entry",
+      sql`${table.source} <> 'token' or ${table.ledgerEntryId} is not null`
+    ),
+    index("memory_pdf_unlocks_user_created_idx").on(table.userId, table.createdAt),
+  ]
+);
 
 // EPIC 023: In-App Notifications — one row per (recipient, event). See
 // features/notifications/ for the repository/actions/event-integration and
