@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getPublicWall } from "@/features/profile/repository";
 import { curateWallSelection } from "@/features/profile/lib/curateWallSelection";
-import { getShareFormat } from "@/features/sharing/config/shareFormats";
+import { getPublicShareFormat } from "@/features/sharing/config/shareFormats";
 import { renderWallShareCard } from "@/features/sharing/services/shareCardRenderer";
 import { getDictionary } from "@/i18n/translations";
 
@@ -23,13 +23,18 @@ export const runtime = "nodejs";
  */
 export async function GET(request: NextRequest, context: { params: Promise<{ publicId: string; formatId: string }> }) {
   const { publicId, formatId } = await context.params;
+  // Internal-only formats (the paid Memory PDF's print master) are never
+  // generated here — checked before any lookup, not just hidden in the UI.
+  const format = getPublicShareFormat(formatId);
+  if (!format) {
+    return NextResponse.json({ error: "format-not-available" }, { status: 404 });
+  }
 
   const wall = await getPublicWall(publicId);
   if (wall.status !== "ok" || wall.notes.length === 0) {
     return NextResponse.json({ error: "not-found" }, { status: 404 });
   }
 
-  const format = getShareFormat(formatId);
   const curated = curateWallSelection(wall.notes, 6);
 
   let image;

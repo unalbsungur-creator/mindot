@@ -17,13 +17,26 @@ export const shareFormats: ShareFormat[] = [
   // orientations are "portrait"/"landscape" with portrait as the default
   // for every non-gallery frame). 2880x3600 clears the requested "at
   // least 2400px short edge, ~3000-3600px long edge" print target at
-  // exactly 300 DPI for a 9.6in x 12in print. Not wired into any picker
-  // UI yet — see the EPIC report's "print master" section for why this is
-  // infrastructure-only for now, reachable at
-  // /api/share/note/[messageId]/print by the existing generic route.
+  // exactly 300 DPI for a 9.6in x 12in print. This is the exact image the
+  // paid Memory PDF wraps (features/memories/services/pdf.tsx), so it is
+  // internal-only: every public share route rejects it via
+  // `getPublicShareFormat` below — `showInPicker: false` alone only hides
+  // it in the UI.
   { id: "print", name: "Print Master", width: 2880, height: 3600, showInPicker: false },
 ];
 
 export function getShareFormat(id: string): ShareFormat {
   return shareFormats.find((format) => format.id === id) ?? shareFormats[0];
+}
+
+/**
+ * The format lookup for the public `/api/share/*` routes — the actual
+ * security boundary for internal-only formats. Returns `null` for any
+ * format not offered in the share picker (`showInPicker: false`, i.e.
+ * `print`), so it can never be generated through a share endpoint by
+ * guessing the URL. Unknown ids keep `getShareFormat`'s square fallback.
+ */
+export function getPublicShareFormat(id: string): ShareFormat | null {
+  const format = getShareFormat(id);
+  return format.showInPicker === false ? null : format;
 }

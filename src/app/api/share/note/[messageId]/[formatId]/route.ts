@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getPublicMessageById } from "@/features/board/repository";
 import { resolveCaptureRegion } from "@/features/memories/lib/captureRegion";
 import type { MemoryCaptureMode } from "@/features/memories/types";
-import { getShareFormat } from "@/features/sharing/config/shareFormats";
+import { getPublicShareFormat } from "@/features/sharing/config/shareFormats";
 import { sloganForLanguage, toShareCardNote } from "@/features/sharing/lib/shareCardData";
 import { renderShareCard } from "@/features/sharing/services/shareCardRenderer";
 
@@ -20,6 +20,13 @@ export const runtime = "nodejs";
  */
 export async function GET(request: NextRequest, context: { params: Promise<{ messageId: string; formatId: string }> }) {
   const { messageId, formatId } = await context.params;
+  // Internal-only formats (the paid Memory PDF's print master) are never
+  // generated here — checked before any lookup, not just hidden in the UI.
+  const format = getPublicShareFormat(formatId);
+  if (!format) {
+    return NextResponse.json({ error: "format-not-available" }, { status: 404 });
+  }
+
   const requestedMode = new URL(request.url).searchParams.get("mode");
   const captureMode: MemoryCaptureMode = requestedMode === "note_with_surrounding" ? "note_with_surrounding" : "note_only";
 
@@ -29,7 +36,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ mes
   }
 
   const region = await resolveCaptureRegion(message, captureMode);
-  const format = getShareFormat(formatId);
 
   let image;
   try {

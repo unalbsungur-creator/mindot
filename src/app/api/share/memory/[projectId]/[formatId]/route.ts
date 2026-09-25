@@ -4,7 +4,7 @@ import { getPublicMessageById } from "@/features/board/repository";
 import { getFrameTemplate } from "@/features/memories/config/frameTemplates";
 import { resolveCaptureRegion } from "@/features/memories/lib/captureRegion";
 import { digitalAccessCodeRepository, memoryRepository } from "@/features/memories/repository";
-import { getShareFormat } from "@/features/sharing/config/shareFormats";
+import { getPublicShareFormat } from "@/features/sharing/config/shareFormats";
 import { sloganForLanguage, toShareCardNote } from "@/features/sharing/lib/shareCardData";
 import { renderShareCard } from "@/features/sharing/services/shareCardRenderer";
 
@@ -21,6 +21,12 @@ export const runtime = "nodejs";
  */
 export async function GET(request: NextRequest, context: { params: Promise<{ projectId: string; formatId: string }> }) {
   const { projectId, formatId } = await context.params;
+  // Internal-only formats (the paid Memory PDF's print master) are never
+  // generated here — checked before any lookup, not just hidden in the UI.
+  const format = getPublicShareFormat(formatId);
+  if (!format) {
+    return NextResponse.json({ error: "format-not-available" }, { status: 404 });
+  }
 
   const session = await auth();
   if (!session?.user?.id) {
@@ -47,7 +53,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
   }
 
   const region = await resolveCaptureRegion(message, project.captureMode);
-  const format = getShareFormat(formatId);
   const frame = project.frameTemplateId ? getFrameTemplate(project.frameTemplateId) : null;
 
   let image;
