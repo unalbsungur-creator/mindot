@@ -26,7 +26,23 @@ export type NewMemoryProjectInput = Pick<
   "messageId" | "createdBy" | "captureMode" | "outputType" | "frameTemplateId"
 >;
 
-export type DigitalAccessCodeStatus = "active" | "redeemed" | "expired" | "revoked";
+export type MemoryPdfUnlockSource = "token" | "legacy_access_code" | "admin" | "legacy_grandfathered";
+
+/**
+ * A permanent entitlement to one project's PDF — 1 Token unlocks a project
+ * once, and re-downloads never spend again. `ledgerEntryId` is the consume
+ * entry that paid for it (always set for `source: "token"`).
+ */
+export interface MemoryPdfUnlock {
+  id: string;
+  memoryProjectId: string;
+  userId: string;
+  source: MemoryPdfUnlockSource;
+  ledgerEntryId: string | null;
+  createdAt: string;
+}
+
+export type DigitalAccessCodeStatus ="active" | "redeemed" | "expired" | "revoked";
 
 export interface DigitalAccessCode {
   id: string;

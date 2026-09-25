@@ -1,9 +1,10 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { digitalAccessCodes, memoryProjects, physicalOrders } from "@/lib/db/schema";
+import { digitalAccessCodes, memoryPdfUnlocks, memoryProjects, physicalOrders } from "@/lib/db/schema";
 import { generateAccessCode, generateOrderNumber, normalizeCode } from "./lib/identifiers";
 import type {
   DigitalAccessCode,
+  MemoryPdfUnlock,
   MemoryProject,
   NewMemoryProjectInput,
   PhysicalOrder,
@@ -65,6 +66,45 @@ class DrizzleMemoryRepository implements MemoryRepository {
 }
 
 export const memoryRepository: MemoryRepository = new DrizzleMemoryRepository();
+
+// ---------------------------------------------------------------------------
+// Memory PDF unlocks
+// ---------------------------------------------------------------------------
+
+/**
+ * Read side of PDF entitlements. Creating a token-paid unlock is not here:
+ * it has to happen in the same transaction as the wallet decrement and
+ * ledger entry, so it lives in `tokenRepository.consumeForMemoryPdfUnlock`
+ * (features/tokens/repository.ts) — the one deliberate cross-feature write.
+ */
+export interface MemoryPdfUnlockRepository {
+  getByProjectId(memoryProjectId: string): Promise<MemoryPdfUnlock | null>;
+}
+
+export function toMemoryPdfUnlock(row: typeof memoryPdfUnlocks.$inferSelect): MemoryPdfUnlock {
+  return {
+    id: row.id,
+    memoryProjectId: row.memoryProjectId,
+    userId: row.userId,
+    source: row.source,
+    ledgerEntryId: row.ledgerEntryId,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+class DrizzleMemoryPdfUnlockRepository implements MemoryPdfUnlockRepository {
+  async getByProjectId(memoryProjectId: string): Promise<MemoryPdfUnlock | null> {
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(memoryPdfUnlocks)
+      .where(eq(memoryPdfUnlocks.memoryProjectId, memoryProjectId))
+      .limit(1);
+    return row ? toMemoryPdfUnlock(row) : null;
+  }
+}
+
+export const memoryPdfUnlockRepository: MemoryPdfUnlockRepository = new DrizzleMemoryPdfUnlockRepository();
 
 // ---------------------------------------------------------------------------
 // Digital access codes

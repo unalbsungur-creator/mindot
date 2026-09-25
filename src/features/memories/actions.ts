@@ -3,10 +3,12 @@
 import { auth } from "@/features/auth/auth";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getPublicMessageById } from "@/features/board/repository";
+import { tokenRepository } from "@/features/tokens/repository";
 import { getActiveFrameTemplates } from "./config/frameTemplates";
 import { manualDigitalPurchaseProvider } from "./providers/manualProvider";
 import {
   digitalAccessCodeRepository,
+  memoryPdfUnlockRepository,
   memoryRepository,
   physicalOrderRepository,
 } from "./repository";
@@ -110,6 +112,70 @@ export async function redeemAccessCode(memoryProjectId: string, code: string): P
     active: "invalid-code", // active but the atomic redeem still failed — a genuine race; ask them to retry.
   };
   return { ok: false, error: errorByStatus[status] };
+}
+
+// Its own error union rather than new MemoryActionError members: the memory
+// page maps every MemoryActionError to translated copy, and unlock errors
+// get their UI (and translations) in a later step.
+export type UnlockMemoryPdfError =
+  | "auth-required"
+  | "not-found"
+  | "forbidden"
+  | "not-eligible"
+  | "message-not-eligible"
+  | "insufficient-tokens"
+  | "unlock-conflict";
+
+export interface UnlockMemoryPdfResult {
+  ok: boolean;
+  error?: UnlockMemoryPdfError;
+  data?: {
+    projectId: string;
+    /** `already_unlocked` means no token was spent by this call. */
+    status: "newly_unlocked" | "already_unlocked";
+    /** The caller's token balance after this call. */
+    balance: number;
+  };
+}
+
+/**
+ * Spends 1 Token to permanently unlock the caller's own personal_pdf
+ * project — an entitlement, not a per-download charge, so re-downloads
+ * never spend again. The user is always the session's, never a client
+ * argument. Ownership and eligibility (personal_pdf, source message still
+ * public) are checked here first so an ineligible project is never charged;
+ * the charge itself — wallet lock, conditional decrement, consume ledger
+ * entry, unlock row — is one transaction in
+ * `tokenRepository.consumeForMemoryPdfUnlock`, which is also what makes a
+ * retry or a concurrent duplicate charge-free.
+ */
+export async function unlockMemoryPdf(memoryProjectId: string): Promise<UnlockMemoryPdfResult> {
+  const owner = await requireProjectOwner(memoryProjectId);
+  if ("error" in owner) return { ok: false, error: owner.error };
+  const { project, userId } = owner;
+
+  if (project.outputType !== "personal_pdf") return { ok: false, error: "not-eligible" };
+
+  const message = await getPublicMessageById(project.messageId);
+  if (!message) return { ok: false, error: "message-not-eligible" };
+
+  // Fast path only — the transaction below re-checks under the wallet lock.
+  const existing = await memoryPdfUnlockRepository.getByProjectId(project.id);
+  if (existing) {
+    const balance = await tokenRepository.getBalance(userId);
+    return { ok: true, data: { projectId: project.id, status: "already_unlocked", balance } };
+  }
+
+  const result = await tokenRepository.consumeForMemoryPdfUnlock({ userId, memoryProjectId: project.id });
+  switch (result.status) {
+    case "newly_unlocked":
+    case "already_unlocked":
+      return { ok: true, data: { projectId: project.id, status: result.status, balance: result.balance } };
+    case "insufficient_tokens":
+      return { ok: false, error: "insufficient-tokens" };
+    case "conflict":
+      return { ok: false, error: "unlock-conflict" };
+  }
 }
 
 /**
