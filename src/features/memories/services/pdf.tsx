@@ -13,6 +13,18 @@ import { MemoryPdfDocument } from "./renderer";
 export class MemoryPdfSourceUnavailableError extends Error {}
 
 /**
+ * The PDF's raster size: the Share "print" composition at half its master
+ * pixel size — 1440x1800, still 4:5, i.e. 150 DPI on renderer.tsx's fixed
+ * 9.6x12in page. The full 2880x3600 (300 DPI) master exceeded the
+ * Cloudflare Worker memory limit: resvg holds the whole uncompressed RGBA
+ * canvas, then pdfkit decompresses it again to split out the alpha channel,
+ * both scaling with pixel count. Layout is proportional to the canvas, so
+ * the composition is unchanged — only the pixel density is lower.
+ */
+const PDF_RENDER_WIDTH = 1440;
+const PDF_RENDER_HEIGHT = 1800;
+
+/**
  * Regenerates the PDF for a memory project from scratch every time,
  * rather than caching a rendered file — the capture region is
  * deterministic (see captureRegion.ts) so this always produces the same
@@ -20,9 +32,10 @@ export class MemoryPdfSourceUnavailableError extends Error {}
  * in sync with the source data instead of a stale render.
  *
  * SHARE IMAGE = PDF IMAGE: the PDF's entire visual content is the exact
- * same PNG `renderShareCard` produces for the Share "print" format
- * (`getShareFormat("print")`, 2880x3600 — the same resolution
- * `renderer.tsx`'s page size is fixed to, 1:1, no upscaling) — the same
+ * same composition `renderShareCard` produces for the Share "print" format
+ * (`getShareFormat("print")`), rendered at PDF_RENDER_WIDTH x
+ * PDF_RENDER_HEIGHT (see above) and placed on `renderer.tsx`'s fixed
+ * 4:5 page — the same
  * function, the same frame resolution (`project.frameTemplateId ? ... :
  * null`), the same `toShareCardNote`/`sloganForLanguage` mapping the
  * `/api/share/memory/[projectId]/[formatId]` route already uses. The PDF
@@ -53,7 +66,7 @@ export async function generateMemoryPdf(project: MemoryProject): Promise<Buffer>
   const shareImage = await renderShareCard({
     primary: toShareCardNote(region.primary),
     surrounding: region.surrounding.map(toShareCardNote),
-    format: getShareFormat("print"),
+    format: { ...getShareFormat("print"), width: PDF_RENDER_WIDTH, height: PDF_RENDER_HEIGHT },
     frame,
     slogan: sloganForLanguage(message.language),
   });

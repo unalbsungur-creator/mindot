@@ -1,12 +1,11 @@
 import { Document, Image, Page } from "@react-pdf/renderer";
 
 /**
- * The Memory Print PDF's real page size: 2880x3600px at 300 DPI — 9.6in x
- * 12in, a 4:5 portrait — expressed in react-pdf's own unit (points, 1in =
- * 72pt: 9.6*72=691.2, 12*72=864). Deliberately identical, pixel-for-pixel
- * at this exact DPI, to the Share "print" format's own output canvas
- * (`shareFormats.ts`'s `{ id: "print", width: 2880, height: 3600 }`) — see
- * this file's own doc comment below for why that's the point.
+ * The Memory Print PDF's real page size: 9.6in x 12in, a 4:5 portrait —
+ * expressed in react-pdf's own unit (points, 1in = 72pt: 9.6*72=691.2,
+ * 12*72=864). The same 4:5 shape as the Share "print" composition, so the
+ * embedded image always fills the page exactly; its pixel density comes
+ * from the raster size `pdf.tsx` renders at (1440x1800 → 150 DPI).
  */
 const PAGE_WIDTH_PT = 691.2;
 const PAGE_HEIGHT_PT = 864;
@@ -42,10 +41,11 @@ export interface MemoryPdfProps {
  * already-correct raster output eliminates by construction, not by fixing
  * react-pdf's font/text pipeline.
  *
- * The page's own size is fixed at exactly the Share "print" format's pixel
- * dimensions and DPI (see `PAGE_WIDTH_PT`/`PAGE_HEIGHT_PT` above) — a 1:1
- * embed, never upscaled or downscaled, so the print artwork stays as sharp
- * as Share's own 2880x3600 master.
+ * The page's own size is fixed (see `PAGE_WIDTH_PT`/`PAGE_HEIGHT_PT`
+ * above) and matches the image's 4:5 aspect ratio, so the image fills it
+ * edge to edge without distortion. The image is rendered at 1440x1800
+ * (150 DPI on this page) rather than Share's 2880x3600 master — see
+ * `pdf.tsx`'s PDF_RENDER_WIDTH for the Worker memory reason.
  */
 export function MemoryPdfDocument({ imagePngBuffer }: MemoryPdfProps) {
   const imageSrc = `data:image/png;base64,${imagePngBuffer.toString("base64")}`;
