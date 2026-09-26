@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/features/auth/auth";
-import { digitalAccessCodeRepository, memoryRepository } from "@/features/memories/repository";
+import {
+  digitalAccessCodeRepository,
+  memoryPdfUnlockRepository,
+  memoryRepository,
+} from "@/features/memories/repository";
 import { generateMemoryPdf, MemoryPdfSourceUnavailableError } from "@/features/memories/services/pdf";
 
 /**
@@ -10,7 +14,9 @@ import { generateMemoryPdf, MemoryPdfSourceUnavailableError } from "@/features/m
  *   - must be signed in,
  *   - must own the project OR be an admin,
  *   - a "digital_frame" project additionally requires a redeemed access
- *     code for THIS project specifically (not just any valid code).
+ *     code for THIS project specifically (not just any valid code),
+ *   - a "personal_pdf" project additionally requires a memory_pdf_unlocks
+ *     row for it (403 `pdf-unlock-required` otherwise). Admins bypass both.
  * See "Digital download security" in CLAUDE.md.
  *
  * `?disposition=inline` renders in-browser (the admin order detail page's
@@ -42,6 +48,17 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
     const hasAccess = await digitalAccessCodeRepository.hasRedeemedCodeForProject(project.id);
     if (!hasAccess) {
       return NextResponse.json({ error: "access-not-redeemed" }, { status: 403 });
+    }
+  }
+
+  // Read-only entitlement check: this GET never spends a token — unlocking
+  // (and paying) happens only in the `unlockMemoryPdf` Server Function.
+  // Every unlock source (token, legacy_grandfathered, legacy_access_code,
+  // admin) counts, as long as it belongs to the project's owner.
+  if (!isAdmin && project.outputType === "personal_pdf") {
+    const unlock = await memoryPdfUnlockRepository.getByProjectId(project.id);
+    if (!unlock || unlock.userId !== project.createdBy) {
+      return NextResponse.json({ error: "pdf-unlock-required" }, { status: 403 });
     }
   }
 
