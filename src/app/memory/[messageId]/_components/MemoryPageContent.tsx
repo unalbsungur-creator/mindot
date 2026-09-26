@@ -259,6 +259,9 @@ function PersonalPdfPanel({ project, pdfAccess }: { project: MemoryProject; pdfA
         projectId={project.id}
         unlocked={pdfAccess.unlockedIds.has(project.id)}
         balance={pdfAccess.balance}
+        // Panels only render once the page's own getPublicMessageById
+        // returned the message (see the early "not eligible" return above).
+        sourceAvailable
         onUnlocked={pdfAccess.onUnlocked}
         onBalanceChange={pdfAccess.onBalanceChange}
         className="items-center"

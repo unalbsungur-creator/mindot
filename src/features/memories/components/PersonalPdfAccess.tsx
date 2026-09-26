@@ -14,6 +14,14 @@ interface PersonalPdfAccessProps {
   unlocked: boolean;
   /** The signed-in user's wallet balance, read server-side. Shared across every panel on the page. */
   balance: number;
+  /**
+   * Whether the source message is still public (approved, fully placed) —
+   * the server-side `getPublicMessageById` result, the same check
+   * `generateMemoryPdf` enforces. When false (e.g. the note was archived),
+   * no download or Token action is offered; an existing unlock is kept
+   * untouched and works again if the note is restored.
+   */
+  sourceAvailable: boolean;
   onUnlocked: (projectId: string, balance: number) => void;
   onBalanceChange: (balance: number) => void;
   className?: string;
@@ -35,13 +43,15 @@ const unlockErrorMessage = (dictionary: Dictionary): Record<UnlockMemoryPdfError
  * free, the download route only reads the unlock); locked with balance ≥ 1
  * → "Unlock with 1 Token" behind a ConfirmDialog, calling the server-side
  * `unlockMemoryPdf`; locked with balance 0 → explanation only, no dead
- * button or download link. The UI only reflects state — the server decides
+ * button or download link. A source note that's no longer public (e.g.
+ * archived) overrides all three: no download, no Token action. The UI only reflects state — the server decides
  * ownership, eligibility, and whether a token is actually spent.
  */
 export function PersonalPdfAccess({
   projectId,
   unlocked,
   balance,
+  sourceAvailable,
   onUnlocked,
   onBalanceChange,
   className,
@@ -70,6 +80,10 @@ export function PersonalPdfAccess({
       if (code === "insufficient-tokens") onBalanceChange(0);
       setError(code);
     });
+  }
+
+  if (!sourceAvailable) {
+    return <p className={cn("max-w-xs text-sm text-ink-soft", className)}>{t.notEligibleTitle}</p>;
   }
 
   if (unlocked) {

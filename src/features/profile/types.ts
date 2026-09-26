@@ -127,5 +127,7 @@ export interface MemoryLibraryItem {
   digitalStatus: DigitalStatus;
   /** personal_pdf only: a memory_pdf_unlocks row exists for it (any source). Always false for other output types. */
   pdfUnlocked: boolean;
+  /** The source message is still public (approved, fully placed) — the same check PDF generation enforces. */
+  sourceAvailable: boolean;
   physicalOrder: { orderNumber: string; status: string } | null;
 }

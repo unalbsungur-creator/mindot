@@ -163,6 +163,7 @@ export function MemoryLibraryContent({ isSignedIn, items, tokenBalance }: Memory
                     projectId={item.projectId}
                     unlocked={unlockedIds.has(item.projectId)}
                     balance={balance}
+                    sourceAvailable={item.sourceAvailable}
                     onUnlocked={handleUnlocked}
                     onBalanceChange={setBalance}
                     className="items-start"

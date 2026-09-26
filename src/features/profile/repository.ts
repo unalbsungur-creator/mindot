@@ -187,6 +187,8 @@ export async function getMemoryLibrary(userId: string): Promise<MemoryLibraryIte
       createdAt: project.createdAt,
       digitalStatus: project.outputType !== "digital_frame" ? "not_applicable" : digitalGranted ? "granted" : "waiting",
       pdfUnlocked: pdfUnlock?.userId === project.createdBy,
+      // Already fetched above via getPublicMessageById — no extra query.
+      sourceAvailable: message !== null,
       physicalOrder: physicalOrder ? { orderNumber: physicalOrder.orderNumber, status: physicalOrder.status } : null,
     });
   }
