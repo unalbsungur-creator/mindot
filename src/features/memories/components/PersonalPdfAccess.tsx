@@ -91,8 +91,10 @@ export function PersonalPdfAccess({
       <div className={cn("flex flex-col gap-2", className)}>
         <p className="text-sm text-navy">{t.pdfReady}</p>
         <div className="flex flex-wrap items-center gap-2">
+          {/* nativeLink: plain <a>, so Next never prefetches or client-fetches the PDF route. */}
           <Button
             href={`/api/memories/${projectId}/download?disposition=inline`}
+            nativeLink
             target="_blank"
             rel="noopener noreferrer"
             variant="ghost"
@@ -100,7 +102,7 @@ export function PersonalPdfAccess({
           >
             {dictionary.adminOrders.viewPdfButton}
           </Button>
-          <Button href={`/api/memories/${projectId}/download`} size="sm">
+          <Button href={`/api/memories/${projectId}/download`} nativeLink size="sm">
             {dictionary.adminOrders.downloadPdfButton}
           </Button>
         </div>

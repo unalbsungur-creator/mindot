@@ -25,6 +25,21 @@ import { generateMemoryPdf, MemoryPdfSourceUnavailableError } from "@/features/m
  * second endpoint or a second renderer for "preview" vs "download".
  */
 export async function GET(request: NextRequest, context: { params: Promise<{ projectId: string }> }) {
+  // Next.js router fetches (Link prefetch and client-side navigation) are
+  // never a real download: the router always sends `rsc: 1`, and prefetches
+  // also `next-router-prefetch`/`next-router-segment-prefetch` — headers a
+  // browser's own navigation never carries. Answer them before auth or any
+  // lookup so they can never trigger the memory-heavy PDF render; on a
+  // non-RSC response the router falls back to a normal browser navigation,
+  // which then arrives here without these headers and downloads as usual.
+  if (
+    request.headers.get("rsc") === "1" ||
+    request.headers.has("next-router-prefetch") ||
+    request.headers.has("next-router-segment-prefetch")
+  ) {
+    return new NextResponse(null, { status: 204, headers: { "Cache-Control": "private, no-store" } });
+  }
+
   const { projectId } = await context.params;
   const inline = new URL(request.url).searchParams.get("disposition") === "inline";
 

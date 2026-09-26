@@ -13,10 +13,18 @@ type CommonProps = {
 };
 
 type ButtonAsLink = CommonProps &
-  Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & { href: string };
+  Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
+    href: string;
+    /**
+     * Render a plain `<a>` instead of Next's `<Link>` — for URLs that are
+     * not app pages (e.g. a generated-file API route), so the router never
+     * prefetches or client-fetches them. Same look either way.
+     */
+    nativeLink?: boolean;
+  };
 
 type ButtonAsButton = CommonProps &
-  ButtonHTMLAttributes<HTMLButtonElement> & { href?: undefined };
+  ButtonHTMLAttributes<HTMLButtonElement> & { href?: undefined; nativeLink?: undefined };
 
 export type ButtonProps = ButtonAsLink | ButtonAsButton;
 
@@ -51,7 +59,14 @@ export function Button({
   const classes = cn(base, variants[variant], sizes[size], className);
 
   if (typeof props.href === "string") {
-    const { href, ...rest } = props;
+    const { href, nativeLink, ...rest } = props;
+    if (nativeLink) {
+      return (
+        <a href={href} className={classes} {...rest}>
+          {children}
+        </a>
+      );
+    }
     return (
       <Link href={href} className={classes} {...rest}>
         {children}
