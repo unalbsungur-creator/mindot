@@ -1,7 +1,12 @@
 import { messagePlacementPoint } from "@/features/board/lib/worldGeometry";
 import { getPublicMessageById } from "@/features/board/repository";
 import { getFrameTemplate } from "@/features/memories/config/frameTemplates";
-import { digitalAccessCodeRepository, memoryRepository, physicalOrderRepository } from "@/features/memories/repository";
+import {
+  digitalAccessCodeRepository,
+  memoryPdfUnlockRepository,
+  memoryRepository,
+  physicalOrderRepository,
+} from "@/features/memories/repository";
 import { messageRepository } from "@/features/messages/repository";
 import type { Message } from "@/features/messages/types";
 import { userRepository } from "@/features/users/repository";
@@ -165,6 +170,9 @@ export async function getMemoryLibrary(userId: string): Promise<MemoryLibraryIte
       project.outputType === "physical_gift" ? await physicalOrderRepository.getByMemoryProjectId(project.id) : null;
     const digitalGranted =
       project.outputType === "digital_frame" ? await digitalAccessCodeRepository.hasRedeemedCodeForProject(project.id) : null;
+    // Same condition the download route enforces for personal_pdf.
+    const pdfUnlock =
+      project.outputType === "personal_pdf" ? await memoryPdfUnlockRepository.getByProjectId(project.id) : null;
 
     items.push({
       projectId: project.id,
@@ -178,6 +186,7 @@ export async function getMemoryLibrary(userId: string): Promise<MemoryLibraryIte
       frameName: project.frameTemplateId ? getFrameTemplate(project.frameTemplateId).name : null,
       createdAt: project.createdAt,
       digitalStatus: project.outputType !== "digital_frame" ? "not_applicable" : digitalGranted ? "granted" : "waiting",
+      pdfUnlocked: pdfUnlock?.userId === project.createdBy,
       physicalOrder: physicalOrder ? { orderNumber: physicalOrder.orderNumber, status: physicalOrder.status } : null,
     });
   }

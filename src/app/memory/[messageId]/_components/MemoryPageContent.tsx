@@ -12,6 +12,7 @@ import {
   redeemAccessCode,
   type MemoryActionError,
 } from "@/features/memories/actions";
+import { PersonalPdfAccess } from "@/features/memories/components/PersonalPdfAccess";
 import { DILEKKUTUM_URL } from "@/features/memories/config/dilekkutum";
 import { SHOPPIER_PRODUCT_URL } from "@/features/memories/config/shoppier";
 import type { MemoryCaptureMode, MemoryOutputType, MemoryProject, PhysicalOrder } from "@/features/memories/types";
@@ -27,6 +28,8 @@ export interface ExistingProjectView {
   /** Re-derived from the database on every page load — never trusted from client memory. */
   accessGranted: boolean;
   physicalOrder: PhysicalOrder | null;
+  /** personal_pdf only: whether a memory_pdf_unlocks row exists for it (any source). Re-derived per page load. */
+  pdfUnlocked: boolean;
 }
 
 interface MemoryPageContentProps {
@@ -34,6 +37,16 @@ interface MemoryPageContentProps {
   message: PublicMessageDetail | null;
   isSignedIn: boolean;
   existingProjects: ExistingProjectView[];
+  /** The signed-in user's token wallet balance, read server-side (0 when signed out). */
+  tokenBalance: number;
+}
+
+/** Page-wide PDF unlock state, so every personal_pdf panel shares one balance. */
+interface PdfAccessState {
+  balance: number;
+  unlockedIds: ReadonlySet<string>;
+  onUnlocked: (projectId: string, balance: number) => void;
+  onBalanceChange: (balance: number) => void;
 }
 
 type Step = "capture" | "preview" | "result";
@@ -51,8 +64,22 @@ const errorMessage = (dictionary: Dictionary): Record<MemoryActionError, string>
   "invalid-code": dictionary.memory.redeemError,
 });
 
-export function MemoryPageContent({ messageId, message, isSignedIn, existingProjects }: MemoryPageContentProps) {
+export function MemoryPageContent({ messageId, message, isSignedIn, existingProjects, tokenBalance }: MemoryPageContentProps) {
   const { dictionary } = useLocale();
+
+  const [balance, setBalance] = useState(tokenBalance);
+  const [unlockedIds, setUnlockedIds] = useState<ReadonlySet<string>>(
+    () => new Set(existingProjects.filter((view) => view.pdfUnlocked).map((view) => view.project.id))
+  );
+  const pdfAccess: PdfAccessState = {
+    balance,
+    unlockedIds,
+    onUnlocked: (projectId, nextBalance) => {
+      setUnlockedIds((previous) => new Set(previous).add(projectId));
+      setBalance(nextBalance);
+    },
+    onBalanceChange: setBalance,
+  };
 
   const [showWizard, setShowWizard] = useState(existingProjects.length === 0);
   const [step, setStep] = useState<Step>("capture");
@@ -116,7 +143,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
         if (orderResult.ok && orderResult.data) physicalOrder = orderResult.data;
       }
 
-      setNewProject({ project: result.data, accessGranted: outputType !== "digital_frame", physicalOrder });
+      setNewProject({ project: result.data, accessGranted: outputType !== "digital_frame", physicalOrder, pdfUnlocked: false });
       setStep("result");
     });
   }
@@ -148,7 +175,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
         <section className="flex flex-col gap-4">
           <h2 className="font-display text-xl font-medium text-navy">{dictionary.memory.existingProjectsHeading}</h2>
           {existingProjects.map((view) => (
-            <OutcomePanel key={view.project.id} view={view} />
+            <OutcomePanel key={view.project.id} view={view} pdfAccess={pdfAccess} />
           ))}
           {!showWizard && (
             <Button variant="ghost" onClick={() => setShowWizard(true)}>
@@ -199,7 +226,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
 
           {step === "result" && newProject && (
             <section className="rounded-lg border border-border bg-surface p-8">
-              <OutcomePanel view={newProject} />
+              <OutcomePanel view={newProject} pdfAccess={pdfAccess} />
             </section>
           )}
         </>
@@ -208,12 +235,12 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
   );
 }
 
-function OutcomePanel({ view }: { view: ExistingProjectView }) {
+function OutcomePanel({ view, pdfAccess }: { view: ExistingProjectView; pdfAccess: PdfAccessState }) {
   const { dictionary } = useLocale();
   const { project } = view;
   return (
     <div className="flex flex-col items-center gap-4">
-      {project.outputType === "personal_pdf" && <PersonalPdfPanel project={project} />}
+      {project.outputType === "personal_pdf" && <PersonalPdfPanel project={project} pdfAccess={pdfAccess} />}
       {project.outputType === "digital_frame" && (
         <DigitalAccessPanel project={project} initiallyGranted={view.accessGranted} />
       )}
@@ -225,9 +252,17 @@ function OutcomePanel({ view }: { view: ExistingProjectView }) {
   );
 }
 
-function PersonalPdfPanel({ project }: { project: MemoryProject }) {
+function PersonalPdfPanel({ project, pdfAccess }: { project: MemoryProject; pdfAccess: PdfAccessState }) {
   return (
     <div className="flex flex-col items-center gap-3 text-center">
+      <PersonalPdfAccess
+        projectId={project.id}
+        unlocked={pdfAccess.unlockedIds.has(project.id)}
+        balance={pdfAccess.balance}
+        onUnlocked={pdfAccess.onUnlocked}
+        onBalanceChange={pdfAccess.onBalanceChange}
+        className="items-center"
+      />
       <MemoryShareSection projectId={project.id} />
     </div>
   );

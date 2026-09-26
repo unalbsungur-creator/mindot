@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import { auth } from "@/features/auth/auth";
 import { getPublicMessageById } from "@/features/board/repository";
-import { digitalAccessCodeRepository, memoryRepository, physicalOrderRepository } from "@/features/memories/repository";
+import {
+  digitalAccessCodeRepository,
+  memoryPdfUnlockRepository,
+  memoryRepository,
+  physicalOrderRepository,
+} from "@/features/memories/repository";
+import { tokenRepository } from "@/features/tokens/repository";
 import { MemoryPageContent, type ExistingProjectView } from "./_components/MemoryPageContent";
 
 // Depends on runtime DB state and per-user session — never prerendered.
@@ -32,7 +38,9 @@ export default async function MemoryPage({ params }: PageProps<"/memory/[message
   const [session, message] = await Promise.all([auth(), getPublicMessageById(messageId)]);
 
   let existingProjects: ExistingProjectView[] = [];
+  let tokenBalance = 0;
   if (session?.user?.id) {
+    tokenBalance = await tokenRepository.getBalance(session.user.id);
     const mine = (await memoryRepository.listByCreator(session.user.id)).filter((p) => p.messageId === messageId);
 
     // Access/order state is re-derived from the database on every visit —
@@ -43,13 +51,16 @@ export default async function MemoryPage({ params }: PageProps<"/memory/[message
       mine.map(async (project) => {
         if (project.outputType === "digital_frame") {
           const redeemed = await digitalAccessCodeRepository.getRedeemedForProject(project.id);
-          return { project, accessGranted: redeemed !== null, physicalOrder: null };
+          return { project, accessGranted: redeemed !== null, physicalOrder: null, pdfUnlocked: false };
         }
         if (project.outputType === "physical_gift") {
           const order = await physicalOrderRepository.getByMemoryProjectId(project.id);
-          return { project, accessGranted: false, physicalOrder: order };
+          return { project, accessGranted: false, physicalOrder: order, pdfUnlocked: false };
         }
-        return { project, accessGranted: true, physicalOrder: null };
+        // personal_pdf: any unlock source (token, legacy_grandfathered, …) opens the download.
+        const unlock = await memoryPdfUnlockRepository.getByProjectId(project.id);
+        // Same condition the download route enforces.
+        return { project, accessGranted: true, physicalOrder: null, pdfUnlocked: unlock?.userId === project.createdBy };
       })
     );
   }
@@ -60,6 +71,7 @@ export default async function MemoryPage({ params }: PageProps<"/memory/[message
       message={message}
       isSignedIn={!!session?.user?.id}
       existingProjects={existingProjects}
+      tokenBalance={tokenBalance}
     />
   );
 }

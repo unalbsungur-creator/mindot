@@ -454,6 +454,19 @@ export interface Dictionary {
     accessGranted: string;
     existingProjectsHeading: string;
     startAnotherButton: string;
+    /** Personal PDF Token unlock (1 PDF = 1 Token). `pdfTokenBalance` takes {count}. */
+    pdfPriceNote: string;
+    pdfTokenBalance: string;
+    pdfReady: string;
+    pdfUnlockButton: string;
+    pdfUnlockRequired: string;
+    pdfUnlockConfirmTitle: string;
+    pdfUnlockConfirmBody: string;
+    pdfUnlockConfirmButton: string;
+    pdfUnlockCancel: string;
+    pdfUnlocking: string;
+    pdfInsufficientTokens: string;
+    pdfUnlockError: string;
     /**
      * i18n audit: display names for each frame template
      * (`features/memories/config/frameTemplates.ts`), keyed by frame id —

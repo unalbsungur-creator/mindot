@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { PersonalPdfAccess } from "@/features/memories/components/PersonalPdfAccess";
 import { Note } from "@/features/notes/components/Note";
 import type { MemoryLibraryItem } from "@/features/profile/types";
 import { useLocale } from "@/i18n/LocaleProvider";
@@ -13,6 +15,8 @@ import type { Dictionary } from "@/i18n/translations";
 interface MemoryLibraryContentProps {
   isSignedIn: boolean;
   items: MemoryLibraryItem[];
+  /** The signed-in user's token wallet balance, read server-side. */
+  tokenBalance: number;
 }
 
 function outputLabel(dictionary: Dictionary, type: MemoryLibraryItem["outputType"]): string {
@@ -46,8 +50,17 @@ function physicalStatusLabel(dictionary: Dictionary, status: string): string {
   return labels[status] ?? status;
 }
 
-export function MemoryLibraryContent({ isSignedIn, items }: MemoryLibraryContentProps) {
+export function MemoryLibraryContent({ isSignedIn, items, tokenBalance }: MemoryLibraryContentProps) {
   const { dictionary } = useLocale();
+  const [balance, setBalance] = useState(tokenBalance);
+  const [unlockedIds, setUnlockedIds] = useState<ReadonlySet<string>>(
+    () => new Set(items.filter((item) => item.pdfUnlocked).map((item) => item.projectId))
+  );
+
+  function handleUnlocked(projectId: string, nextBalance: number) {
+    setUnlockedIds((previous) => new Set(previous).add(projectId));
+    setBalance(nextBalance);
+  }
 
   if (!isSignedIn) {
     return (
@@ -134,7 +147,7 @@ export function MemoryLibraryContent({ isSignedIn, items }: MemoryLibraryContent
                   <Link href={`/memory/${item.messageId}`} className="text-xs font-medium text-ink-soft hover:text-navy">
                     {dictionary.memoryLibrary.viewProjectAction}
                   </Link>
-                  {(item.outputType === "personal_pdf" || item.digitalStatus === "granted") && (
+                  {item.digitalStatus === "granted" && (
                     <>
                       <Button href={`/api/memories/${item.projectId}/download?disposition=inline`} target="_blank" rel="noopener noreferrer" variant="ghost" size="sm">
                         {dictionary.adminOrders.viewPdfButton}
@@ -145,6 +158,16 @@ export function MemoryLibraryContent({ isSignedIn, items }: MemoryLibraryContent
                     </>
                   )}
                 </div>
+                {item.outputType === "personal_pdf" && (
+                  <PersonalPdfAccess
+                    projectId={item.projectId}
+                    unlocked={unlockedIds.has(item.projectId)}
+                    balance={balance}
+                    onUnlocked={handleUnlocked}
+                    onBalanceChange={setBalance}
+                    className="items-start"
+                  />
+                )}
               </div>
             </li>
           ))}

@@ -125,5 +125,7 @@ export interface MemoryLibraryItem {
   frameName: string | null;
   createdAt: string;
   digitalStatus: DigitalStatus;
+  /** personal_pdf only: a memory_pdf_unlocks row exists for it (any source). Always false for other output types. */
+  pdfUnlocked: boolean;
   physicalOrder: { orderNumber: string; status: string } | null;
 }
