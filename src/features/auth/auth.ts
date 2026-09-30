@@ -7,6 +7,7 @@ import { userRepository } from "@/features/users/repository";
 import { verifyPassword } from "@/features/users/lib/password";
 import type { UserRole } from "@/features/users/types";
 import { getAuthRuntimeConfig } from "@/lib/env";
+import { appleTokenRepository } from "./appleTokenRepository";
 import { parseAppleProfile } from "./lib/appleProfile";
 
 /**
@@ -218,6 +219,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const identity = parseAppleProfile(profile);
         if (!identity) throw new Error("Invalid Apple profile.");
         const dbUser = await userRepository.upsertFromAppleProfile(identity);
+        // Apple's refresh token exists only here, in this sign-in's token
+        // response — kept, encrypted, solely so account deletion can revoke
+        // it at Apple (see features/users/accountDeletion.ts). Never put in
+        // the JWT, never logged.
+        if (typeof account.refresh_token === "string" && account.refresh_token && authRuntime.appleTokenKey) {
+          await appleTokenRepository.save(dbUser.id, account.refresh_token, authRuntime.appleTokenKey);
+        }
         token.sub = dbUser.id;
         token.role = "user";
         token.authProvider = "apple";

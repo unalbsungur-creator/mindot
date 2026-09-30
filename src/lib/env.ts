@@ -12,6 +12,7 @@ export type RuntimeEnvName =
     | "AUTH_URL"
     | "AUTH_APPLE_ID"
     | "AUTH_APPLE_SECRET"
+    | "AUTH_APPLE_TOKEN_KEY"
     | "DATABASE_URL"
     | "GOOGLE_CLIENT_ID"
     | "GOOGLE_CLIENT_SECRET"
@@ -146,16 +147,20 @@ export async function getRequestOrigin(): Promise<URL | null> {
 export function getAuthRuntimeConfig() {
     const appleId = optionalEnv("AUTH_APPLE_ID");
     const appleSecret = optionalEnv("AUTH_APPLE_SECRET");
+    const appleTokenKey = optionalEnv("AUTH_APPLE_TOKEN_KEY");
     return {
         clientId: optionalEnv("GOOGLE_CLIENT_ID"),
         clientSecret: optionalEnv("GOOGLE_CLIENT_SECRET"),
-        // Sign in with Apple: the Services ID, and the client-secret JWT
+        // Sign in with Apple: the Services ID, the client-secret JWT
         // generated offline by `npm run auth:apple-secret` (the .p8 private
-        // key itself is never a runtime variable). Apple is offered only
-        // when both are set.
+        // key itself is never a runtime variable), and the key that
+        // encrypts stored Apple refresh tokens (needed to revoke them when
+        // an account is deleted). Apple is offered only when all three are
+        // set — without the token key, a deletion could never revoke.
         appleId,
         appleSecret,
-        appleEnabled: appleId !== undefined && appleSecret !== undefined,
+        appleTokenKey,
+        appleEnabled: appleId !== undefined && appleSecret !== undefined && appleTokenKey !== undefined,
         // Apple only returns to HTTPS origins; its cross-site form_post
         // callback also needs Secure (SameSite=None) check cookies.
         secureOrigin: optionalEnv("AUTH_URL")?.startsWith("https://") ?? false,

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { SignInOptions } from "@/components/auth/SignInOptions";
 import { Note } from "@/features/notes/components/Note";
 import { TemplatePicker } from "@/features/notes/components/TemplatePicker";
 import { getActiveNoteTemplates } from "@/features/notes/config/templates";
@@ -470,7 +470,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
         ) : (
           <div className="flex flex-col items-start gap-2">
             <p className="text-sm text-ink-soft">{dictionary.write.signInRequired}</p>
-            <GoogleSignInButton redirectTo={redirectTo} disabled={!canContinueToGoogle} />
+            <SignInOptions redirectTo={redirectTo} disabled={!canContinueToGoogle} align="start" />
             {!isSuspended && continueRequirementsHint && (
               <p className="text-xs text-ink-soft">{continueRequirementsHint}</p>
             )}

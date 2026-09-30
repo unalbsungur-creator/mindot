@@ -9,3 +9,7 @@
 export function appleUserId(appleSub: string): string {
   return `apple:${appleSub}`;
 }
+
+export function isAppleUserId(userId: string): boolean {
+  return userId.startsWith("apple:");
+}

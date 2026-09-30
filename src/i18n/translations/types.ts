@@ -656,6 +656,7 @@ export interface Dictionary {
     errorAuth: string;
     errorAdmin: string;
     errorFailed: string;
+    errorAppleRevoke: string;
     successTitle: string;
     successBody: string;
     successButton: string;

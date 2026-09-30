@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/features/auth/auth";
-import { getAuthRuntimeConfig } from "@/lib/env";
 import { LoginPageContent, type LoginError } from "./_components/LoginPageContent";
 
 /**
@@ -28,5 +27,5 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   }
 
   const { error } = await searchParams;
-  return <LoginPageContent appleEnabled={getAuthRuntimeConfig().appleEnabled} error={toLoginError(error)} />;
+  return <LoginPageContent error={toLoginError(error)} />;
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { SignInOptions } from "@/components/auth/SignInOptions";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { markAllNotificationsAsRead, markNotificationAsRead } from "@/features/notifications/actions";
 import { NotificationRow } from "@/features/notifications/components/NotificationRow";
@@ -35,7 +35,7 @@ export function NotificationsPageContent({
         <PageContainer className="mx-auto flex max-w-md flex-col items-center gap-6 text-center">
           <h1 className="font-display text-2xl font-medium text-navy">{dictionary.notifications.pageTitle}</h1>
           <p className="text-sm text-ink-soft">{dictionary.notifications.signInRequiredBody}</p>
-          <GoogleSignInButton redirectTo="/notifications" />
+          <SignInOptions redirectTo="/notifications" />
         </PageContainer>
       </div>
     );

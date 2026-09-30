@@ -625,6 +625,7 @@ export const en: Dictionary = {
     errorAuth: "Your session has ended. Please sign in again.",
     errorAdmin: "The admin account can't be deleted here.",
     errorFailed: "Your account couldn't be deleted and no data was changed. Please try again later.",
+    errorAppleRevoke: "We couldn't remove your Sign in with Apple connection right now, so your account wasn't deleted. Please try again shortly.",
     successTitle: "Your account has been deleted",
     successBody: "Your MINDOT account and the personal data linked to it have been deleted. You've been signed out.",
     successButton: "Back to home",

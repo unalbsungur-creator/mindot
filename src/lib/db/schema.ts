@@ -672,3 +672,20 @@ export const userBlocks = pgTable(
     index("user_blocks_blocked_idx").on(table.blockedUserId),
   ]
 );
+
+// Sign in with Apple: the Apple refresh token from each Apple sign-in,
+// kept only so it can be revoked at Apple when the account is deleted (App
+// Review 5.1.1(v)). Encrypted before it ever reaches this table (AES-256-GCM
+// under AUTH_APPLE_TOKEN_KEY, bound to user_id — see
+// features/auth/lib/appleTokenCrypto.ts); never plaintext, never the
+// client secret or private key. One row per Apple account, replaced on
+// each Apple sign-in; Google/admin accounts never have one. Removed inside
+// userRepository.deleteAccount's transaction.
+export const appleSignInTokens = pgTable("apple_sign_in_tokens", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id),
+  encryptedRefreshToken: text("encrypted_refresh_token").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

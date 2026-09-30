@@ -623,6 +623,7 @@ export const fr: Dictionary = {
     errorAuth: "Votre session a expiré. Veuillez vous reconnecter.",
     errorAdmin: "Le compte administrateur ne peut pas être supprimé ici.",
     errorFailed: "Votre compte n'a pas pu être supprimé et aucune donnée n'a été modifiée. Veuillez réessayer plus tard.",
+    errorAppleRevoke: "Nous n'avons pas pu retirer la connexion « Se connecter avec Apple » pour le moment, votre compte n'a donc pas été supprimé. Veuillez réessayer dans un instant.",
     successTitle: "Votre compte a été supprimé",
     successBody: "Votre compte MINDOT et les données personnelles qui y sont liées ont été supprimés. Vous avez été déconnecté.",
     successButton: "Retour à l'accueil",

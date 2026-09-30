@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { SignInOptions } from "@/components/auth/SignInOptions";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/Button";
 import type { PublicMessageDetail } from "@/features/board/types";
@@ -157,7 +157,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
           <h1 className="font-display text-2xl font-medium text-navy">{dictionary.memory.pageTitle}</h1>
           <Note note={previewNote} variant="static" />
           <p className="text-ink-soft">{dictionary.write.signInRequired}</p>
-          <GoogleSignInButton redirectTo={`/memory/${messageId}`} />
+          <SignInOptions redirectTo={`/memory/${messageId}`} />
         </PageContainer>
       </div>
     );

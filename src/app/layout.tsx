@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { Geist, Fraunces, Caveat, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { SignInOptionsProvider } from "@/components/auth/SignInOptions";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { OnboardingModal } from "@/features/onboarding/components/OnboardingModal";
 import { SOCIAL_LINKS } from "@/features/sharing/config/social";
 import { LocaleProvider } from "@/i18n/LocaleProvider";
-import { getAppUrl } from "@/lib/env";
+import { getAppUrl, getAuthRuntimeConfig } from "@/lib/env";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE } from "@/lib/siteConfig";
 
 const geistSans = Geist({
@@ -92,10 +93,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col bg-canvas text-ink">
         <StructuredData />
         <LocaleProvider>
-          <SiteHeader />
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
-          <OnboardingModal />
+          <SignInOptionsProvider appleEnabled={getAuthRuntimeConfig().appleEnabled}>
+            <SiteHeader />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+            <OnboardingModal />
+          </SignInOptionsProvider>
         </LocaleProvider>
       </body>
     </html>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { SignInOptions } from "@/components/auth/SignInOptions";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -54,7 +54,7 @@ export function MePageContent({ isSignedIn, data }: MePageContentProps) {
           <BrandMark className="h-10" />
           <h1 className="font-display text-2xl font-medium text-navy">{dictionary.profile.pageTitle}</h1>
           <p className="text-ink-soft">{dictionary.profile.subtitle}</p>
-          <GoogleSignInButton redirectTo="/me" />
+          <SignInOptions redirectTo="/me" />
         </PageContainer>
       </div>
     );

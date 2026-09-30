@@ -1,14 +1,13 @@
 "use client";
 
 import { BrandMark } from "@/components/brand/BrandMark";
-import { AppleSignInButton } from "@/components/auth/AppleSignInButton";
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { SignInOptions } from "@/components/auth/SignInOptions";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useLocale } from "@/i18n/LocaleProvider";
 
 export type LoginError = "generic" | "account-exists" | "apple-email-missing";
 
-export function LoginPageContent({ appleEnabled, error }: { appleEnabled: boolean; error: LoginError | null }) {
+export function LoginPageContent({ error }: { error: LoginError | null }) {
   const { dictionary } = useLocale();
   const errorMessage =
     error === "account-exists"
@@ -36,8 +35,7 @@ export function LoginPageContent({ appleEnabled, error }: { appleEnabled: boolea
               {errorMessage}
             </p>
           )}
-          <GoogleSignInButton redirectTo="/me" />
-          {appleEnabled && <AppleSignInButton redirectTo="/me" />}
+          <SignInOptions redirectTo="/me" />
         </div>
       </PageContainer>
     </div>

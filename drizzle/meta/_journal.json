@@ -141,6 +141,13 @@
       "when": 1790783047057,
       "tag": "0019_gorgeous_gwen_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790787495041,
+      "tag": "0020_fine_iron_lad",
+      "breakpoints": true
     }
   ]
 }

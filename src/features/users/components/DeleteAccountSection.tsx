@@ -78,6 +78,7 @@ export function DeleteAccountSection({ email }: { email: string }) {
     "confirmation-mismatch": t.errorMismatch,
     "auth-required": t.errorAuth,
     "admin-account": t.errorAdmin,
+    "apple-revoke-failed": t.errorAppleRevoke,
     failed: t.errorFailed,
   };
   const emailMatches = typedEmail.trim().toLowerCase() === email.trim().toLowerCase();

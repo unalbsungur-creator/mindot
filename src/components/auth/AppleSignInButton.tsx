@@ -14,14 +14,15 @@ const AppleIcon = () => (
  * GoogleSignInButton, styled per Apple's guidelines (black, Apple logo,
  * "Continue with Apple" wording) and sized to match the Google button.
  */
-export function AppleSignInButton({ redirectTo }: { redirectTo: string }) {
+export function AppleSignInButton({ redirectTo, disabled = false }: { redirectTo: string; disabled?: boolean }) {
   const { dictionary } = useLocale();
 
   return (
     <form action={signInWithApple.bind(null, redirectTo)}>
       <button
         type="submit"
-        className="inline-flex h-11 min-w-[14rem] items-center justify-center gap-2.5 rounded-pill bg-black px-6 text-sm font-medium text-white shadow-card transition-colors hover:bg-black/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+        disabled={disabled}
+        className="inline-flex h-11 min-w-[14rem] items-center justify-center gap-2.5 rounded-pill bg-black px-6 text-sm font-medium text-white shadow-card transition-colors hover:bg-black/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:pointer-events-none disabled:opacity-50"
       >
         <AppleIcon />
         {dictionary.login.continueWithApple}

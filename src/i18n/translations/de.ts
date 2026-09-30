@@ -623,6 +623,7 @@ export const de: Dictionary = {
     errorAuth: "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
     errorAdmin: "Das Admin-Konto kann hier nicht gelöscht werden.",
     errorFailed: "Dein Konto konnte nicht gelöscht werden, und es wurden keine Daten geändert. Bitte versuche es später erneut.",
+    errorAppleRevoke: "Die Verbindung „Mit Apple anmelden“ konnte gerade nicht entfernt werden, daher wurde dein Konto nicht gelöscht. Bitte versuche es gleich noch einmal.",
     successTitle: "Dein Konto wurde gelöscht",
     successBody: "Dein MINDOT-Konto und die damit verknüpften personenbezogenen Daten wurden gelöscht. Du wurdest abgemeldet.",
     successButton: "Zur Startseite",

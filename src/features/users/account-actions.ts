@@ -1,9 +1,10 @@
 "use server";
 
 import { auth, signOut } from "@/features/auth/auth";
+import { deleteUserAccount } from "./accountDeletion";
 import { userRepository } from "./repository";
 
-export type DeleteAccountError = "auth-required" | "admin-account" | "confirmation-mismatch" | "failed";
+export type DeleteAccountError = "auth-required" | "admin-account" | "confirmation-mismatch" | "apple-revoke-failed" | "failed";
 
 export interface DeleteAccountActionResult {
   ok: boolean;
@@ -39,15 +40,18 @@ export async function deleteOwnAccount(confirmationEmail: string): Promise<Delet
     return { ok: false, error: "confirmation-mismatch" };
   }
 
-  let result: Awaited<ReturnType<typeof userRepository.deleteAccount>>;
+  let result: Awaited<ReturnType<typeof deleteUserAccount>>;
   try {
-    result = await userRepository.deleteAccount(user.id);
+    // Apple accounts are revoked at Apple first; see deleteUserAccount for
+    // the failure model (a failed revoke deletes nothing).
+    result = await deleteUserAccount(user.id);
   } catch (error) {
     // The transaction rolled back — nothing was deleted. Log the error's
     // kind only: driver errors carry query parameters (personal data).
     console.error("[account-deletion] transaction failed", error instanceof Error ? error.name : "unknown");
     return { ok: false, error: "failed" };
   }
+  if (result.status === "apple-revoke-failed") return { ok: false, error: "apple-revoke-failed" };
   if (result.status === "admin-account") return { ok: false, error: "admin-account" };
   if (result.status === "not-found") return { ok: false, error: "auth-required" };
 

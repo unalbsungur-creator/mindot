@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { SignInOptions } from "@/components/auth/SignInOptions";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -68,7 +68,7 @@ export function MemoryLibraryContent({ isSignedIn, items, tokenBalance }: Memory
       <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center py-16">
         <PageContainer className="mx-auto flex max-w-md flex-col items-center gap-6 text-center">
           <h1 className="font-display text-2xl font-medium text-navy">{dictionary.memoryLibrary.pageTitle}</h1>
-          <GoogleSignInButton redirectTo="/me/memories" />
+          <SignInOptions redirectTo="/me/memories" />
         </PageContainer>
       </div>
     );

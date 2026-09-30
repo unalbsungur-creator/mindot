@@ -623,6 +623,7 @@ export const es: Dictionary = {
     errorAuth: "Tu sesión ha caducado. Vuelve a iniciar sesión.",
     errorAdmin: "La cuenta de administrador no se puede eliminar aquí.",
     errorFailed: "No se pudo eliminar tu cuenta y no se modificó ningún dato. Inténtalo de nuevo más tarde.",
+    errorAppleRevoke: "No pudimos quitar ahora la conexión de «Iniciar sesión con Apple», así que tu cuenta no se eliminó. Inténtalo de nuevo en un momento.",
     successTitle: "Tu cuenta ha sido eliminada",
     successBody: "Tu cuenta de MINDOT y los datos personales vinculados a ella se han eliminado. Se ha cerrado tu sesión.",
     successButton: "Volver al inicio",

@@ -625,6 +625,7 @@ export const tr: Dictionary = {
     errorAuth: "Oturumun sona ermiş. Lütfen yeniden giriş yap.",
     errorAdmin: "Yönetici hesabı buradan silinemez.",
     errorFailed: "Hesabın silinemedi ve hiçbir veri değiştirilmedi. Lütfen daha sonra tekrar dene.",
+    errorAppleRevoke: "Apple ile giriş bağlantın şu an kaldırılamadı, bu yüzden hesabın silinmedi. Lütfen biraz sonra tekrar dene.",
     successTitle: "Hesabın silindi",
     successBody: "MINDOT hesabın ve ona bağlı kişisel verilerin silindi. Oturumun kapatıldı.",
     successButton: "Ana sayfaya dön",
