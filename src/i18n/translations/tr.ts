@@ -7,6 +7,7 @@ export const tr: Dictionary = {
     writeThought: "Bir Nokta Bırak",
     myMindot: "Benim MINDOT'um",
     admin: "Yönetim",
+    login: "Giriş",
   },
   hero: {
     badge: "Yaşayan bir düşünce duvarı",

@@ -132,19 +132,30 @@ export function SiteHeader() {
   // statically prerendered instead of every page becoming dynamic just to
   // know whether to show an avatar — see app/api/session/summary.
   const [user, setUser] = useState<HeaderUser>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
 
+  // Re-read on every navigation, not just on mount: this header lives in
+  // the root layout and is never remounted by a client-side navigation,
+  // and sign-out (a Server Action redirect) and admin sign-in
+  // (router.push) are both client-side navigations — a mount-only fetch
+  // kept showing the old avatar until a manual refresh.
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/session/summary")
+    fetch("/api/session/summary", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
-        if (!cancelled) setUser(data);
+        if (!cancelled) {
+          setUser(data);
+          setSessionLoaded(true);
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setSessionLoaded(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pathname]);
 
   return (
     <header className="sticky top-0 z-[var(--z-header)] border-b border-white/10 bg-navy/95 backdrop-blur supports-[backdrop-filter]:bg-navy/90">
@@ -165,6 +176,11 @@ export function SiteHeader() {
         </div>
 
         <div className="flex items-center gap-1 sm:gap-3">
+          {sessionLoaded && !user && (
+            <Button href="/login" variant="outline" size="sm">
+              {dictionary.nav.login}
+            </Button>
+          )}
           {user?.isAdmin && (
             // Discoverability only, not the security boundary — every
             // /admin/* page and Server Function independently re-checks
