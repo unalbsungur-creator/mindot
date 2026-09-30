@@ -648,6 +648,12 @@ export const en: Dictionary = {
     listHint: "Thoughts shared under the name of people you've blocked aren't shown to you. Anonymous thoughts aren't covered; you can report those.",
     listEmpty: "You haven't blocked anyone.",
   },
+  login: {
+    continueWithApple: "Continue with Apple",
+    errorGeneric: "Sign-in wasn't completed or was cancelled. Please try again.",
+    errorAccountExists: "This email address is already used on MINDOT with a different sign-in method. Please sign in that way.",
+    errorAppleEmailMissing: "We couldn't get an email address from your Apple account. In your Apple ID settings, stop using Sign in with Apple for MINDOT, then try again.",
+  },
   profile: {
     pageTitle: "Your MINDOT",
     subtitle: "A personal collection of thoughts that once existed in your mind.",

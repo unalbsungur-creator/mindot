@@ -10,6 +10,8 @@ import { PRODUCTION_SITE_URL } from "./siteConfig";
 export type RuntimeEnvName =
     | "AUTH_SECRET"
     | "AUTH_URL"
+    | "AUTH_APPLE_ID"
+    | "AUTH_APPLE_SECRET"
     | "DATABASE_URL"
     | "GOOGLE_CLIENT_ID"
     | "GOOGLE_CLIENT_SECRET"
@@ -142,8 +144,20 @@ export async function getRequestOrigin(): Promise<URL | null> {
 }
 
 export function getAuthRuntimeConfig() {
+    const appleId = optionalEnv("AUTH_APPLE_ID");
+    const appleSecret = optionalEnv("AUTH_APPLE_SECRET");
     return {
         clientId: optionalEnv("GOOGLE_CLIENT_ID"),
         clientSecret: optionalEnv("GOOGLE_CLIENT_SECRET"),
+        // Sign in with Apple: the Services ID, and the client-secret JWT
+        // generated offline by `npm run auth:apple-secret` (the .p8 private
+        // key itself is never a runtime variable). Apple is offered only
+        // when both are set.
+        appleId,
+        appleSecret,
+        appleEnabled: appleId !== undefined && appleSecret !== undefined,
+        // Apple only returns to HTTPS origins; its cross-site form_post
+        // callback also needs Secure (SameSite=None) check cookies.
+        secureOrigin: optionalEnv("AUTH_URL")?.startsWith("https://") ?? false,
     };
 }

@@ -19,7 +19,8 @@
     "db:verify": "tsx src/lib/db/verify.ts",
     "db:create-admin": "tsx src/lib/db/createAdmin.ts",
     "db:repair-placements": "tsx src/lib/db/repairPlacements.ts",
-    "db:recalibrate-sequence": "tsx src/lib/db/recalibratePlacementSequence.ts"
+    "db:recalibrate-sequence": "tsx src/lib/db/recalibratePlacementSequence.ts",
+    "auth:apple-secret": "tsx src/lib/createAppleClientSecret.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

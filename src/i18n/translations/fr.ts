@@ -646,6 +646,12 @@ export const fr: Dictionary = {
     listHint: "Les pensées partagées sous leur nom par les personnes que vous avez bloquées ne vous sont pas affichées. Les pensées anonymes ne sont pas concernées ; vous pouvez les signaler.",
     listEmpty: "Vous n'avez bloqué personne.",
   },
+  login: {
+    continueWithApple: "Continuer avec Apple",
+    errorGeneric: "La connexion n'a pas abouti ou a été annulée. Veuillez réessayer.",
+    errorAccountExists: "Cette adresse e-mail est déjà utilisée sur MINDOT avec une autre méthode de connexion. Veuillez vous connecter de cette façon.",
+    errorAppleEmailMissing: "Aucune adresse e-mail n'a été transmise par votre compte Apple. Dans les réglages de votre identifiant Apple, arrêtez « Se connecter avec Apple » pour MINDOT, puis réessayez.",
+  },
   profile: {
     pageTitle: "Votre MINDOT",
     subtitle: "Une collection personnelle de pensées qui ont un jour existé dans votre esprit.",

@@ -1,10 +1,13 @@
-import NextAuth, { type DefaultSession } from "next-auth";
+import NextAuth, { type DefaultSession, type NextAuthConfig } from "next-auth";
+import Apple from "next-auth/providers/apple";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import { appleUserId } from "@/features/users/lib/providerIds";
 import { userRepository } from "@/features/users/repository";
 import { verifyPassword } from "@/features/users/lib/password";
 import type { UserRole } from "@/features/users/types";
 import { getAuthRuntimeConfig } from "@/lib/env";
+import { parseAppleProfile } from "./lib/appleProfile";
 
 /**
  * Google (normal users) + Credentials (admin only), one Auth.js instance,
@@ -49,7 +52,14 @@ import { getAuthRuntimeConfig } from "@/lib/env";
  * `authorize()`'s already-vetted return value) — never from anything a
  * client could influence.
  */
-export type AuthProvider = "google" | "credentials";
+export type AuthProvider = "google" | "apple" | "credentials";
+
+/**
+ * Where a refused or failed sign-in lands: /login shows a localized,
+ * non-technical message for these codes (and a generic one for Auth.js's
+ * own error codes) — never provider details or secrets.
+ */
+export type SignInRefusal = "account-exists" | "apple-email-missing";
 
 declare module "next-auth" {
   interface Session {
@@ -74,7 +84,44 @@ declare module "@auth/core/jwt" {
 
 const authRuntime = getAuthRuntimeConfig();
 
+/**
+ * Sign in with Apple (web). Registered only when AUTH_APPLE_ID and
+ * AUTH_APPLE_SECRET are configured, so an unconfigured deployment never
+ * shows a button that can't work. Auth.js's built-in provider keeps its
+ * OIDC `state` + `nonce` checks; `profile` below is Auth.js's own output,
+ * but the jwt callback derives identity from the verified claims instead
+ * (see parseAppleProfile).
+ */
+const appleProviders: NextAuthConfig["providers"] = authRuntime.appleEnabled
+  ? [Apple({ clientId: authRuntime.appleId, clientSecret: authRuntime.appleSecret })]
+  : [];
+
+/**
+ * Apple returns the user with a cross-site form POST (response_mode
+ * form_post), and browsers don't send SameSite=Lax cookies on cross-site
+ * POSTs — so the short-lived, encrypted OAuth check cookies (`state`,
+ * `nonce`) and the post-sign-in `callbackUrl` must be SameSite=None, or
+ * every Apple callback fails its checks. SameSite=None requires Secure,
+ * hence HTTPS origins only (Apple doesn't allow anything else anyway). The
+ * session cookie itself stays SameSite=Lax. Google is unaffected: its
+ * callback is a same-site-navigation GET either way.
+ */
+const crossSiteCallbackCookies: NextAuthConfig["cookies"] =
+  authRuntime.appleEnabled && authRuntime.secureOrigin
+    ? {
+        state: { options: { sameSite: "none", secure: true } },
+        nonce: { options: { sameSite: "none", secure: true } },
+        callbackUrl: { options: { sameSite: "none", secure: true } },
+      }
+    : undefined;
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Auth.js error redirects land on /login with an `?error=` code instead
+  // of Auth.js's built-in pages: a cancelled Apple/Google consent goes to
+  // `signIn` (OAuthCallbackError), a failed check or config problem to
+  // `error`. /login shows only a generic or allow-listed message.
+  pages: { signIn: "/login", error: "/login" },
+  cookies: crossSiteCallbackCookies,
   providers: [
     Google({
       clientId: authRuntime.clientId,
@@ -126,14 +173,63 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return { id: candidate.id, name: candidate.name, role: candidate.role, authProvider: "credentials" };
       },
     }),
+    ...appleProviders,
   ],
   session: { strategy: "jwt" },
   callbacks: {
-    async jwt({ token, profile, user }) {
+    /**
+     * Before an OAuth sign-in may create an account: refuse (redirect to
+     * /login with a reason) if its email already belongs to a *different*
+     * account — never merge by email (see
+     * userRepository.classifyProviderSignIn) — or if a new Apple account
+     * came without any email. A returned path goes through Auth.js's
+     * same-origin redirect check. Credentials sign-ins were already fully
+     * decided by `authorize()`.
+     */
+    async signIn({ account, profile }) {
+      let userId: string | null = null;
+      let email: string | null = null;
+      if (account?.provider === "google") {
+        userId = typeof profile?.sub === "string" ? profile.sub : null;
+        email = typeof profile?.email === "string" ? profile.email : null;
+      } else if (account?.provider === "apple") {
+        const identity = parseAppleProfile(profile);
+        userId = identity ? appleUserId(identity.sub) : null;
+        email = identity?.email ?? null;
+      } else {
+        return true;
+      }
+      if (!userId) return false;
+
+      const outcome = await userRepository.classifyProviderSignIn(userId, email);
+      if (outcome === "email-in-use") return `/login?error=${"account-exists" satisfies SignInRefusal}`;
+      if (outcome === "email-missing") {
+        return account.provider === "apple" ? `/login?error=${"apple-email-missing" satisfies SignInRefusal}` : false;
+      }
+      return true;
+    },
+    async jwt({ token, profile, user, account }) {
+      // Sign in with Apple — only right after a fresh Apple sign-in. The
+      // role is always "user", whatever the row says: Apple can never
+      // produce an admin session. The display name comes from the database
+      // (never Auth.js's default, which falls back to the — possibly
+      // private-relay — email); no avatar from Apple.
+      if (account?.provider === "apple") {
+        const identity = parseAppleProfile(profile);
+        if (!identity) throw new Error("Invalid Apple profile.");
+        const dbUser = await userRepository.upsertFromAppleProfile(identity);
+        token.sub = dbUser.id;
+        token.role = "user";
+        token.authProvider = "apple";
+        token.name = dbUser.name;
+        token.email = dbUser.email;
+        token.picture = null;
+        return token;
+      }
       // `profile` is only present right after a fresh Google sign-in, not
       // on every request that reuses an existing JWT — so this upsert runs
       // once per sign-in, not once per page load.
-      if (profile?.sub && typeof profile.email === "string") {
+      if (account?.provider === "google" && profile?.sub && typeof profile.email === "string") {
         const dbUser = await userRepository.upsertFromGoogleProfile({
           id: profile.sub,
           email: profile.email,

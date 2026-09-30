@@ -646,6 +646,12 @@ export const de: Dictionary = {
     listHint: "Gedanken, die blockierte Personen unter ihrem Namen teilen, werden dir nicht angezeigt. Anonyme Gedanken sind davon ausgenommen; du kannst sie melden.",
     listEmpty: "Du hast niemanden blockiert.",
   },
+  login: {
+    continueWithApple: "Mit Apple fortfahren",
+    errorGeneric: "Die Anmeldung wurde nicht abgeschlossen oder abgebrochen. Bitte versuche es erneut.",
+    errorAccountExists: "Diese E-Mail-Adresse wird bei MINDOT bereits mit einer anderen Anmeldemethode verwendet. Bitte melde dich damit an.",
+    errorAppleEmailMissing: "Von deinem Apple-Konto wurde keine E-Mail-Adresse übermittelt. Beende in deinen Apple-ID-Einstellungen „Mit Apple anmelden“ für MINDOT und versuche es erneut.",
+  },
   profile: {
     pageTitle: "Dein MINDOT",
     subtitle: "Eine persönliche Sammlung von Gedanken, die einmal in deinem Kopf waren.",

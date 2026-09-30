@@ -7,6 +7,10 @@ export async function signInWithGoogle(redirectTo: string) {
   await signIn("google", { redirectTo });
 }
 
+export async function signInWithApple(redirectTo: string) {
+  await signIn("apple", { redirectTo });
+}
+
 export async function signOutOfMindot(redirectTo: string) {
   await signOut({ redirectTo });
 }

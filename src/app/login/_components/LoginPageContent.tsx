@@ -1,12 +1,23 @@
 "use client";
 
 import { BrandMark } from "@/components/brand/BrandMark";
+import { AppleSignInButton } from "@/components/auth/AppleSignInButton";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useLocale } from "@/i18n/LocaleProvider";
 
-export function LoginPageContent() {
+export type LoginError = "generic" | "account-exists" | "apple-email-missing";
+
+export function LoginPageContent({ appleEnabled, error }: { appleEnabled: boolean; error: LoginError | null }) {
   const { dictionary } = useLocale();
+  const errorMessage =
+    error === "account-exists"
+      ? dictionary.login.errorAccountExists
+      : error === "apple-email-missing"
+        ? dictionary.login.errorAppleEmailMissing
+        : error
+          ? dictionary.login.errorGeneric
+          : null;
 
   return (
     <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center py-16">
@@ -20,7 +31,13 @@ export function LoginPageContent() {
         </div>
 
         <div className="flex w-full flex-col items-center gap-4 rounded-lg border border-border bg-surface p-8 shadow-card">
+          {errorMessage && (
+            <p role="alert" className="text-center text-sm text-red-600">
+              {errorMessage}
+            </p>
+          )}
           <GoogleSignInButton redirectTo="/me" />
+          {appleEnabled && <AppleSignInButton redirectTo="/me" />}
         </div>
       </PageContainer>
     </div>

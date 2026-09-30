@@ -680,6 +680,13 @@ export interface Dictionary {
     listHint: string;
     listEmpty: string;
   };
+  /** /login — sign-in options beyond Google, and why a sign-in was refused or failed (never provider/technical detail). */
+  login: {
+    continueWithApple: string;
+    errorGeneric: string;
+    errorAccountExists: string;
+    errorAppleEmailMissing: string;
+  };
   profile: {
     pageTitle: string;
     subtitle: string;

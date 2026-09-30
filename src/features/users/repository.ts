@@ -16,6 +16,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { generatePublicId } from "./lib/identifiers";
+import { appleUserId } from "./lib/providerIds";
 import type { CredentialsUser, GoogleProfile, User } from "./types";
 
 const MAX_GENERATION_ATTEMPTS = 5;
@@ -40,6 +41,24 @@ export interface UserRepository {
    * immediately.
    */
   upsertFromGoogleProfile(profile: GoogleProfile): Promise<User>;
+  /**
+   * Sign in with Apple's counterpart to upsertFromGoogleProfile: the row id
+   * is `apple:<sub>` (see lib/providerIds.ts), a new row is always
+   * role "user", and a later sign-in never touches `role` or `email` — it
+   * only fills in `name` when Apple sent one (first consent only). Callers
+   * must have run `classifyProviderSignIn` first: a new row needs an email.
+   */
+  upsertFromAppleProfile(profile: { sub: string; email: string | null; name: string | null }): Promise<User>;
+  /**
+   * Run before any OAuth sign-in creates a row. `existing`: this provider
+   * identity already has an account. `new`: safe to create one.
+   * `email-in-use`: a *different* account already has this email — the
+   * sign-in is refused, never merged: MINDOT has no verified account-linking
+   * flow, and attaching a new provider identity to an account just because
+   * the email matches would be an account-takeover path. `email-missing`:
+   * a new account can't be created without one.
+   */
+  classifyProviderSignIn(userId: string, email: string | null): Promise<"existing" | "new" | "email-in-use" | "email-missing">;
   /** Resolves a user by their /u/[publicId] identifier — never by database id or email. Returns null for an unknown or not-yet-assigned id. */
   getByPublicId(publicId: string): Promise<User | null>;
   /** Idempotent: returns the existing publicId, or generates, persists, and returns a new one for a row that predates EPIC 009. */
@@ -171,6 +190,60 @@ class DrizzleUserRepository implements UserRepository {
       }
     }
     throw lastError instanceof Error ? lastError : new Error("Could not generate a unique public id.");
+  }
+
+  async upsertFromAppleProfile(profile: { sub: string; email: string | null; name: string | null }): Promise<User> {
+    const db = getDb();
+    const id = appleUserId(profile.sub);
+    const now = new Date();
+
+    const existing = await this.getById(id);
+    if (existing) {
+      if (!profile.name || profile.name === existing.name) return existing;
+      const [row] = await db.update(users).set({ name: profile.name, updatedAt: now }).where(eq(users.id, id)).returning();
+      return toUser(row);
+    }
+    if (!profile.email) throw new Error("A new Apple account needs an email.");
+
+    let lastError: unknown;
+    for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
+      try {
+        const [row] = await db
+          .insert(users)
+          .values({
+            id,
+            email: profile.email,
+            name: profile.name,
+            image: null,
+            // Same rule as Google: a provider sign-in never grants admin.
+            role: "user",
+            publicId: generatePublicId(),
+            createdAt: now,
+            updatedAt: now,
+          })
+          .returning();
+        return toUser(row);
+      } catch (error) {
+        lastError = error;
+        // A concurrent first sign-in of the same Apple account won the race.
+        const raced = await this.getById(id);
+        if (raced) return raced;
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error("Could not create the Apple account.");
+  }
+
+  async classifyProviderSignIn(userId: string, email: string | null): Promise<"existing" | "new" | "email-in-use" | "email-missing"> {
+    const db = getDb();
+    const [own] = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+    if (own) return "existing";
+    if (!email) return "email-missing";
+    const [other] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(sql`lower(${users.email}) = ${email.trim().toLowerCase()}`)
+      .limit(1);
+    return other ? "email-in-use" : "new";
   }
 
   async getByPublicId(publicId: string): Promise<User | null> {

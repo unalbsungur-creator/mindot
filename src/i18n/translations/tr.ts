@@ -648,6 +648,12 @@ export const tr: Dictionary = {
     listHint: "Engellediğin kişilerin adıyla paylaştığı düşünceler sana gösterilmez. Anonim düşünceler bu kapsamda değildir; onları bildirebilirsin.",
     listEmpty: "Kimseyi engellemedin.",
   },
+  login: {
+    continueWithApple: "Apple ile devam et",
+    errorGeneric: "Giriş tamamlanamadı veya iptal edildi. Lütfen tekrar dene.",
+    errorAccountExists: "Bu e-posta adresi MINDOT'ta başka bir giriş yöntemiyle kullanılıyor. Lütfen o yöntemle giriş yap.",
+    errorAppleEmailMissing: "Apple hesabından e-posta adresi alınamadı. Apple Kimliği ayarlarında MINDOT için \"Apple ile Giriş Yap\" erişimini kaldırıp tekrar dene.",
+  },
   profile: {
     pageTitle: "MINDOT'un",
     subtitle: "Bir zamanlar aklında olan düşüncelerin kişisel koleksiyonu.",

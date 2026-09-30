@@ -646,6 +646,12 @@ export const es: Dictionary = {
     listHint: "No se te muestran los pensamientos que las personas que bloqueaste comparten con su nombre. Los pensamientos anónimos no están incluidos; puedes denunciarlos.",
     listEmpty: "No has bloqueado a nadie.",
   },
+  login: {
+    continueWithApple: "Continuar con Apple",
+    errorGeneric: "No se completó el inicio de sesión o se canceló. Inténtalo de nuevo.",
+    errorAccountExists: "Este correo ya se usa en MINDOT con otro método de inicio de sesión. Inicia sesión de esa forma.",
+    errorAppleEmailMissing: "No recibimos un correo electrónico de tu cuenta de Apple. En los ajustes de tu ID de Apple, deja de usar «Iniciar sesión con Apple» para MINDOT e inténtalo de nuevo.",
+  },
   profile: {
     pageTitle: "Tu MINDOT",
     subtitle: "Una colección personal de pensamientos que alguna vez existieron en tu mente.",
