@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import type { ReactNode } from "react";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { BlockUserButton } from "@/features/blocks/components/BlockUserButton";
 import type { PublicWallResult } from "@/features/profile/types";
 import { WallNotes } from "@/features/profile/components/WallNotes";
 import { ShareCardPicker } from "@/features/sharing/components/ShareCardPicker";
@@ -14,6 +16,8 @@ interface PublicWallContentProps {
   wall: PublicWallResult;
   page: number;
   totalPages: number;
+  /** A signed-in visitor who isn't this wall's owner — the only one offered Block. */
+  canBlock: boolean;
 }
 
 /** EPIC 024: same param-preserving link builder ArchivePageContent uses — keeps any existing `from`/`to` intact, only touches `page`. */
@@ -25,8 +29,8 @@ function pageHref(pathname: string, searchParams: URLSearchParams, page: number)
   return qs ? `${pathname}?${qs}` : pathname;
 }
 
-/** Shared skeleton for the two "nothing to show" states below — same layout, different copy. */
-function WallMessagePanel({ title, body, image }: { title: string; body: string; image?: string | null }) {
+/** Shared skeleton for the "nothing to show" states below — same layout, different copy. */
+function WallMessagePanel({ title, body, image, children }: { title: string; body: string; image?: string | null; children?: ReactNode }) {
   return (
     <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center py-16">
       <PageContainer className="mx-auto flex max-w-md flex-col items-center gap-3 text-center">
@@ -38,17 +42,28 @@ function WallMessagePanel({ title, body, image }: { title: string; body: string;
         )}
         <h1 className="font-display text-2xl font-medium text-navy">{title}</h1>
         <p className="text-ink-soft">{body}</p>
+        {children}
       </PageContainer>
     </div>
   );
 }
 
-export function PublicWallContent({ publicId, wall, page, totalPages }: PublicWallContentProps) {
+export function PublicWallContent({ publicId, wall, page, totalPages, canBlock }: PublicWallContentProps) {
   const { dictionary } = useLocale();
   const searchParams = useSearchParams();
 
   if (wall.status === "not-found") {
     return <WallMessagePanel title={dictionary.publicWall.notFoundTitle} body={dictionary.publicWall.notFoundBody} />;
+  }
+
+  // User blocking: the owner's notes were never fetched (see getPublicWall);
+  // only the way back — unblocking — is offered.
+  if (wall.status === "blocked") {
+    return (
+      <WallMessagePanel title={dictionary.blocking.blockedWallTitle} body={dictionary.blocking.blockedWallBody} image={wall.profile.image}>
+        <BlockUserButton publicId={publicId} displayName={wall.profile.displayName} blocked />
+      </WallMessagePanel>
+    );
   }
 
   if (wall.status === "disabled") {
@@ -57,7 +72,9 @@ export function PublicWallContent({ publicId, wall, page, totalPages }: PublicWa
         title={dictionary.publicWall.disabledTitle}
         body={dictionary.publicWall.disabledBody}
         image={wall.profile.image}
-      />
+      >
+        {canBlock && <BlockUserButton publicId={publicId} displayName={wall.profile.displayName} blocked={false} />}
+      </WallMessagePanel>
     );
   }
 
@@ -77,6 +94,7 @@ export function PublicWallContent({ publicId, wall, page, totalPages }: PublicWa
         )}
         <h1 className="font-display text-2xl font-medium text-navy sm:text-3xl">{wall.profile.displayName}</h1>
         {wall.description && <p className="max-w-md text-sm text-ink-soft">{wall.description}</p>}
+        {canBlock && <BlockUserButton publicId={publicId} displayName={wall.profile.displayName} blocked={false} />}
       </div>
 
       <WallNotes notes={wall.notes} profile={wall.profile} emptyMessage={dictionary.publicWall.emptyMessage} />

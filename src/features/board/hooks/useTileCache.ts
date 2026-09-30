@@ -20,8 +20,19 @@ const MAX_CACHED_TILES = 80;
  * `visibleTileRange`). Dedupes in-flight requests, never re-fetches an
  * already-cached tile, and prunes the cache once it grows past
  * MAX_CACHED_TILES. This is the only place that talks to `/api/board`.
+ *
+ * `personal`: a signed-in viewer reads `/api/board?personal=1` — their own
+ * private, block-filtered tiles — instead of the shared public variant.
+ * `generation`: bump it (e.g. right after blocking someone) to drop every
+ * cached tile and fetch them again; responses still in flight from an
+ * older generation are discarded, never written back.
  */
-export function useTileCache(wantedTiles: TileCoord[], initialTile?: BoardTile) {
+export function useTileCache(
+  wantedTiles: TileCoord[],
+  initialTile?: BoardTile,
+  options: { personal?: boolean; generation?: number } = {}
+) {
+  const { personal = false, generation = 0 } = options;
   const [cache, setCache] = useState<Map<string, TileCacheEntry>>(() => {
     const initial = new Map<string, TileCacheEntry>();
     if (initialTile) {
@@ -36,6 +47,17 @@ export function useTileCache(wantedTiles: TileCoord[], initialTile?: BoardTile) 
   const cacheRef = useRef(cache);
   const inFlight = useRef(new Set<string>());
   const wantedRef = useRef(wantedTiles);
+  const generationRef = useRef(generation);
+  const [resetCount, setResetCount] = useState(0);
+
+  useEffect(() => {
+    if (generationRef.current === generation) return;
+    generationRef.current = generation;
+    inFlight.current.clear();
+    cacheRef.current = new Map();
+    setCache(new Map());
+    setResetCount((count) => count + 1);
+  }, [generation]);
 
   // A content-based signature, not the array itself — `wantedTiles` is a
   // fresh array every render, and depending on it directly would re-run
@@ -62,16 +84,18 @@ export function useTileCache(wantedTiles: TileCoord[], initialTile?: BoardTile) 
       return next;
     });
 
+    const requestGeneration = generationRef.current;
     missing.forEach((coord) => {
       const key = tileKey(coord);
       inFlight.current.add(key);
 
-      fetch(`/api/board?tileX=${coord.x}&tileY=${coord.y}`)
+      fetch(`/api/board?tileX=${coord.x}&tileY=${coord.y}${personal ? "&personal=1" : ""}`)
         .then((res) => {
           if (!res.ok) throw new Error(String(res.status));
           return res.json() as Promise<BoardTile>;
         })
         .then((tile) => {
+          if (generationRef.current !== requestGeneration) return;
           setCache((prev) => {
             const next = new Map(prev);
             next.set(key, { status: tile.messages.length > 0 ? "ready" : "empty", tile });
@@ -79,6 +103,7 @@ export function useTileCache(wantedTiles: TileCoord[], initialTile?: BoardTile) 
           });
         })
         .catch(() => {
+          if (generationRef.current !== requestGeneration) return;
           setCache((prev) => {
             const next = new Map(prev);
             next.set(key, { status: "error" });
@@ -86,10 +111,10 @@ export function useTileCache(wantedTiles: TileCoord[], initialTile?: BoardTile) 
           });
         })
         .finally(() => {
-          inFlight.current.delete(key);
+          if (generationRef.current === requestGeneration) inFlight.current.delete(key);
         });
     });
-  }, [wantedSignature]);
+  }, [wantedSignature, personal, resetCount]);
 
   return cache;
 }

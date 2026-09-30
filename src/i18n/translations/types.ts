@@ -660,6 +660,26 @@ export interface Dictionary {
     successBody: string;
     successButton: string;
   };
+  /** User blocking — {name} is the blocked person's display name. */
+  blocking: {
+    blockAction: string;
+    confirmTitle: string;
+    confirmBody: string;
+    confirmButton: string;
+    cancel: string;
+    blocking: string;
+    unblockAction: string;
+    unblocking: string;
+    errorGeneric: string;
+    blockedWallTitle: string;
+    blockedWallBody: string;
+    blockedNoteTitle: string;
+    blockedNoteBody: string;
+    manageLink: string;
+    listTitle: string;
+    listHint: string;
+    listEmpty: string;
+  };
   profile: {
     pageTitle: string;
     subtitle: string;

@@ -8,6 +8,7 @@ import {
   pgEnum,
   pgSequence,
   pgTable,
+  primaryKey,
   real,
   text,
   timestamp,
@@ -643,5 +644,31 @@ export const notifications = pgTable(
     index("notifications_recipient_created_idx").on(table.recipientUserId, table.createdAt),
     // countUnreadForUser / markAllAsRead's WHERE: one recipient, unread only.
     index("notifications_recipient_read_idx").on(table.recipientUserId, table.readAt),
+  ]
+);
+
+// User blocking — directional: a row means `blocker` no longer sees
+// `blocked`'s *named* content (board notes, personal wall, direct note
+// pages). Never the reverse, and never anonymous notes: hiding those would
+// let a blocker infer who wrote them, breaking the anonymity contract (see
+// features/blocks/). Visibility is applied at read time only — blocking
+// never changes a message's status, moderation, or reports. The composite
+// primary key makes a repeated block a no-op; the reverse index serves
+// account deletion, which removes both directions (userRepository.deleteAccount).
+export const userBlocks = pgTable(
+  "user_blocks",
+  {
+    blockerUserId: text("blocker_user_id")
+      .notNull()
+      .references(() => users.id),
+    blockedUserId: text("blocked_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.blockerUserId, table.blockedUserId] }),
+    check("user_blocks_not_self", sql`${table.blockerUserId} <> ${table.blockedUserId}`),
+    index("user_blocks_blocked_idx").on(table.blockedUserId),
   ]
 );

@@ -31,9 +31,11 @@ import { useLocale } from "@/i18n/LocaleProvider";
 export function BoardPageContent({
   initialTile,
   centerPoint,
+  viewerSignedIn,
 }: {
   initialTile: BoardTile;
   centerPoint: { x: number; y: number };
+  viewerSignedIn: boolean;
 }) {
   const { dictionary } = useLocale();
   const [filter, setFilter] = useState<BoardFilterResult>({ status: "idle", matchedIds: null });
@@ -41,8 +43,8 @@ export function BoardPageContent({
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] flex-col">
       <h1 className="sr-only">{dictionary.boardPage.title}</h1>
-      <BoardDiscoveryPanel onFilterChange={setFilter} />
-      <InfiniteBoard initialTile={initialTile} centerPoint={centerPoint} filter={filter} />
+      <BoardDiscoveryPanel onFilterChange={setFilter} personal={viewerSignedIn} />
+      <InfiniteBoard initialTile={initialTile} centerPoint={centerPoint} filter={filter} viewerSignedIn={viewerSignedIn} />
     </div>
   );
 }

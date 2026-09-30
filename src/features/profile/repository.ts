@@ -1,4 +1,5 @@
 import { messagePlacementPoint } from "@/features/board/lib/worldGeometry";
+import { blockRepository } from "@/features/blocks/repository";
 import { getPublicMessageById } from "@/features/board/repository";
 import { getFrameTemplate } from "@/features/memories/config/frameTemplates";
 import {
@@ -69,11 +70,22 @@ export async function getPersonalWallByUserId(
  * count query) regardless of whether the caller paginates, so the return
  * shape never has to vary by caller.
  */
-export async function getPublicWall(publicId: string, range?: TimeRange, page?: { limit: number; offset: number }): Promise<PublicWallResult> {
+export async function getPublicWall(
+  publicId: string,
+  range?: TimeRange,
+  page?: { limit: number; offset: number },
+  viewerId?: string
+): Promise<PublicWallResult> {
   const user = await userRepository.getByPublicId(publicId);
   if (!user) return { status: "not-found" };
 
   const profile = { publicId: user.publicId ?? publicId, displayName: user.name ?? "MINDOT", image: user.image };
+  // User blocking: checked before anything else about the wall, and — like
+  // "disabled" — before any message query runs. Only for a signed-in viewer
+  // (share cards and OG images pass none and stay the public view).
+  if (viewerId && viewerId !== user.id && (await blockRepository.isBlocked(viewerId, user.id))) {
+    return { status: "blocked", profile };
+  }
   if (!user.publicWallEnabled) return { status: "disabled", profile };
 
   const [notes, total] = await Promise.all([

@@ -11,6 +11,8 @@ import { CopyLinkButton } from "@/features/profile/components/CopyLinkButton";
 import { WallNotes } from "@/features/profile/components/WallNotes";
 import { ShareCardPicker } from "@/features/sharing/components/ShareCardPicker";
 import { useLocale } from "@/i18n/LocaleProvider";
+import { BlockedUsersSection } from "@/features/blocks/components/BlockedUsersSection";
+import type { BlockedUserSummary } from "@/features/blocks/types";
 import { DeleteAccountSection } from "@/features/users/components/DeleteAccountSection";
 import { WallSettings } from "./WallSettings";
 
@@ -30,6 +32,7 @@ interface MeData {
   pendingCount: number;
   /** Null hides account deletion (admin account). */
   accountEmail: string | null;
+  blockedUsers: BlockedUserSummary[];
 }
 
 interface MePageContentProps {
@@ -144,6 +147,8 @@ export function MePageContent({ isSignedIn, data }: MePageContentProps) {
             <p className="text-center text-sm text-ink-soft">{dictionary.profile.shareWallDisabledHint}</p>
           ))}
       </section>
+
+      <BlockedUsersSection users={data.blockedUsers} />
 
       {data.accountEmail && <DeleteAccountSection email={data.accountEmail} />}
     </PageContainer>

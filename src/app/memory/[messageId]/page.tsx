@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { auth } from "@/features/auth/auth";
-import { getPublicMessageById } from "@/features/board/repository";
+import { getPublicMessageById, isMessageAuthorBlockedBy } from "@/features/board/repository";
+import { BlockedNoteNotice } from "@/features/blocks/components/BlockedNoteNotice";
 import {
   digitalAccessCodeRepository,
   memoryPdfUnlockRepository,
@@ -26,6 +27,9 @@ export async function generateMetadata({ params }: PageProps<"/memory/[messageId
   const { messageId } = await params;
   const message = await getPublicMessageById(messageId);
   if (!message) return { title: "MINDOT" };
+  // A blocked author's text and name stay out of the viewer's page head too.
+  const session = await auth();
+  if (session?.user?.id && (await isMessageAuthorBlockedBy(messageId, session.user.id))) return { title: "MINDOT" };
 
   const excerpt = message.content.length > EXCERPT_MAX_CHARS ? `${message.content.slice(0, EXCERPT_MAX_CHARS)}…` : message.content;
   const description = message.author ? `${excerpt} — ${message.author.displayName}` : excerpt;
@@ -36,6 +40,12 @@ export async function generateMetadata({ params }: PageProps<"/memory/[messageId
 export default async function MemoryPage({ params }: PageProps<"/memory/[messageId]">) {
   const { messageId } = await params;
   const [session, message] = await Promise.all([auth(), getPublicMessageById(messageId)]);
+  // User blocking: a direct link to a note by someone the viewer blocked
+  // shows a notice instead — the note (and any keepsake flow for it) is
+  // never rendered. Existing projects stay reachable from /me/memories.
+  if (session?.user?.id && message && (await isMessageAuthorBlockedBy(messageId, session.user.id))) {
+    return <BlockedNoteNotice />;
+  }
 
   let existingProjects: ExistingProjectView[] = [];
   let tokenBalance = 0;

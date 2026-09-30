@@ -1,3 +1,4 @@
+import { auth } from "@/features/auth/auth";
 import { getTile } from "@/features/board/repository";
 import { resolveBoardCenterPoint } from "@/features/board/lib/worldGeometry";
 import { BoardPageContent } from "./_components/BoardPageContent";
@@ -16,11 +17,15 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function BoardPage() {
-  const initialTile = await getTile(0, 0);
+  // A signed-in viewer's initial tile already excludes authors they've
+  // blocked; every later tile comes from the matching private endpoint.
+  const session = await auth();
+  const viewerId = session?.user?.id;
+  const initialTile = await getTile(0, 0, undefined, viewerId);
   // EPIC: Approved Message Management — resolved server-side from the
   // same tile fetch, no extra query. See resolveBoardCenterPoint's own
   // doc comment for the fallback behavior if the reference message is
   // ever archived/missing.
   const centerPoint = resolveBoardCenterPoint(initialTile.messages.map((message) => message.id));
-  return <BoardPageContent initialTile={initialTile} centerPoint={centerPoint} />;
+  return <BoardPageContent initialTile={initialTile} centerPoint={centerPoint} viewerSignedIn={Boolean(viewerId)} />;
 }

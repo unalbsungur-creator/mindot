@@ -54,6 +54,9 @@ export interface PersonalWallNote {
 export type PublicWallResult =
   | { status: "not-found" }
   | { status: "disabled"; profile: PublicProfile }
+  // The signed-in viewer has blocked this wall's owner — only ever returned
+  // when a viewer id is passed; the wall's notes are never queried.
+  | { status: "blocked"; profile: PublicProfile }
   | { status: "ok"; profile: PublicProfile; description: string | null; notes: PersonalWallNote[]; total: number };
 
 export type ArchiveMessageState = "pending" | "published" | "not_published";

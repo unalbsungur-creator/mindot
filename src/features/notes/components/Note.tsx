@@ -102,7 +102,7 @@ export const HEART_PATH =
  * tooltip (see the `actions` rendering below), matching MINDOT's editorial
  * design language rather than reading as a placeholder/prototype control.
  */
-const actionIcons: Record<"save" | "share" | "report", ReactNode> = {
+const actionIcons: Record<"save" | "share" | "report" | "block", ReactNode> = {
   save: (
     <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-none stroke-current" strokeWidth={1.5} strokeLinejoin="round">
       <path d="M4 2.5h8a.5.5 0 01.5.5v10.5l-4.5-2.8-4.5 2.8V3a.5.5 0 01.5-.5Z" />
@@ -121,6 +121,14 @@ const actionIcons: Record<"save" | "share" | "report", ReactNode> = {
     <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-none stroke-current" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
       <path d="M3.5 1.5v13" />
       <path d="M3.5 2.5h7l-1.6 2.5 1.6 2.5h-7Z" />
+    </svg>
+  ),
+  // User blocking — the universal "no entry" circle, same quiet stroke as
+  // report: an option next to it, never louder than it.
+  block: (
+    <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-none stroke-current" strokeWidth={1.5} strokeLinecap="round">
+      <circle cx="8" cy="8" r="5.75" />
+      <path d="M3.95 12.05 12.05 3.95" />
     </svg>
   ),
 };
@@ -165,7 +173,7 @@ interface NoteProps {
    * the renderer below picks a `<Link>` or a plain `<button>` accordingly,
    * same visual treatment either way.
    */
-  actions?: { href?: string; onClick?: () => void; label: string; icon: "save" | "share" | "report" }[];
+  actions?: { href?: string; onClick?: () => void; label: string; icon: "save" | "share" | "report" | "block" }[];
   /**
    * EPIC: Message Like System — optional and only ever passed by the real
    * board (InfiniteBoard), never by the write-flow preview, template

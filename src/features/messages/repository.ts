@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ilike, inArray, lte, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, lte, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { messageLikes, messages } from "@/lib/db/schema";
 import { computePlacement, findEmptyTile, hasCollision, neighborTiles, tileForSequence, type NoteFootprint, type OccupantFootprint } from "@/features/board/lib/placement";
@@ -42,7 +42,12 @@ export interface MessageRepository {
    * `createdAt` window so a future "This Week" / "This Month" / a specific
    * year can be added without touching this method's callers.
    */
-  listApprovedByTile(tileX: number, tileY: number, range?: { from?: Date; to?: Date }): Promise<Message[]>;
+  listApprovedByTile(
+    tileX: number,
+    tileY: number,
+    range?: { from?: Date; to?: Date },
+    visibility?: { excludeNamedAuthorIds?: string[] }
+  ): Promise<Message[]>;
   /**
    * EPIC 021: board discovery — approved messages matching an optional
    * keyword (case-insensitive substring over `content`) and/or an optional
@@ -85,6 +90,8 @@ export interface MessageRepository {
     to?: Date;
     templateIds?: string[];
     languages?: string[];
+    /** A viewer's block list — see `excludeNamedAuthors`. */
+    excludeNamedAuthorIds?: string[];
     limit: number;
   }): Promise<Message[]>;
   /**
@@ -348,6 +355,18 @@ async function nextPlacementSequence(db: ReturnType<typeof getDb>): Promise<numb
   return Number(row.seq);
 }
 
+
+/**
+ * User blocking at the query level: drops *named* notes by the given
+ * authors (a viewer's block list), in the SQL itself — never anonymous
+ * ones, whose hiding would reveal to the blocker that the blocked person
+ * wrote them. `undefined` (no filter) for an empty or missing list, so
+ * signed-out/public reads keep their exact original query.
+ */
+function excludeNamedAuthors(authorIds: string[] | undefined) {
+  if (!authorIds || authorIds.length === 0) return undefined;
+  return or(eq(messages.isAnonymous, true), notInArray(messages.authorId, authorIds));
+}
 class DrizzleMessageRepository implements MessageRepository {
   async create(input: NewMessageInput): Promise<Message> {
     const db = getDb();
@@ -427,11 +446,18 @@ class DrizzleMessageRepository implements MessageRepository {
     return rows.map(toMessage);
   }
 
-  async listApprovedByTile(tileX: number, tileY: number, range?: { from?: Date; to?: Date }): Promise<Message[]> {
+  async listApprovedByTile(
+    tileX: number,
+    tileY: number,
+    range?: { from?: Date; to?: Date },
+    visibility?: { excludeNamedAuthorIds?: string[] }
+  ): Promise<Message[]> {
     const db = getDb();
     const conditions = [eq(messages.status, "approved"), eq(messages.tileX, tileX), eq(messages.tileY, tileY)];
     if (range?.from) conditions.push(gte(messages.createdAt, range.from));
     if (range?.to) conditions.push(lte(messages.createdAt, range.to));
+    const blockFilter = excludeNamedAuthors(visibility?.excludeNamedAuthorIds);
+    if (blockFilter) conditions.push(blockFilter);
 
     const rows = await db
       .select()
@@ -447,10 +473,13 @@ class DrizzleMessageRepository implements MessageRepository {
     to?: Date;
     templateIds?: string[];
     languages?: string[];
+    excludeNamedAuthorIds?: string[];
     limit: number;
   }): Promise<Message[]> {
     const db = getDb();
     const conditions = [eq(messages.status, "approved")];
+    const blockFilter = excludeNamedAuthors(options.excludeNamedAuthorIds);
+    if (blockFilter) conditions.push(blockFilter);
     if (options.keyword) conditions.push(ilike(messages.content, `%${turkishSearchKeyword(options.keyword)}%`));
     if (options.from) conditions.push(gte(messages.createdAt, options.from));
     if (options.to) conditions.push(lte(messages.createdAt, options.to));

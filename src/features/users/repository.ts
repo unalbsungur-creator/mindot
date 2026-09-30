@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, notExists, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, notExists, or, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import {
   digitalAccessCodes,
@@ -12,6 +12,7 @@ import {
   physicalOrders,
   tokenLedger,
   tokenWallets,
+  userBlocks,
   users,
 } from "@/lib/db/schema";
 import { generatePublicId } from "./lib/identifiers";
@@ -314,6 +315,8 @@ class DrizzleUserRepository implements UserRepository {
    *   DELETED
    *     - users row (email, name, image, publicId, wall settings)
    *     - notifications they received
+   *     - user blocks in both directions (their own block list, and blocks
+   *       of them — their content is anonymized, so those can't apply anymore)
    *     - their likes (like counts decremented to stay consistent)
    *     - never-published messages (pending/rejected) nobody else references
    *     - memory projects with no order, unlock, or access code
@@ -367,6 +370,7 @@ class DrizzleUserRepository implements UserRepository {
       });
 
       await tx.delete(notifications).where(eq(notifications.recipientUserId, userId));
+      await tx.delete(userBlocks).where(or(eq(userBlocks.blockerUserId, userId), eq(userBlocks.blockedUserId, userId)));
 
       await tx
         .update(messages)

@@ -9,6 +9,7 @@ import type { NoteData } from "@/features/notes/types";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { HeroBrandComposition } from "./HeroBrandComposition";
 import { PointsMilestone } from "./PointsMilestone";
+import { useHiddenMessageIds } from "@/features/blocks/hooks/useHiddenMessageIds";
 
 /**
  * The homepage's dark navy hero — one of exactly two sections on the
@@ -49,7 +50,11 @@ export function HomeHero({ activeCount, heroNotes }: { activeCount: number; hero
   // the write-flow preview already uses for an anonymous byline — no new
   // translation key. Never touches a real name or the anonymity decision
   // itself, only this one placeholder value's display text.
-  const localizedHeroNotes = heroNotes.map((note) =>
+  // User blocking: this page is one shared ISR render, so a signed-in
+  // viewer's blocked authors are dropped here, client-side, after a
+  // private lookup (see useHiddenMessageIds).
+  const hiddenIds = useHiddenMessageIds(heroNotes.map((note) => note.id));
+  const localizedHeroNotes = heroNotes.filter((note) => !hiddenIds.has(note.id)).map((note) =>
     note.authorName === "anonymous" ? { ...note, authorName: dictionary.write.previewAuthorFallback } : note
   );
 

@@ -119,7 +119,14 @@ function writeFiltersToUrl(filters: DiscoveryFilters): void {
  * the result view, never a second list/page. No results-fetching logic
  * changed, only the presentation of the result.
  */
-export function BoardDiscoveryPanel({ onFilterChange }: { onFilterChange: (result: BoardFilterResult) => void }) {
+export function BoardDiscoveryPanel({
+  onFilterChange,
+  personal = false,
+}: {
+  onFilterChange: (result: BoardFilterResult) => void;
+  /** Signed-in viewer: search the private, block-filtered variant (`?personal=1`), same split as the board's tiles. */
+  personal?: boolean;
+}) {
   const { dictionary } = useLocale();
   const [form, setForm] = useState<DiscoveryFilters>(EMPTY_FILTERS);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -158,6 +165,7 @@ export function BoardDiscoveryPanel({ onFilterChange }: { onFilterChange: (resul
     if (to) params.set("to", to.toISOString());
     if (filters.category !== "all") params.set("category", filters.category);
     if (filters.language !== "all") params.set("language", filters.language);
+    if (personal) params.set("personal", "1");
 
     fetch(`/api/board/search?${params.toString()}`)
       .then((res) => {
@@ -184,6 +192,9 @@ export function BoardDiscoveryPanel({ onFilterChange }: { onFilterChange: (resul
     // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-only URL read, same justified exception as ReportDialog's own open-state sync
     setForm(initial);
     runSearch(initial);
+    // Mount-only by design; runSearch's one prop input, `personal`, is fixed
+    // for the page's lifetime (it comes from the server render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Reports the current outcome up to InfiniteBoard (via BoardPageContent)

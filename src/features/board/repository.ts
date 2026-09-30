@@ -1,3 +1,4 @@
+import { blockRepository } from "@/features/blocks/repository";
 import { messageRepository } from "@/features/messages/repository";
 import { userRepository } from "@/features/users/repository";
 import { templateIdsForCategory } from "@/features/notes/config/templates";
@@ -22,8 +23,9 @@ const SEARCH_RESULT_LIMIT = 60;
  * output at all. Maps down to the narrow `BoardTile*` contract before the
  * data ever reaches a route handler or component.
  */
-export async function getTile(x: number, y: number, range?: BoardTimeRange): Promise<BoardTile> {
-  const approved = await messageRepository.listApprovedByTile(x, y, range);
+export async function getTile(x: number, y: number, range?: BoardTimeRange, viewerId?: string): Promise<BoardTile> {
+  const excludeNamedAuthorIds = viewerId ? await blockRepository.listBlockedIds(viewerId) : undefined;
+  const approved = await messageRepository.listApprovedByTile(x, y, range, { excludeNamedAuthorIds });
   const placed = approved.filter(
     (message) => message.positionX !== null && message.positionY !== null && message.rotation !== null
   );
@@ -129,9 +131,10 @@ export async function getPublicMessageById(id: string): Promise<PublicMessageDet
  * value stored at submission time, so there's no resolution step here
  * the way `category` needs (no code→id mapping to do).
  */
-export async function searchPublicMessages(filters: BoardSearchFilters): Promise<PublicMessageDetail[]> {
+export async function searchPublicMessages(filters: BoardSearchFilters, viewerId?: string): Promise<PublicMessageDetail[]> {
   if (!filters.keyword && !filters.from && !filters.to && !filters.category && !filters.language) return [];
 
+  const excludeNamedAuthorIds = viewerId ? await blockRepository.listBlockedIds(viewerId) : undefined;
   const templateIds = filters.category ? templateIdsForCategory(filters.category) : undefined;
   const languages = filters.language ? [filters.language] : undefined;
   const matches = await messageRepository.searchApproved({
@@ -140,6 +143,7 @@ export async function searchPublicMessages(filters: BoardSearchFilters): Promise
     to: filters.to,
     templateIds,
     languages,
+    excludeNamedAuthorIds,
     limit: SEARCH_RESULT_LIMIT,
   });
   const placed = matches.filter(
@@ -171,4 +175,32 @@ export async function searchPublicMessages(filters: BoardSearchFilters): Promise
       tileY: message.tileY,
     };
   });
+}
+
+/**
+ * User blocking for direct-URL note pages (/share/[id], /memory/[id]):
+ * whether `viewerId` has blocked the author of this *named* message. Always
+ * false for an anonymous message — its author is never looked up, same
+ * guarantee as `getTile`.
+ */
+export async function isMessageAuthorBlockedBy(messageId: string, viewerId: string): Promise<boolean> {
+  const message = await messageRepository.getById(messageId);
+  if (!message || message.isAnonymous) return false;
+  return blockRepository.isBlocked(viewerId, message.authorId);
+}
+
+/**
+ * For surfaces rendered once for everyone (the ISR homepage): which of these
+ * message ids the viewer must not see — named notes by authors they've
+ * blocked. The viewer hides them client-side after a private, uncached
+ * request; anonymous notes are never included.
+ */
+export async function listHiddenMessageIds(messageIds: string[], viewerId: string): Promise<string[]> {
+  if (messageIds.length === 0) return [];
+  const blockedIds = new Set(await blockRepository.listBlockedIds(viewerId));
+  if (blockedIds.size === 0) return [];
+  const found = await Promise.all(messageIds.map((id) => messageRepository.getById(id)));
+  return found
+    .filter((message): message is NonNullable<typeof message> => message !== null && !message.isAnonymous && blockedIds.has(message.authorId))
+    .map((message) => message.id);
 }

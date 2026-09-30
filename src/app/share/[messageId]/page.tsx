@@ -1,4 +1,6 @@
-import { getPublicMessageById } from "@/features/board/repository";
+import { auth } from "@/features/auth/auth";
+import { getPublicMessageById, isMessageAuthorBlockedBy } from "@/features/board/repository";
+import { BlockedNoteNotice } from "@/features/blocks/components/BlockedNoteNotice";
 import { getAppUrl, getRequestOrigin } from "@/lib/env";
 import { SharePageContent } from "./_components/SharePageContent";
 
@@ -7,7 +9,12 @@ export const dynamic = "force-dynamic";
 
 export default async function SharePage({ params }: PageProps<"/share/[messageId]">) {
   const { messageId } = await params;
-  const message = await getPublicMessageById(messageId);
+  const [session, message] = await Promise.all([auth(), getPublicMessageById(messageId)]);
+  // User blocking: a note by someone the viewer blocked isn't shown via a
+  // direct link either (the public share-card image itself stays public).
+  if (session?.user?.id && message && (await isMessageAuthorBlockedBy(messageId, session.user.id))) {
+    return <BlockedNoteNotice />;
+  }
   // Facebook's sharer.php dialog (SocialShareActions.tsx) needs this
   // page's own real, absolute URL — it reads that page's Open Graph tags
   // (opengraph-image.tsx, sibling to this file) rather than accepting an

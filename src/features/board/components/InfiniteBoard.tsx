@@ -9,6 +9,8 @@ import { getAnonymousId } from "@/lib/anonymousId";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { likeMessage } from "@/features/messages/like-actions";
 import { ReportDialog } from "@/features/reports/components/ReportDialog";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { blockUser } from "@/features/blocks/actions";
 import type { BoardTile } from "../types";
 import type { BoardFilterResult } from "./BoardDiscoveryPanel";
 import { useBoardCamera } from "../hooks/useBoardCamera";
@@ -84,6 +86,7 @@ export function InfiniteBoard({
   focusPoint,
   onFocusHandled,
   filter,
+  viewerSignedIn = false,
 }: {
   initialTile?: BoardTile;
   /** Where "return to center" goes — see useBoardCamera's own doc comment. */
@@ -112,6 +115,12 @@ export function InfiniteBoard({
    * doesn't need filtering can simply omit it.
    */
   filter?: BoardFilterResult;
+  /**
+   * User blocking: a signed-in viewer reads their own private, block-filtered
+   * tiles (`/api/board?personal=1`) and gets "Block" on named notes. Signed
+   * out, the board keeps using the shared public tiles, unchanged.
+   */
+  viewerSignedIn?: boolean;
 }) {
   const { dictionary } = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -148,7 +157,8 @@ export function InfiniteBoard({
     [camera, viewport.width, viewport.height]
   );
 
-  const tileCache = useTileCache(visibleTiles, initialTile);
+  const [blockGeneration, setBlockGeneration] = useState(0);
+  const tileCache = useTileCache(visibleTiles, initialTile, { personal: viewerSignedIn, generation: blockGeneration });
 
   const applyTransform = useCallback(
     (next: Camera) => {
@@ -430,6 +440,33 @@ export function InfiniteBoard({
   // currently-open dialog (if any) is about; `null` means closed.
   const [reportingMessageId, setReportingMessageId] = useState<string | null>(null);
 
+  // User blocking — which named note's author the confirm dialog is about
+  // (blockGeneration, declared above useTileCache, makes it refetch every
+  // tile once a block succeeds, so the author's notes disappear at once).
+  const [blockingNote, setBlockingNote] = useState<{ messageId: string; authorName: string } | null>(null);
+  const [blockPending, setBlockPending] = useState(false);
+  const [blockFailed, setBlockFailed] = useState(false);
+
+  async function confirmBlock() {
+    if (!blockingNote || blockPending) return;
+    setBlockPending(true);
+    setBlockFailed(false);
+    try {
+      const result = await blockUser({ messageId: blockingNote.messageId });
+      if (!result.ok) {
+        setBlockFailed(true);
+        return;
+      }
+      setBlockingNote(null);
+      setActiveNoteId(null);
+      setBlockGeneration((generation) => generation + 1);
+    } catch {
+      setBlockFailed(true);
+    } finally {
+      setBlockPending(false);
+    }
+  }
+
   // EPIC 040: Mobile Note Card Actions: Tap-to-Reveal. One board-wide id,
   // not per-note local state — guarantees at most one note's actions can
   // ever be visible on a touchscreen at a time (tapping a new card
@@ -648,7 +685,21 @@ export function InfiniteBoard({
                       // admin access-code tooling) is untouched; this only
                       // removes its one entry point from the normal card UI.
                       { href: `/share/${message.id}`, label: dictionary.share.shareAction, icon: "share" },
-                      { onClick: () => setReportingMessageId(message.id), label: dictionary.report.actionLabel, icon: "report" },
+                      { onClick: () => setReportingMessageId(message.id), label: dictionary.report.actionLabel, icon: "report" as const },
+                      // Named notes only: an anonymous note's author can't be
+                      // blocked (that would reveal who wrote it).
+                      ...(viewerSignedIn && message.author
+                        ? [
+                            {
+                              onClick: () => {
+                                setBlockFailed(false);
+                                setBlockingNote({ messageId: message.id, authorName: message.author?.displayName ?? "" });
+                              },
+                              label: dictionary.blocking.blockAction,
+                              icon: "block" as const,
+                            },
+                          ]
+                        : []),
                     ]}
                     like={{
                       count,
@@ -726,6 +777,19 @@ export function InfiniteBoard({
         open={reportingMessageId !== null}
         messageId={reportingMessageId}
         onClose={() => setReportingMessageId(null)}
+      />
+
+      <ConfirmDialog
+        open={blockingNote !== null}
+        title={dictionary.blocking.confirmTitle.replace("{name}", blockingNote?.authorName ?? "")}
+        body={blockFailed ? dictionary.blocking.errorGeneric : dictionary.blocking.confirmBody}
+        cancelLabel={dictionary.blocking.cancel}
+        confirmLabel={blockPending ? dictionary.blocking.blocking : dictionary.blocking.confirmButton}
+        confirmDisabled={blockPending}
+        onConfirm={confirmBlock}
+        onCancel={() => {
+          if (!blockPending) setBlockingNote(null);
+        }}
       />
     </div>
   );

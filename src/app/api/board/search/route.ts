@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { auth } from "@/features/auth/auth";
 import { searchPublicMessages } from "@/features/board/repository";
 import type { NoteTemplateCategory } from "@/features/notes/types";
 import { isLocale } from "@/i18n/config";
@@ -57,6 +58,15 @@ export async function GET(request: NextRequest) {
 
   if (!keyword && !from && !to && !category && !language) {
     return NextResponse.json({ error: "query, from, to, category, or language is required" }, { status: 400 });
+  }
+
+  // Same public/personal split as /api/board (see its doc comment): only
+  // `?personal=1` reads the session and filters out blocked authors, and
+  // only that variant is private.
+  if (searchParams.get("personal") === "1") {
+    const session = await auth();
+    const results = await searchPublicMessages({ keyword, from, to, category, language }, session?.user?.id);
+    return NextResponse.json({ results }, { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
   }
 
   const results = await searchPublicMessages({ keyword, from, to, category, language });

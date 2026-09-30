@@ -1,4 +1,5 @@
 import { auth } from "@/features/auth/auth";
+import { blockRepository } from "@/features/blocks/repository";
 import { memoryRepository, physicalOrderRepository } from "@/features/memories/repository";
 import { messageRepository } from "@/features/messages/repository";
 import { getPersonalWallByUserId } from "@/features/profile/repository";
@@ -30,6 +31,7 @@ export default async function MePage() {
   // in features/profile/repository.ts for the same reasoning).
   const user = await userRepository.getById(userId);
   const counts = await messageRepository.countByAuthor(userId);
+  const blockedUsers = await blockRepository.listBlockedUsers(userId);
 
   return (
     <MePageContent
@@ -48,6 +50,7 @@ export default async function MePage() {
         // The user's own address, for the account-deletion confirmation
         // step. Admins never get the self-service deletion (refused server-side too).
         accountEmail: user && session.user.role !== "admin" ? user.email : null,
+        blockedUsers,
         totalWrittenCount: counts.total,
         publishedCount: counts.approved,
         pendingCount: counts.pending,

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { auth } from "@/features/auth/auth";
 import { getPublicWall } from "@/features/profile/repository";
+import { userRepository } from "@/features/users/repository";
 import { parseTimeRangeParams } from "@/features/profile/lib/timeRange";
 import { PublicWallContent } from "./_components/PublicWallContent";
 
@@ -27,9 +29,24 @@ function parsePage(raw: string | undefined): number {
  * own title (already visible on the page) but no content-derived Open
  * Graph preview, since there's no content yet to preview.
  */
+/**
+ * User blocking: who is looking. `viewerId` makes every wall read below
+ * block-aware (a blocker gets the "blocked" state — metadata included, so
+ * the blocked person's text isn't even in the page head); `canBlock` is
+ * any signed-in visitor other than the wall's owner.
+ */
+async function resolveViewer(publicId: string): Promise<{ viewerId: string | undefined; canBlock: boolean }> {
+  const session = await auth();
+  const viewerId = session?.user?.id;
+  if (!viewerId) return { viewerId: undefined, canBlock: false };
+  const viewer = await userRepository.getById(viewerId);
+  return { viewerId, canBlock: viewer !== null && viewer.publicId !== publicId };
+}
+
 export async function generateMetadata({ params }: PageProps<"/u/[publicId]">): Promise<Metadata> {
   const { publicId } = await params;
-  const wall = await getPublicWall(publicId);
+  const { viewerId } = await resolveViewer(publicId);
+  const wall = await getPublicWall(publicId, undefined, undefined, viewerId);
   // Nothing to index for an unknown or intentionally-private wall — robots.ts
   // allows crawling under /u/ broadly since most walls are meant to be
   // found, but a "not-found"/"disabled" response here is empty/private
@@ -63,12 +80,13 @@ export default async function PublicWallPage({ params, searchParams }: PageProps
   const range = parseTimeRangeParams(sp);
   const requestedPage = parsePage(typeof sp.page === "string" ? sp.page : undefined);
 
-  const firstAttempt = await getPublicWall(publicId, range, { limit: PAGE_SIZE, offset: (requestedPage - 1) * PAGE_SIZE });
+  const { viewerId, canBlock } = await resolveViewer(publicId);
+  const firstAttempt = await getPublicWall(publicId, range, { limit: PAGE_SIZE, offset: (requestedPage - 1) * PAGE_SIZE }, viewerId);
 
-  // Only the "ok" branch has pagination to clamp — "not-found"/"disabled"
-  // never queried messages at all, so there's nothing to page through.
+  // Only the "ok" branch has pagination to clamp — "not-found"/"disabled"/
+  // "blocked" never queried messages at all, so there's nothing to page through.
   if (firstAttempt.status !== "ok") {
-    return <PublicWallContent publicId={publicId} wall={firstAttempt} page={1} totalPages={1} />;
+    return <PublicWallContent publicId={publicId} wall={firstAttempt} page={1} totalPages={1} canBlock={canBlock} />;
   }
 
   const totalPages = Math.max(1, Math.ceil(firstAttempt.total / PAGE_SIZE));
@@ -76,7 +94,7 @@ export default async function PublicWallPage({ params, searchParams }: PageProps
   const wall =
     page === requestedPage
       ? firstAttempt
-      : await getPublicWall(publicId, range, { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
+      : await getPublicWall(publicId, range, { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }, viewerId);
 
-  return <PublicWallContent publicId={publicId} wall={wall} page={page} totalPages={totalPages} />;
+  return <PublicWallContent publicId={publicId} wall={wall} page={page} totalPages={totalPages} canBlock={canBlock} />;
 }
