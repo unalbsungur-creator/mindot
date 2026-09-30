@@ -180,7 +180,7 @@ export function OnboardingModal() {
       onClose={handleClose}
       onCancel={handleCancel}
       onClick={handleBackdropClick}
-      className="m-auto max-h-[85vh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-lg border border-border bg-surface p-0 shadow-card backdrop:bg-navy/50 backdrop:backdrop-blur-sm"
+      className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-lg border border-border bg-surface p-0 shadow-card backdrop:bg-navy/50 backdrop:backdrop-blur-sm"
     >
       <div key={step} className="flex flex-col gap-6 p-6 motion-safe:animate-[onboarding-step-in_var(--motion-base)_var(--ease-standard)] sm:p-8">
         <div className="flex items-start justify-between gap-3">

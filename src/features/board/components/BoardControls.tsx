@@ -71,7 +71,7 @@ export function BoardControls({ onPan, onZoomIn, onZoomOut, onReturnToCenter }: 
   return (
     <div
       // `fixed`, not `absolute`: this board's own container is only
-      // `min-h-[calc(100dvh-5rem)]` tall, an approximation of the space
+      // `min-h-board-shell` tall, an approximation of the space
       // left under the header/search bar that can run short on a small
       // mobile viewport — when it does, the container's bottom edge (and
       // an `absolute bottom-4` anchored to it) ends up below the fold
@@ -82,18 +82,13 @@ export function BoardControls({ onPan, onZoomIn, onZoomOut, onReturnToCenter }: 
       // (which would turn it back into an `absolute`-like containing
       // block), and on desktop the container's bottom edge already meets
       // the viewport's, so this renders identically there.
-      className="pointer-events-none fixed inset-x-0 bottom-4 flex items-end justify-between px-4 sm:bottom-6 sm:px-6"
-      // EPIC 042: `env(safe-area-inset-bottom)` — a notched/home-indicator
-      // phone's unsafe bottom strip — added as *extra* padding on top of
-      // the existing `bottom-4`/`sm:bottom-6` positioning, not a
-      // replacement for it. No Tailwind safe-area plugin exists in this
-      // project (and none is being added — see this EPIC's "no new
-      // dependency" rule), so this is the one inline style needed; it
-      // resolves to `0px` on every device without a safe-area inset
-      // (`env()` with no matching insets falls back to the fallback
-      // value), so desktop and non-notched phones render byte-identical
-      // to before this EPIC.
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      // Safe area (--safe-* tokens, real values thanks to the root
+      // viewport's viewport-fit=cover): the bottom inset is *extra*
+      // padding on top of the existing bottom-4/sm:bottom-6 offset (clears
+      // the home indicator / gesture bar), and each side keeps its usual
+      // gutter unless the inset is larger (a landscape notch). All insets
+      // are 0 on desktop and non-notched phones, so those render as before.
+      className="pointer-events-none fixed inset-x-0 bottom-4 flex items-end justify-between pb-[var(--safe-bottom)] pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] sm:bottom-6 sm:pl-[max(1.5rem,var(--safe-left))] sm:pr-[max(1.5rem,var(--safe-right))]"
     >
       <div className="pointer-events-auto grid grid-cols-3 grid-rows-3 gap-1">
         <div />

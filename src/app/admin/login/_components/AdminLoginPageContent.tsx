@@ -56,7 +56,7 @@ export function AdminLoginPageContent() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center py-16">
+    <div className="flex min-h-page-panel items-center justify-center py-16">
       <PageContainer className="mx-auto w-full max-w-sm">
         <form
           onSubmit={handleSubmit}

@@ -263,7 +263,9 @@ export function BoardDiscoveryPanel({
   };
 
   return (
-    <div className="relative z-[var(--z-panel)] border-b border-border bg-surface/95 px-3 py-2 backdrop-blur sm:px-4">
+    // Full-width row with its own gutters: each side is max(gutter, that
+    // side's safe-area inset), so a landscape notch never covers the search.
+    <div className="relative z-[var(--z-panel)] border-b border-border bg-surface/95 py-2 pl-[max(0.75rem,var(--safe-left))] pr-[max(0.75rem,var(--safe-right))] backdrop-blur sm:pl-[max(1rem,var(--safe-left))] sm:pr-[max(1rem,var(--safe-right))]">
       <div className="flex flex-wrap items-center gap-2">
         <form onSubmit={handleSubmit} className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           <label className="sr-only" htmlFor="board-discovery-keyword">

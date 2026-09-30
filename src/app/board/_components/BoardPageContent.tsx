@@ -41,7 +41,7 @@ export function BoardPageContent({
   const [filter, setFilter] = useState<BoardFilterResult>({ status: "idle", matchedIds: null });
 
   return (
-    <div className="flex min-h-[calc(100dvh-5rem)] flex-col">
+    <div className="flex min-h-board-shell flex-col">
       <h1 className="sr-only">{dictionary.boardPage.title}</h1>
       <BoardDiscoveryPanel onFilterChange={setFilter} personal={viewerSignedIn} />
       <InfiniteBoard initialTile={initialTile} centerPoint={centerPoint} filter={filter} viewerSignedIn={viewerSignedIn} />

@@ -152,7 +152,9 @@ export function NotificationBell() {
           // instead of the bell's, independent of exactly where the bell
           // sits; `sm:` and up restores the original, unchanged
           // `absolute right-0 top-full` behavior verbatim.
-          className="fixed left-4 right-4 top-[4.5rem] z-[var(--z-overlay)] overflow-hidden rounded-lg border border-border bg-surface text-ink shadow-card sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(340px,calc(100vw-2rem))]"
+          // Mobile: just under the header's top row, which starts below the
+          // top safe-area inset; side gutters widen for a landscape notch.
+          className="fixed left-[max(1rem,var(--safe-left))] right-[max(1rem,var(--safe-right))] top-[calc(4.5rem_+_var(--safe-top))] z-[var(--z-overlay)] overflow-hidden rounded-lg border border-border bg-surface text-ink shadow-card sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(340px,calc(100vw-2rem))]"
         >
           <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
             <h2 ref={headingRef} tabIndex={-1} className="font-display text-sm font-medium text-navy focus:outline-none">

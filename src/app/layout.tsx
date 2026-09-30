@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Fraunces, Caveat, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SignInOptionsProvider } from "@/components/auth/SignInOptions";
@@ -35,6 +35,21 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+/**
+ * `viewportFit: "cover"` lets the page use the whole screen on devices with
+ * a notch / Dynamic Island / home indicator, and on Android edge-to-edge —
+ * and is what makes `env(safe-area-inset-*)` report real values (they're 0
+ * without it). Every edge that touches the screen then pads itself with
+ * the --safe-* tokens (styles/tokens.css): the header, footer, page
+ * gutters, board controls, dialogs. Zoom stays enabled (no maximumScale /
+ * userScalable) for accessibility.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   // Resolves relative OG/Twitter image URLs (opengraph-image.tsx files)

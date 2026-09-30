@@ -19,7 +19,7 @@ export function LoginPageContent({ error }: { error: LoginError | null }) {
           : null;
 
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center py-16">
+    <div className="flex min-h-page-panel items-center justify-center py-16">
       <PageContainer className="mx-auto flex w-full max-w-sm flex-col items-center gap-6">
         <BrandMark className="h-10" />
 

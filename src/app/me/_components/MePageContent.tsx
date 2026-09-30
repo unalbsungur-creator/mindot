@@ -49,7 +49,7 @@ export function MePageContent({ isSignedIn, data }: MePageContentProps) {
 
   if (!isSignedIn || !data) {
     return (
-      <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center py-16">
+      <div className="flex min-h-page-panel items-center justify-center py-16">
         <PageContainer className="mx-auto flex max-w-md flex-col items-center gap-6 text-center">
           <BrandMark className="h-10" />
           <h1 className="font-display text-2xl font-medium text-navy">{dictionary.profile.pageTitle}</h1>

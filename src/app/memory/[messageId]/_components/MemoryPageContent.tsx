@@ -100,7 +100,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
 
   if (!message) {
     return (
-      <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center py-16">
+      <div className="flex min-h-page-panel items-center justify-center py-16">
         <PageContainer className="mx-auto flex max-w-md flex-col items-center gap-3 text-center">
           <h1 className="font-display text-2xl font-medium text-navy">{dictionary.memory.notEligibleTitle}</h1>
           <p className="text-ink-soft">{dictionary.memory.notEligibleBody}</p>
@@ -152,7 +152,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
 
   if (!isSignedIn) {
     return (
-      <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center py-16">
+      <div className="flex min-h-page-panel items-center justify-center py-16">
         <PageContainer className="mx-auto flex max-w-md flex-col items-center gap-6 text-center">
           <h1 className="font-display text-2xl font-medium text-navy">{dictionary.memory.pageTitle}</h1>
           <Note note={previewNote} variant="static" />

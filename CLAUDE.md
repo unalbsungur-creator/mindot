@@ -228,6 +228,12 @@
 - The board is spatially-partitioned by tile, never "load everything" — see "Board / tile architecture" above. Share-card generation follows the same discipline: it renders from one resolved note + its own tile's neighbors, never the whole board. Personal-space queries follow it too: every archive/wall/memory-library read is a single, indexed, author-scoped query — never a full-table scan — with a documented small-volume exception only where EPIC 007 already established the same pattern (see "Memory Project library" above).
 - Do not add followers, likes, a social graph, or a public activity feed even if requested casually later — MINDOT's personal space is explicitly not a social-media profile (see "Personal space & user profiles" above and EPIC 009's report).
 
+## Safe area & viewport
+
+- The root layout exports `viewport` with `viewportFit: "cover"` (Next's static viewport export — never a hand-written `<meta>`), so pages can use the whole screen on notched iPhones and Android edge-to-edge, and `env(safe-area-inset-*)` reports real values. Zoom stays enabled (no `maximumScale`/`userScalable`).
+- Insets are read only through the `--safe-top/right/bottom/left` tokens (`styles/tokens.css`, `env(…, 0px)` — 0 on desktop). They're applied where content meets a screen edge: `SiteHeader` (`pt-[var(--safe-top)]`, background under the status bar), `SiteFooter` (bottom), `PageContainer` gutters (each side `max(gutter, inset)` — clears landscape notches on every page), `BoardControls`, `BoardDiscoveryPanel`, the mobile notification popover, and a base-layer `max-height` cap for every native `<dialog>` (`globals.css`). A new full-width or fixed element that touches an edge uses the same `max(gutter, var(--safe-*))` pattern — never per-device pixel values.
+- Viewport units: vertically centered full-page panels use `min-h-page-panel` (svh with a vh fallback, minus header/footer allowance and insets); the board shell uses `min-h-board-shell` (dvh). Both are `@utility` classes in `globals.css`. Prefer them over a raw `calc(100vh-…)`.
+
 ## Component reuse
 
 - Prefer extending an existing component in `components/ui` over creating a near-duplicate. Only add a new shared component when it's actually used in more than one place or is a clear architectural primitive.

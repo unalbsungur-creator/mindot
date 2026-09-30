@@ -31,7 +31,7 @@ export function NotificationsPageContent({
 
   if (!isSignedIn) {
     return (
-      <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center py-16">
+      <div className="flex min-h-page-panel items-center justify-center py-16">
         <PageContainer className="mx-auto flex max-w-md flex-col items-center gap-6 text-center">
           <h1 className="font-display text-2xl font-medium text-navy">{dictionary.notifications.pageTitle}</h1>
           <p className="text-sm text-ink-soft">{dictionary.notifications.signInRequiredBody}</p>

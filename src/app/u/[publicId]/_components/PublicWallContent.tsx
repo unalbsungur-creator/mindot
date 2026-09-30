@@ -32,7 +32,7 @@ function pageHref(pathname: string, searchParams: URLSearchParams, page: number)
 /** Shared skeleton for the "nothing to show" states below — same layout, different copy. */
 function WallMessagePanel({ title, body, image, children }: { title: string; body: string; image?: string | null; children?: ReactNode }) {
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center py-16">
+    <div className="flex min-h-page-panel items-center justify-center py-16">
       <PageContainer className="mx-auto flex max-w-md flex-col items-center gap-3 text-center">
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element -- small decorative avatar from an arbitrary Google profile URL

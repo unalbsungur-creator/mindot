@@ -50,6 +50,38 @@ body {
   color: var(--color-navy);
 }
 
+/* Native <dialog>s live in the top layer, which spans the whole screen —
+   including its unsafe edges once viewport-fit=cover is on (see the
+   --safe-* tokens). Cap every dialog to the safe area and let a tall one
+   scroll instead of running under the notch or home indicator. In
+   @layer base so a dialog's own utility classes still take precedence. */
+@layer base {
+  dialog {
+    max-height: calc(100dvh - 2rem - var(--safe-top) - var(--safe-bottom));
+    max-width: calc(100vw - 2rem - var(--safe-left) - var(--safe-right));
+    overflow-y: auto;
+  }
+}
+
+/* Full-height, vertically centered page panels (sign-in prompts, empty /
+   not-found states). svh is the viewport with mobile browser toolbars
+   *shown*, so a centered panel is never pushed under them (vh there is the
+   taller, toolbars-hidden viewport); vh comes first as the fallback where
+   svh isn't supported. 8rem is the header/footer allowance these panels
+   always used, plus the safe-area padding the header and footer now carry. */
+@utility min-h-page-panel {
+  min-height: calc(100vh - 8rem);
+  min-height: calc(100svh - 8rem - var(--safe-top) - var(--safe-bottom));
+}
+
+/* The board's shell: dvh tracks mobile toolbars as they show and hide, so
+   the canvas always fills what's visible; minus the header's safe-area
+   top padding. */
+@utility min-h-board-shell {
+  min-height: calc(100vh - 5rem);
+  min-height: calc(100dvh - 5rem - var(--safe-top));
+}
+
 /* Onboarding modal's per-step content transition — see
    features/onboarding/components/OnboardingModal.tsx. Applied only under
    motion-safe: (Tailwind's prefers-reduced-motion guard). */

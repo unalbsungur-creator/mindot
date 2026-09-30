@@ -14,7 +14,7 @@ export function BlockedNoteNotice() {
   const { dictionary } = useLocale();
   const t = dictionary.blocking;
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center py-16">
+    <div className="flex min-h-page-panel items-center justify-center py-16">
       <PageContainer className="mx-auto flex max-w-md flex-col items-center gap-3 text-center">
         <BrandMark className="h-10" />
         <h1 className="font-display text-2xl font-medium text-navy">{t.blockedNoteTitle}</h1>

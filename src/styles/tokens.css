@@ -62,4 +62,17 @@
   --z-panel: 40;
   --z-header: 50;
   --z-overlay: 100;
+
+  /* Safe area — the device's unsafe edges: notch / Dynamic Island, the
+     home indicator, rounded corners, and Android's edge-to-edge system
+     bars. Non-zero only because the root viewport sets
+     viewport-fit=cover (app/layout.tsx); 0 on desktop and on any device
+     or browser without insets, so layouts there are unchanged. Apply via
+     arbitrary values, e.g. pt-[var(--safe-top)], or max(gutter, inset)
+     for padding that already exists. Never replace these with per-device
+     pixel values. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }

@@ -20,7 +20,9 @@ export function SiteFooter() {
   );
 
   return (
-    <footer className="border-t border-border/70 bg-canvas py-4">
+    // Bottom padding grows by the home-indicator / gesture-bar inset, so the
+    // last footer line is never underneath it.
+    <footer className="border-t border-border/70 bg-canvas pt-4 pb-[calc(1rem_+_var(--safe-bottom))]">
       <PageContainer className="flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-between sm:gap-4 sm:text-left">
         <BrandMark tone="brand" className="h-5 w-5 shrink-0" />
         <p className="text-xs text-ink-soft">{dictionary.footer.tagline}</p>
