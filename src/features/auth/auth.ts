@@ -158,6 +158,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.sub = user.id;
         token.role = user.role;
         token.authProvider = user.authProvider;
+        return token;
+      }
+      // Every later request reusing an existing JWT: a JWT can't be revoked
+      // on its own, so re-check that its account still exists — once an
+      // account is deleted (userRepository.deleteAccount removes the row),
+      // any copy of its old cookie stops authenticating immediately.
+      // Returning null makes Auth.js treat the request as signed out and
+      // clear the cookie. A database *error* keeps the session instead
+      // (fail-open): Auth.js clears the cookie on any thrown error, which
+      // would sign everyone out during a transient outage, and a deleted
+      // account can't be reached without the database anyway.
+      if (token.sub) {
+        try {
+          if (!(await userRepository.isActiveAccount(token.sub))) return null;
+        } catch (error) {
+          console.error("[auth] account check failed", error instanceof Error ? error.name : "unknown");
+        }
       }
       return token;
     },

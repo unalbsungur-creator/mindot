@@ -11,6 +11,7 @@ import { CopyLinkButton } from "@/features/profile/components/CopyLinkButton";
 import { WallNotes } from "@/features/profile/components/WallNotes";
 import { ShareCardPicker } from "@/features/sharing/components/ShareCardPicker";
 import { useLocale } from "@/i18n/LocaleProvider";
+import { DeleteAccountSection } from "@/features/users/components/DeleteAccountSection";
 import { WallSettings } from "./WallSettings";
 
 interface MeData {
@@ -27,6 +28,8 @@ interface MeData {
   totalWrittenCount: number;
   publishedCount: number;
   pendingCount: number;
+  /** Null hides account deletion (admin account). */
+  accountEmail: string | null;
 }
 
 interface MePageContentProps {
@@ -141,6 +144,8 @@ export function MePageContent({ isSignedIn, data }: MePageContentProps) {
             <p className="text-center text-sm text-ink-soft">{dictionary.profile.shareWallDisabledHint}</p>
           ))}
       </section>
+
+      {data.accountEmail && <DeleteAccountSection email={data.accountEmail} />}
     </PageContainer>
   );
 }

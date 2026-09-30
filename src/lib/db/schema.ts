@@ -138,6 +138,13 @@ export const users = pgTable("users", {
   // see recordFailedLogin()/recordSuccessfulLogin().
   failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
   lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  // Account deletion: set only on a *tombstone* row — the PII-free,
+  // random-id stand-in that retained records (ledger, orders, anonymized
+  // messages) are re-pointed to when a user deletes their account. The
+  // deleted user's own row (keyed by their Google sub) is removed
+  // physically; see userRepository.deleteAccount. A tombstone can never
+  // sign in: it has no password hash and its id is no provider's subject.
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

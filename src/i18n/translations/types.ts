@@ -633,6 +633,33 @@ export interface Dictionary {
      */
     formatNames: Record<string, string>;
   };
+  /** Self-service account deletion on /me — {email} is the signed-in user's own address. */
+  accountDeletion: {
+    sectionTitle: string;
+    sectionBody: string;
+    openButton: string;
+    step1Title: string;
+    step1Intro: string;
+    itemDeleted: string;
+    itemAnonymized: string;
+    itemRetained: string;
+    itemTokens: string;
+    continueButton: string;
+    cancelButton: string;
+    step2Title: string;
+    step2Instruction: string;
+    emailLabel: string;
+    confirmButton: string;
+    deleting: string;
+    backButton: string;
+    errorMismatch: string;
+    errorAuth: string;
+    errorAdmin: string;
+    errorFailed: string;
+    successTitle: string;
+    successBody: string;
+    successButton: string;
+  };
   profile: {
     pageTitle: string;
     subtitle: string;

@@ -1,6 +1,19 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, notExists, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { users } from "@/lib/db/schema";
+import {
+  digitalAccessCodes,
+  invitations,
+  memoryPdfUnlocks,
+  memoryProjects,
+  messageLikes,
+  messageReports,
+  messages,
+  notifications,
+  physicalOrders,
+  tokenLedger,
+  tokenWallets,
+  users,
+} from "@/lib/db/schema";
 import { generatePublicId } from "./lib/identifiers";
 import type { CredentialsUser, GoogleProfile, User } from "./types";
 
@@ -70,7 +83,17 @@ export interface UserRepository {
   recordFailedLogin(userId: string): Promise<void>;
   /** Resets the failed-attempt counter/lockout on a successful credentials sign-in. */
   recordSuccessfulLogin(userId: string): Promise<void>;
+  /**
+   * Whether `id` is still a live, non-tombstone account — the one extra
+   * read the Auth.js `jwt` callback makes per request, so a session cookie
+   * minted before its account was deleted stops authenticating at once.
+   */
+  isActiveAccount(id: string): Promise<boolean>;
+  /** Irreversibly deletes a (non-admin) account — see the implementation's doc comment. */
+  deleteAccount(userId: string): Promise<DeleteAccountResult>;
 }
+
+export type DeleteAccountResult = { status: "deleted" } | { status: "not-found" } | { status: "admin-account" };
 
 function toUser(row: typeof users.$inferSelect): User {
   return {
@@ -198,7 +221,8 @@ class DrizzleUserRepository implements UserRepository {
 
   async listAll(): Promise<User[]> {
     const db = getDb();
-    const rows = await db.select().from(users).orderBy(users.createdAt);
+    // Tombstones (deleted accounts' PII-free stand-ins) aren't users anyone manages.
+    const rows = await db.select().from(users).where(isNull(users.deletedAt)).orderBy(users.createdAt);
     return rows.map(toUser);
   }
 
@@ -261,6 +285,155 @@ class DrizzleUserRepository implements UserRepository {
       .update(users)
       .set({ failedLoginAttempts: 0, lockedUntil: null, updatedAt: new Date() })
       .where(eq(users.id, userId));
+  }
+
+  async isActiveAccount(id: string): Promise<boolean> {
+    const db = getDb();
+    const [row] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.id, id), isNull(users.deletedAt)))
+      .limit(1);
+    return row !== undefined;
+  }
+
+  /**
+   * Account deletion — one transaction, so it either fully happens or not
+   * at all. Like tokenRepository.consumeForMemoryPdfUnlock, this is a
+   * deliberate cross-table write: atomicity across every table that
+   * references `users.id` can't be split over per-feature repositories.
+   *
+   * The deleted user's own row is removed physically — its id is their
+   * Google `sub`, itself a stable personal identifier, and keeping it would
+   * let the same Google account "revive" the old row on its next sign-in
+   * (upsertFromGoogleProfile upserts on id). Records that must outlive the
+   * account are re-pointed to a fresh, random-id *tombstone* row carrying
+   * no personal data (`deletedAt` set, no email/name/image/publicId), so
+   * every foreign key stays valid without keeping anything identifying:
+   *
+   *   DELETED
+   *     - users row (email, name, image, publicId, wall settings)
+   *     - notifications they received
+   *     - their likes (like counts decremented to stay consistent)
+   *     - never-published messages (pending/rejected) nobody else references
+   *     - memory projects with no order, unlock, or access code
+   *   ANONYMIZED (re-pointed to the tombstone)
+   *     - published/archived messages, and any message something else still
+   *       references: author name → "anonymous", isAnonymous, off the
+   *       personal wall, pending edits dropped. Approved placement is
+   *       permanent and other people's keepsakes/orders reference these
+   *       rows, so they stay on the board, unattributed.
+   *     - memory projects that have an order, unlock, or redeemed code
+   *     - physical_orders, token_ledger, token_wallets, memory_pdf_unlocks,
+   *       digital_access_codes.redeemed_by — purchase/accounting records
+   *       (no personal data of their own). A remaining token balance stays
+   *       with the tombstone, unspendable.
+   *     - reports they filed (moderation history about someone else's content)
+   *
+   * TODO(legal): whether retained purchase/ledger/order records meet (or
+   * must be limited to) specific statutory retention periods is a legal
+   * question — the privacy policy's deletion/retention wording needs
+   * professional review against this behavior before launch.
+   *
+   * Admin accounts are refused: the admin identity is provisioned
+   * out-of-band (db:create-admin), not self-service.
+   *
+   * Every FK to users.id is handled below; a reference added later without
+   * updating this method makes the final DELETE fail, rolling everything
+   * back — never a partial deletion.
+   */
+  async deleteAccount(userId: string): Promise<DeleteAccountResult> {
+    const db = getDb();
+    return db.transaction(async (tx) => {
+      // Lock the row: a concurrent second deletion waits, then finds nothing.
+      const [account] = await tx
+        .select({ id: users.id, role: users.role })
+        .from(users)
+        .where(and(eq(users.id, userId), isNull(users.deletedAt)))
+        .for("update");
+      if (!account) return { status: "not-found" as const };
+      if (account.role === "admin") return { status: "admin-account" as const };
+
+      const now = new Date();
+      const tombstoneId = `deleted_${crypto.randomUUID()}`;
+      await tx.insert(users).values({
+        id: tombstoneId,
+        // email is NOT NULL UNIQUE; `.invalid` is a reserved, never-routable TLD.
+        email: `${tombstoneId}@deleted.invalid`,
+        role: "user",
+        deletedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await tx.delete(notifications).where(eq(notifications.recipientUserId, userId));
+
+      await tx
+        .update(messages)
+        .set({ likeCount: sql`greatest(${messages.likeCount} - 1, 0)` })
+        .where(
+          inArray(messages.id, tx.select({ id: messageLikes.messageId }).from(messageLikes).where(eq(messageLikes.userId, userId)))
+        );
+      await tx.delete(messageLikes).where(eq(messageLikes.userId, userId));
+
+      await tx
+        .delete(messages)
+        .where(
+          and(
+            eq(messages.authorId, userId),
+            inArray(messages.status, ["pending", "rejected"]),
+            notExists(tx.select({ id: memoryProjects.id }).from(memoryProjects).where(eq(memoryProjects.messageId, messages.id))),
+            notExists(tx.select({ id: messageReports.id }).from(messageReports).where(eq(messageReports.messageId, messages.id))),
+            notExists(tx.select({ id: messageLikes.id }).from(messageLikes).where(eq(messageLikes.messageId, messages.id))),
+            notExists(tx.select({ id: notifications.id }).from(notifications).where(eq(notifications.messageId, messages.id)))
+          )
+        );
+      await tx
+        .update(messages)
+        .set({
+          authorId: tombstoneId,
+          authorName: "anonymous",
+          isAnonymous: true,
+          showOnPersonalWall: false,
+          pendingContent: null,
+          revisionSubmittedAt: null,
+          revisionRejectionReason: null,
+          updatedAt: now,
+        })
+        .where(eq(messages.authorId, userId));
+
+      await tx
+        .delete(memoryProjects)
+        .where(
+          and(
+            eq(memoryProjects.createdBy, userId),
+            notExists(tx.select({ id: physicalOrders.id }).from(physicalOrders).where(eq(physicalOrders.memoryProjectId, memoryProjects.id))),
+            notExists(tx.select({ id: memoryPdfUnlocks.id }).from(memoryPdfUnlocks).where(eq(memoryPdfUnlocks.memoryProjectId, memoryProjects.id))),
+            notExists(
+              tx.select({ id: digitalAccessCodes.id }).from(digitalAccessCodes).where(eq(digitalAccessCodes.memoryProjectId, memoryProjects.id))
+            )
+          )
+        );
+      await tx.update(memoryProjects).set({ createdBy: tombstoneId, updatedAt: now }).where(eq(memoryProjects.createdBy, userId));
+      await tx.update(physicalOrders).set({ createdBy: tombstoneId }).where(eq(physicalOrders.createdBy, userId));
+      await tx.update(digitalAccessCodes).set({ redeemedBy: tombstoneId }).where(eq(digitalAccessCodes.redeemedBy, userId));
+      await tx.update(memoryPdfUnlocks).set({ userId: tombstoneId }).where(eq(memoryPdfUnlocks.userId, userId));
+      await tx.update(tokenWallets).set({ userId: tombstoneId, updatedAt: now }).where(eq(tokenWallets.userId, userId));
+      await tx.update(tokenLedger).set({ userId: tombstoneId }).where(eq(tokenLedger.userId, userId));
+      await tx.update(messageReports).set({ reporterId: tombstoneId }).where(eq(messageReports.reporterId, userId));
+
+      // Admin-only audit columns — a non-admin is never referenced here
+      // today, but re-pointing (not skipping) keeps the final DELETE valid.
+      await tx.update(tokenLedger).set({ createdBy: tombstoneId }).where(eq(tokenLedger.createdBy, userId));
+      await tx.update(messageReports).set({ reviewedBy: tombstoneId }).where(eq(messageReports.reviewedBy, userId));
+      await tx.update(messages).set({ moderatedBy: tombstoneId }).where(eq(messages.moderatedBy, userId));
+      await tx.update(messages).set({ revisionReviewedBy: tombstoneId }).where(eq(messages.revisionReviewedBy, userId));
+      await tx.update(invitations).set({ createdBy: tombstoneId }).where(eq(invitations.createdBy, userId));
+      await tx.update(users).set({ statusChangedBy: tombstoneId }).where(eq(users.statusChangedBy, userId));
+
+      await tx.delete(users).where(eq(users.id, userId));
+      return { status: "deleted" as const };
+    });
   }
 }
 

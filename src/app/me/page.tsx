@@ -45,6 +45,9 @@ export default async function MePage() {
         physicalCount: physicalOrders.length,
         publicWallEnabled: user?.publicWallEnabled ?? false,
         publicWallDescription: user?.publicWallDescription ?? null,
+        // The user's own address, for the account-deletion confirmation
+        // step. Admins never get the self-service deletion (refused server-side too).
+        accountEmail: user && session.user.role !== "admin" ? user.email : null,
         totalWrittenCount: counts.total,
         publishedCount: counts.approved,
         pendingCount: counts.pending,
