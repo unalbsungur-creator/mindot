@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { GrantTokensDialog } from "@/features/tokens/components/GrantTokensDialog";
 import { SuspendDialog } from "@/features/users/components/SuspendDialog";
 import { unsuspendUser } from "@/features/users/moderation-actions";
 import type { User } from "@/features/users/types";
@@ -22,6 +23,7 @@ interface MessageCounts {
 interface UserRow {
   user: User;
   messageCounts: MessageCounts;
+  tokenBalance: number;
 }
 
 interface UsersPageContentProps {
@@ -56,6 +58,10 @@ export function UsersPageContent({ authorized, items: initialItems, currentUserI
     setItems((current) => current.map((row) => (row.user.id === userId ? { ...row, user: { ...row.user, ...patch } } : row)));
   }
 
+  function updateTokenBalance(userId: string, tokenBalance: number) {
+    setItems((current) => current.map((row) => (row.user.id === userId ? { ...row, tokenBalance } : row)));
+  }
+
   return (
     <PageContainer className="py-16">
       <div className="mx-auto flex max-w-3xl flex-col gap-2 pb-8">
@@ -72,6 +78,7 @@ export function UsersPageContent({ authorized, items: initialItems, currentUserI
             isHighlighted={row.user.id === highlightId}
             onSuspended={(reason) => updateUser(row.user.id, { status: "suspended", statusReason: reason })}
             onUnsuspended={() => updateUser(row.user.id, { status: "active", statusReason: null })}
+            onTokensGranted={(balance) => updateTokenBalance(row.user.id, balance)}
           />
         ))}
       </div>
@@ -85,24 +92,27 @@ function UserRowCard({
   isHighlighted,
   onSuspended,
   onUnsuspended,
+  onTokensGranted,
 }: {
   row: UserRow;
   isSelf: boolean;
   isHighlighted: boolean;
   onSuspended: (reason: string | null) => void;
   onUnsuspended: () => void;
+  onTokensGranted: (balance: number) => void;
 }) {
   const { dictionary } = useLocale();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [grantDialogOpen, setGrantDialogOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isHighlighted) cardRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [isHighlighted]);
 
-  const { user, messageCounts } = row;
+  const { user, messageCounts, tokenBalance } = row;
   const isSuspended = user.status === "suspended";
 
   function handleUnsuspend() {
@@ -148,6 +158,10 @@ function UserRowCard({
         {dictionary.moderation.statusArchived.toLowerCase()} {messageCounts.archived})
       </p>
 
+      <p className="text-xs text-ink-soft">
+        {dictionary.usersAdmin.tokenBalanceLabel}: <span className="font-medium text-navy">{tokenBalance}</span>
+      </p>
+
       {isSuspended && (
         <p className="text-xs text-ink-soft">
           <span className="font-medium text-navy">{dictionary.usersAdmin.reasonLabel}: </span>
@@ -167,6 +181,10 @@ function UserRowCard({
             {dictionary.usersAdmin.suspendAction}
           </Button>
         )}
+        {/* Granting is allowed for every row, the admin's own included. */}
+        <Button size="sm" variant="ghost" onClick={() => setGrantDialogOpen(true)}>
+          {dictionary.usersAdmin.grantTokensAction}
+        </Button>
         {error && <span className="text-xs text-red-600">{dictionary.usersAdmin.errorGeneric}</span>}
       </div>
 
@@ -178,6 +196,14 @@ function UserRowCard({
           setDialogOpen(false);
           onSuspended(reason);
         }}
+      />
+
+      <GrantTokensDialog
+        open={grantDialogOpen}
+        userId={user.id}
+        userLabel={user.name ?? user.email}
+        onClose={() => setGrantDialogOpen(false)}
+        onGranted={onTokensGranted}
       />
     </div>
   );

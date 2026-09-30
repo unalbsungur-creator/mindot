@@ -357,6 +357,25 @@ export interface Dictionary {
     errorGeneric: string;
     unauthorizedTitle: string;
     unauthorizedBody: string;
+    /** Admin Token grants — amounts are always server-validated; {name}/{amount}/{balance}/{max} are placeholders. */
+    tokenBalanceLabel: string;
+    grantTokensAction: string;
+    grantDialogTitle: string;
+    grantDialogBody: string;
+    grantAmountLabel: string;
+    grantQuickAmountsLabel: string;
+    grantNoteLabel: string;
+    grantNotePlaceholder: string;
+    grantConfirm: string;
+    grantCancel: string;
+    grantDone: string;
+    granting: string;
+    grantSuccess: string;
+    grantAlreadyRecorded: string;
+    grantErrorInvalidAmount: string;
+    grantErrorTargetNotFound: string;
+    grantErrorConflict: string;
+    grantErrorUnauthorized: string;
   };
   invitationsAdmin: {
     title: string;

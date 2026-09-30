@@ -1,3 +1,6 @@
+/** Largest single admin grant — a typo guard, not a business limit. */
+export const MAX_ADMIN_GRANT_AMOUNT = 1000;
+
 export type TokenLedgerType = "grant" | "purchase" | "subscription" | "consume" | "refund" | "adjustment";
 
 /** A user's current token balance. No wallet row simply means a zero balance. */
