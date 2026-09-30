@@ -7,6 +7,7 @@ import { useLocale } from "@/i18n/LocaleProvider";
 import type { Dictionary } from "@/i18n/translations";
 import { cn } from "@/lib/cn";
 import { unlockMemoryPdf, type UnlockMemoryPdfError } from "../actions";
+import { PdfDownloadButton } from "./PdfDownloadButton";
 
 interface PersonalPdfAccessProps {
   projectId: string;
@@ -90,7 +91,7 @@ export function PersonalPdfAccess({
     return (
       <div className={cn("flex flex-col gap-2", className)}>
         <p className="text-sm text-navy">{t.pdfReady}</p>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-start gap-2">
           {/* nativeLink: plain <a>, so Next never prefetches or client-fetches the PDF route. */}
           <Button
             href={`/api/memories/${projectId}/download?disposition=inline`}
@@ -102,9 +103,7 @@ export function PersonalPdfAccess({
           >
             {dictionary.adminOrders.viewPdfButton}
           </Button>
-          <Button href={`/api/memories/${projectId}/download`} nativeLink size="sm">
-            {dictionary.adminOrders.downloadPdfButton}
-          </Button>
+          <PdfDownloadButton projectId={projectId} />
         </div>
         <p className="text-xs text-ink-soft">{balanceLabel}</p>
       </div>

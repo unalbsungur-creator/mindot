@@ -6,6 +6,7 @@ import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { PdfDownloadButton } from "@/features/memories/components/PdfDownloadButton";
 import { PersonalPdfAccess } from "@/features/memories/components/PersonalPdfAccess";
 import { Note } from "@/features/notes/components/Note";
 import type { MemoryLibraryItem } from "@/features/profile/types";
@@ -149,12 +150,18 @@ export function MemoryLibraryContent({ isSignedIn, items, tokenBalance }: Memory
                   </Link>
                   {item.digitalStatus === "granted" && (
                     <>
-                      <Button href={`/api/memories/${item.projectId}/download?disposition=inline`} target="_blank" rel="noopener noreferrer" variant="ghost" size="sm">
+                      {/* nativeLink: plain <a>, so Next never prefetches or client-fetches the PDF route. */}
+                      <Button
+                        href={`/api/memories/${item.projectId}/download?disposition=inline`}
+                        nativeLink
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="ghost"
+                        size="sm"
+                      >
                         {dictionary.adminOrders.viewPdfButton}
                       </Button>
-                      <Button href={`/api/memories/${item.projectId}/download`} size="sm">
-                        {dictionary.adminOrders.downloadPdfButton}
-                      </Button>
+                      <PdfDownloadButton projectId={item.projectId} />
                     </>
                   )}
                 </div>

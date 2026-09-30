@@ -50,7 +50,7 @@ export type ShareFileOutcome = "shared" | "cancelled" | "unsupported" | "failed"
  * dismissing the sheet (AbortError) is reported as "cancelled", not a
  * failure, matching how `ShareCardPicker` already treated this case.
  */
-export async function shareFile(file: File, meta: { title: string; text: string }): Promise<ShareFileOutcome> {
+export async function shareFile(file: File, meta: { title?: string; text?: string } = {}): Promise<ShareFileOutcome> {
   if (typeof navigator === "undefined" || typeof navigator.share !== "function" || typeof navigator.canShare !== "function") {
     return "unsupported";
   }
@@ -58,7 +58,13 @@ export async function shareFile(file: File, meta: { title: string; text: string 
     return "unsupported";
   }
   try {
-    await navigator.share({ files: [file], title: meta.title, text: meta.text });
+    // Only non-empty fields: iOS offers an extra text item next to the file
+    // otherwise, which muddies "Save to Files" for a document.
+    await navigator.share({
+      files: [file],
+      ...(meta.title ? { title: meta.title } : {}),
+      ...(meta.text ? { text: meta.text } : {}),
+    });
     return "shared";
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") return "cancelled";
@@ -82,12 +88,22 @@ export async function fetchImageAsFile(url: string, filename: string): Promise<F
   return new File([blob], filename, { type: "image/png" });
 }
 
-/** Triggers a normal browser download of a File via a temporary object URL — the fallback used wherever native file sharing isn't available. */
+/**
+ * Triggers a normal browser download of a File via a temporary object URL —
+ * the fallback used wherever native file sharing isn't available. The link
+ * is attached while clicked (older Firefox ignores detached anchors) and
+ * the URL is revoked a little later, not synchronously, since some
+ * browsers (Safari) start reading the blob only after click() returns.
+ */
 export function downloadFile(file: File): void {
   const objectUrl = URL.createObjectURL(file);
   const link = document.createElement("a");
   link.href = objectUrl;
   link.download = file.name;
+  link.rel = "noopener";
+  link.style.display = "none";
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(objectUrl);
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }

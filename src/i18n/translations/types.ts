@@ -478,6 +478,11 @@ export interface Dictionary {
     pdfPriceNote: string;
     pdfTokenBalance: string;
     pdfReady: string;
+    /** PdfDownloadButton: in-place PDF download; the save hint is shown on iPhone/iPad, where saving goes through the share sheet. */
+    pdfPreparing: string;
+    pdfSaveButton: string;
+    pdfSaveHint: string;
+    pdfDownloadError: string;
     pdfUnlockButton: string;
     pdfUnlockRequired: string;
     pdfUnlockConfirmTitle: string;
