@@ -3,7 +3,8 @@ import { auth } from "@/features/auth/auth";
 import { getPublicMessageById } from "@/features/board/repository";
 import { getFrameTemplate } from "@/features/memories/config/frameTemplates";
 import { resolveCaptureRegion } from "@/features/memories/lib/captureRegion";
-import { digitalAccessCodeRepository, memoryRepository } from "@/features/memories/repository";
+import { memoryRepository } from "@/features/memories/repository";
+import { checkMemoryOutputAccess } from "@/features/memories/services/outputAccess";
 import { getPublicShareFormat } from "@/features/sharing/config/shareFormats";
 import { sloganForLanguage, toShareCardNote } from "@/features/sharing/lib/shareCardData";
 import { renderShareCard } from "@/features/sharing/services/shareCardRenderer";
@@ -12,10 +13,12 @@ export const runtime = "nodejs";
 
 /**
  * Generates a branded share-card PNG for one of the caller's own Memory
- * Projects. Authorization mirrors the PDF download route
- * (app/api/memories/[projectId]/download/route.ts): must be signed in,
- * must own the project, and a digital_frame project additionally requires
- * a redeemed access code for THIS project. Deliberately no admin bypass —
+ * Projects. Authorization is the same shared output policy the PDF
+ * download route uses (features/memories/lib/outputPolicy.ts, purpose
+ * "share"): must be signed in, must own the project, and must hold the
+ * entitlement its outputType and frame require — a redeemed access code
+ * for a digital_frame, the PDF unlock for a framed personal_pdf, and never
+ * for a framed physical_gift or an unknown type. Deliberately no admin bypass —
  * sharing is a personal action on your own memory, not an operational
  * one, so it stays stricter than the admin PDF preview.
  */
@@ -37,14 +40,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
   if (!project) {
     return NextResponse.json({ error: "not-found" }, { status: 404 });
   }
-  if (project.createdBy !== session.user.id) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
-  if (project.outputType === "digital_frame") {
-    const hasAccess = await digitalAccessCodeRepository.hasRedeemedCodeForProject(project.id);
-    if (!hasAccess) {
-      return NextResponse.json({ error: "access-not-redeemed" }, { status: 403 });
-    }
+  const access = await checkMemoryOutputAccess(project, session.user, "share", { adminBypass: false });
+  if (!access.allowed) {
+    return NextResponse.json({ error: access.reason }, { status: 403 });
   }
 
   const message = await getPublicMessageById(project.messageId);

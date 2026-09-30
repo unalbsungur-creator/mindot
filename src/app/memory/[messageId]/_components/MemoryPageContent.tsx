@@ -54,6 +54,8 @@ type Step = "capture" | "preview" | "result";
 const errorMessage = (dictionary: Dictionary): Record<MemoryActionError, string> => ({
   "auth-required": dictionary.write.signInRequired,
   "message-not-eligible": dictionary.memory.notEligibleBody,
+  "invalid-output-type": dictionary.memory.createError,
+  "invalid-capture-mode": dictionary.memory.createError,
   "invalid-frame": dictionary.memory.createError,
   "not-found": dictionary.memory.createError,
   forbidden: dictionary.memory.createError,

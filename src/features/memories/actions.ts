@@ -4,7 +4,8 @@ import { auth } from "@/features/auth/auth";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getPublicMessageById } from "@/features/board/repository";
 import { tokenRepository } from "@/features/tokens/repository";
-import { getActiveFrameTemplates } from "./config/frameTemplates";
+import { DILEKKUTUM_URL } from "./config/dilekkutum";
+import { validateNewMemoryProject } from "./lib/outputPolicy";
 import { manualDigitalPurchaseProvider } from "./providers/manualProvider";
 import {
   digitalAccessCodeRepository,
@@ -24,6 +25,8 @@ import type {
 export type MemoryActionError =
   | "auth-required"
   | "message-not-eligible"
+  | "invalid-output-type"
+  | "invalid-capture-mode"
   | "invalid-frame"
   | "not-found"
   | "forbidden"
@@ -48,7 +51,10 @@ export interface MemoryActionResult<T = undefined> {
 
 /**
  * Starts a memory project. Requires sign-in (the project's `createdBy`),
- * and requires the message to currently be public/approved — `messageId`
+ * an allowed outputType/captureMode/frame combination (see
+ * `validateNewMemoryProject` — a frame only on digital_frame, physical_gift
+ * only while the physical flow is live), and requires the message to
+ * currently be public/approved — `messageId`
  * is never trusted to mean "this is a valid, public thought" on its own;
  * `getPublicMessageById` is the same privacy-respecting read the board
  * itself uses, so an anonymous message's real author never enters this
@@ -59,12 +65,14 @@ export async function createMemoryProject(input: CreateMemoryProjectInput): Prom
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "auth-required" };
 
+  // Before any lookup: the input is client-controlled whatever its
+  // TypeScript type says, and an unknown enum value must be a clean error,
+  // not a database 500.
+  const invalid = validateNewMemoryProject(input, { physicalGiftAvailable: DILEKKUTUM_URL !== null });
+  if (invalid) return { ok: false, error: invalid };
+
   const message = await getPublicMessageById(input.messageId);
   if (!message) return { ok: false, error: "message-not-eligible" };
-
-  if (input.frameTemplateId && !getActiveFrameTemplates().some((t) => t.id === input.frameTemplateId)) {
-    return { ok: false, error: "invalid-frame" };
-  }
 
   const project = await memoryRepository.create({
     messageId: input.messageId,

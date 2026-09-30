@@ -1,10 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/features/auth/auth";
-import {
-  digitalAccessCodeRepository,
-  memoryPdfUnlockRepository,
-  memoryRepository,
-} from "@/features/memories/repository";
+import { memoryRepository } from "@/features/memories/repository";
+import { checkMemoryOutputAccess } from "@/features/memories/services/outputAccess";
 import { generateMemoryPdf, MemoryPdfSourceUnavailableError } from "@/features/memories/services/pdf";
 
 /**
@@ -13,10 +10,11 @@ import { generateMemoryPdf, MemoryPdfSourceUnavailableError } from "@/features/m
  * entirely server-side here:
  *   - must be signed in,
  *   - must own the project OR be an admin,
- *   - a "digital_frame" project additionally requires a redeemed access
- *     code for THIS project specifically (not just any valid code),
- *   - a "personal_pdf" project additionally requires a memory_pdf_unlocks
- *     row for it (403 `pdf-unlock-required` otherwise). Admins bypass both.
+ *   - the owner additionally needs the entitlement the shared output
+ *     policy (features/memories/lib/outputPolicy.ts) names for this
+ *     outputType: a memory_pdf_unlocks row for "personal_pdf", a redeemed
+ *     access code for THIS project for "digital_frame", and never for
+ *     "physical_gift" or any unknown type. Admins bypass it.
  * See "Digital download security" in CLAUDE.md.
  *
  * `?disposition=inline` renders in-browser (the admin order detail page's
@@ -53,28 +51,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
     return NextResponse.json({ error: "not-found" }, { status: 404 });
   }
 
-  const isAdmin = session.user.role === "admin";
-  const isOwner = project.createdBy === session.user.id;
-  if (!isAdmin && !isOwner) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
-
-  if (!isAdmin && project.outputType === "digital_frame") {
-    const hasAccess = await digitalAccessCodeRepository.hasRedeemedCodeForProject(project.id);
-    if (!hasAccess) {
-      return NextResponse.json({ error: "access-not-redeemed" }, { status: 403 });
-    }
-  }
-
-  // Read-only entitlement check: this GET never spends a token — unlocking
-  // (and paying) happens only in the `unlockMemoryPdf` Server Function.
-  // Every unlock source (token, legacy_grandfathered, legacy_access_code,
-  // admin) counts, as long as it belongs to the project's owner.
-  if (!isAdmin && project.outputType === "personal_pdf") {
-    const unlock = await memoryPdfUnlockRepository.getByProjectId(project.id);
-    if (!unlock || unlock.userId !== project.createdBy) {
-      return NextResponse.json({ error: "pdf-unlock-required" }, { status: 403 });
-    }
+  // Owner + per-outputType entitlement, deny by default — see
+  // features/memories/lib/outputPolicy.ts. Read-only: this GET never spends
+  // a token; unlocking (and paying) happens only in `unlockMemoryPdf`.
+  const access = await checkMemoryOutputAccess(project, session.user, "pdf", { adminBypass: true });
+  if (!access.allowed) {
+    return NextResponse.json({ error: access.reason }, { status: 403 });
   }
 
   try {
