@@ -10,6 +10,7 @@ export interface Dictionary {
     writeThought: string;
     myMindot: string;
     admin: string;
+    login: string;
   };
   hero: {
     badge: string;

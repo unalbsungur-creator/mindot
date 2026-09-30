@@ -7,6 +7,7 @@ export const en: Dictionary = {
     writeThought: "Leave a Dot",
     myMindot: "My MINDOT",
     admin: "Admin",
+    login: "Sign in",
   },
   hero: {
     badge: "A living wall of thought",
