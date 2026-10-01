@@ -1,4 +1,8 @@
 import { renderToBuffer } from "@react-pdf/renderer";
+import { getNoteTemplate } from "@/features/notes/config/templates";
+import { templateDisplayName } from "@/features/notes/lib/templateDisplayName";
+import { matchBrowserLocale } from "@/i18n/config";
+import { getDictionary } from "@/i18n/translations";
 import { getPublicMessageById } from "@/features/board/repository";
 import { getShareFormat } from "@/features/sharing/config/shareFormats";
 import { sloganForLanguage, toShareCardNote } from "@/features/sharing/lib/shareCardData";
@@ -8,7 +12,8 @@ import { resolveCaptureRegion } from "../lib/captureRegion";
 import type { MemoryProject } from "../types";
 import { ensurePdfFontsRegistered, ensurePdfYogaWasmUrlConfigured } from "./fonts";
 import { ensurePdfMeasureFontsLoaded } from "./pdfTextMeasure";
-import { MemoryPdfDocument } from "./renderer";
+import { renderPdfCardImage } from "./pdfCardImage";
+import { MemoryPdfDocument, PdfDownloadDocument } from "./renderer";
 
 export class MemoryPdfSourceUnavailableError extends Error {}
 
@@ -31,16 +36,20 @@ const PDF_RENDER_HEIGHT = 1800;
  * output for the same project, and it keeps "what got downloaded" always
  * in sync with the source data instead of a stale render.
  *
- * SHARE IMAGE = PDF IMAGE: the PDF's entire visual content is the exact
- * same composition `renderShareCard` produces for the Share "print" format
- * (`getShareFormat("print")`), rendered at PDF_RENDER_WIDTH x
- * PDF_RENDER_HEIGHT (see above) and placed on `renderer.tsx`'s fixed
- * 4:5 page — the same
- * function, the same frame resolution (`project.frameTemplateId ? ... :
- * null`), the same `toShareCardNote`/`sloganForLanguage` mapping the
- * `/api/share/memory/[projectId]/[formatId]` route already uses. The PDF
- * never re-derives or redraws that composition itself; `renderer.tsx`
- * only wraps the resulting bytes in a one-page PDF document.
+ * Two layouts, chosen by whether the project has a frame:
+ *
+ * - Unframed (personal PDF, physical gift) — PDF Download V2: the card,
+ *   rendered by the share image's own card component (`renderPdfCardImage`,
+ *   pdfCardImage.tsx), on a vector MINDOT page (`PdfDownloadDocument`,
+ *   renderer.tsx). It deliberately no longer matches the share image; the
+ *   share image itself is untouched by this path.
+ * - Framed (digital frame): the chosen frame is a paid design, so its PDF
+ *   stays the exact composition `renderShareCard` produces for the "print"
+ *   format, rendered at PDF_RENDER_WIDTH x PDF_RENDER_HEIGHT (see above)
+ *   and wrapped by `MemoryPdfDocument` in a one-page PDF.
+ *
+ * Both use the same `toShareCardNote`/`sloganForLanguage` mapping as the
+ * share routes, so the card content, author visibility and date agree.
  */
 export async function generateMemoryPdf(project: MemoryProject): Promise<Buffer> {
   const message = await getPublicMessageById(project.messageId);
@@ -62,6 +71,20 @@ export async function generateMemoryPdf(project: MemoryProject): Promise<Buffer>
   // defaulted to "classic-paper" here only, which is exactly the kind of
   // PDF-only divergence from Share this fix exists to eliminate.
   const frame = project.frameTemplateId ? getFrameTemplate(project.frameTemplateId) : null;
+
+  // PDF Download V2 (unframed projects — personal PDF / physical gift): the
+  // card on a vector MINDOT page (renderer.tsx's PdfDownloadDocument). The
+  // share image is not involved: renderShareCard below only ever runs for a
+  // framed project, whose PDF keeps its chosen frame's composition.
+  if (!frame) {
+    const primary = toShareCardNote(region.primary);
+    const locale = matchBrowserLocale(message.language);
+    const card = await renderPdfCardImage(primary, region.surrounding.map(toShareCardNote));
+    const templateLabel = templateDisplayName(getNoteTemplate(primary.templateId), getDictionary(locale)).toLocaleUpperCase(locale);
+    return renderToBuffer(
+      <PdfDownloadDocument card={card} slogan={sloganForLanguage(message.language)} templateLabel={templateLabel} date={primary.date ?? null} />
+    );
+  }
 
   const shareImage = await renderShareCard({
     primary: toShareCardNote(region.primary),
