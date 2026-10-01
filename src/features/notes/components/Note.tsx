@@ -230,6 +230,7 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
   // path (currently just "birthday-confetti"); every other template is
   // byte-for-byte unaffected.
   const isImageBacked = Boolean(template.image && template.contentArea);
+  const isSpacious = isImageBacked && template.contentTextSize === "spacious";
   // `note.id` is already unique per rendered note (real message id, or a
   // stable "template-preview-<id>"/"preview" id for picker/write-flow
   // previews) — reused as the clip-path id's uniqueness source rather than
@@ -250,7 +251,13 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
   const textScaleClass = noteTextScaleClass(
     note.content.length,
     fontFamily,
-    isImageBacked ? "imageBacked" : isFootball ? "football" : "standard"
+    isSpacious
+      ? "imageBackedSpacious"
+      : isImageBacked
+        ? "imageBacked"
+      : isFootball
+        ? "football"
+        : "standard"
   );
 
   return (
@@ -415,6 +422,9 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
           // here already assumes.
           isFootball && "items-center justify-center overflow-hidden rounded-full p-0",
           isImageBacked && "overflow-hidden rounded-sm p-0",
+          // Spacious image-backed text is sized in cqw of this box (the
+          // card's own width) — see SPACIOUS_IMAGE_BACKED_TEXT_SCALE.
+          isSpacious && "@container",
           !isHeart && !isFootball && !isImageBacked && "p-4",
           !isFootball && !isImageBacked && paperClasses[template.paper],
           !isHeart && !isFootball && !isImageBacked && shapeClasses[template.shape]
@@ -460,7 +470,7 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
                 rasterized into the image, so it stays selectable/accessible
                 and never touches the PNG's own pixels. */}
             <div
-              className="absolute flex flex-col justify-center overflow-hidden"
+              className={cn("absolute flex flex-col justify-center overflow-hidden", isSpacious && textScaleClass)}
               style={{
                 top: template.contentArea!.top,
                 left: template.contentArea!.left,
@@ -470,11 +480,15 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
             >
               <p
                 lang={note.language}
-                className={cn("break-words text-ink", textScaleClass, fontFamilyClass)}
+                className={cn("break-words text-ink", !isSpacious && textScaleClass, fontFamilyClass)}
               >
                 {note.content}
               </p>
-              <span className="break-words text-xs text-ink-soft">— {note.authorName}</span>
+              {/* Spacious: the author line scales with the text (0.85em,
+                  0.5em gap) exactly like the share card / PDF draw it. */}
+              <span className={cn("break-words text-ink-soft", isSpacious ? "mt-[0.5em] text-[0.85em]" : "text-xs")}>
+                — {note.authorName}
+              </span>
             </div>
           </>
         ) : isFootball ? (

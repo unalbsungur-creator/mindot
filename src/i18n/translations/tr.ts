@@ -118,6 +118,7 @@ export const tr: Dictionary = {
       "blue-rect": "Mavi Dikdörtgen",
       "kraft-tag": "Kraft Etiket",
       "pink-square": "Pembe Kare",
+      "standard-classic": "Klasik MINDOT",
       "birthday-confetti": "Doğum Günü Konfetisi",
       "valentines-heart": "Sevgililer Günü Notu",
       "mothers-day-bloom": "Anneler Günü Çiçeği",

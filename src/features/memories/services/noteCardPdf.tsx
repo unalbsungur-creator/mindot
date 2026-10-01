@@ -29,6 +29,7 @@ import {
   scaleHeartPathData,
   estimateMemoryCardSize as estimateMemoryCardSizeShared,
   imageBackedFontSizePx,
+  imageBackedLineHeight,
   isImageBacked,
 } from "@/features/sharing/services/noteCardSatori";
 import { getNoteTemplate } from "@/features/notes/config/templates";
@@ -387,7 +388,7 @@ export function MemoryNoteCardPdf({ content, authorName, templateId, fontFamily,
     }
     const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily);
     const area = template.contentArea!;
-    const fontSize = imageBackedFontSizePx(content.length) * (width / BASELINE_WIDTH);
+    const fontSize = imageBackedFontSizePx(content.length, template, fontFamily) * (width / BASELINE_WIDTH);
     return (
       <View style={{ position: "relative", width, height, transform: `rotate(${rotation}deg)` }}>
         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt prop; this is a PDF render target, not DOM */}
@@ -404,7 +405,7 @@ export function MemoryNoteCardPdf({ content, authorName, templateId, fontFamily,
             height: `${parseFloat(area.height)}%`,
           }}
         >
-          <Text style={{ fontFamily: FONT_METRICS[fontFamily].family, fontSize, lineHeight: 1.25, color: PDF_COLORS.ink }}>{pdfSafeText(content)}</Text>
+          <Text style={{ fontFamily: FONT_METRICS[fontFamily].family, fontSize, lineHeight: imageBackedLineHeight(template, fontFamily), color: PDF_COLORS.ink }}>{pdfSafeText(content)}</Text>
           {authorName && (
             <Text style={{ marginTop: fontSize * 0.5, fontSize: fontSize * 0.85, color: PDF_COLORS.inkSoft }}>{pdfSafeText(`— ${authorName}`)}</Text>
           )}

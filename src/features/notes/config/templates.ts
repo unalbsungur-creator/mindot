@@ -171,6 +171,39 @@ export const noteTemplates: NoteTemplate[] = [
     imageWidth: 202,
     imageHeight: 170,
   },
+  // New Standard card system — the real artwork *is* the card in every
+  // renderer (Picker, Preview, DUVAR, share card, PDF): image-backed via
+  // `contentArea`, never the paper/shape reconstruction. One fixed color
+  // per design (`paper` names it); there is no user color choice in V1.
+  //
+  // Asset: `web/classic-mindot.png` is derived from the designer's master
+  // `public/images/standard/classic-mindot.png` (1254×1254 RGBA, 2.3 MB) —
+  // cropped to the paper itself (x 107–1150, y 108–1118: the rows/columns
+  // ≥90% opaque, dropping the transparent margin and baked drop shadow so
+  // the card's own CSS shadow matches every other note) and resized to
+  // 600px as a 256-color PNG (312 KB, alpha kept). The full master would
+  // otherwise be inlined as ~3 MB of base64 per card by the share-card
+  // and PDF renderers.
+  //
+  // `contentArea`, measured on that crop: the paper is plain from edge to
+  // edge except the printed logo (dot + "MINDOT"), whose ink starts at
+  // 82.9% of the height (x 39.9–59.7%). The text box keeps an 8% inset
+  // from the top/left/right paper edges and ends at 76%, leaving a ~7%
+  // gap above the logo so text never touches it.
+  {
+    id: "standard-classic",
+    name: "Classic MINDOT",
+    paper: "yellow",
+    shape: "sticky",
+    attachment: "none",
+    font: "sans",
+    category: "standard",
+    image: "/images/standard/web/classic-mindot.png",
+    imageWidth: 600,
+    imageHeight: 581,
+    contentArea: { top: "8%", left: "8%", width: "84%", height: "68%" },
+    contentTextSize: "spacious",
+  },
   // EPIC: Özel Günler İçin Tercih Edilebilir Post-it Tasarımları /
   // Special Day Post-it Shapes & Decorative Styles. Eight special-occasion
   // templates, permanently selectable (no availableFrom/availableUntil —

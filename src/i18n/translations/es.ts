@@ -116,6 +116,7 @@ export const es: Dictionary = {
       "blue-rect": "Rectángulo azul",
       "kraft-tag": "Etiqueta kraft",
       "pink-square": "Cuadrado rosa",
+      "standard-classic": "MINDOT clásico",
       "birthday-confetti": "Confeti de cumpleaños",
       "valentines-heart": "Nota de San Valentín",
       "mothers-day-bloom": "Flor del Día de la Madre",

@@ -32,6 +32,7 @@ import type { ReactNode } from "react";
 import { HEART_PATH } from "@/features/notes/components/Note";
 import { getNoteTemplate } from "@/features/notes/config/templates";
 import { SPORTS_COLOR_HEX } from "@/features/notes/lib/sportsBall";
+import { noteTextSizeTier } from "@/features/notes/lib/textScale";
 import type { NoteDecoration, NoteShape, NoteTemplate, NoteTextFontFamily, SportsColorKey } from "@/features/notes/types";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "@/features/memories/services/pdfPalette";
 import { readPublicAsset } from "./publicAsset";
@@ -205,10 +206,37 @@ function footballFontScale(contentLength: number): number {
  * tier (its numbers, in px at a 16px root) rather than `FONT_METRICS`
  * above, which is sized for a standard card's much larger padded box.
  */
-export function imageBackedFontSizePx(contentLength: number): number {
+export function imageBackedFontSizePx(
+  contentLength: number,
+  template?: NoteTemplate,
+  fontFamily: NoteTextFontFamily = "modern"
+): number {
+  if (template?.contentTextSize === "spacious") {
+    return SPACIOUS_IMAGE_BACKED_FONT_PX[fontFamily][noteTextSizeTier(contentLength)];
+  }
   if (contentLength > 130) return 7.36; // 0.46rem
   if (contentLength > 90) return 8.64; // 0.54rem
   return 9.28; // 0.58rem — kept in sync with IMAGE_BACKED_TEXT_SCALE's "modern"/"classic" default tier (lib/textScale.ts); a real ~90-char message was confirmed overflowing the smaller Special Day contentArea boxes at the old 0.78rem value, both here and in the DOM, and both were fixed together.
+}
+
+/**
+ * `contentTextSize: "spacious"` templates (the new Standard cards) — px at
+ * the 176px baseline, mirroring SPACIOUS_IMAGE_BACKED_TEXT_SCALE
+ * (lib/textScale.ts): cqw × 1.76 per font and tier. Unlike the compact Special
+ * Day sizes above it is per font, since Caveat/Geist Mono differ enough in
+ * width to need their own sizes in a box this large.
+ */
+const SPACIOUS_IMAGE_BACKED_FONT_PX: Record<NoteTextFontFamily, Record<"default" | "compact" | "dense", number>> = {
+  modern: { default: 12.5, compact: 10.03, dense: 9.68 },
+  classic: { default: 12.14, compact: 9.68, dense: 9.5 },
+  handwritten: { default: 14.08, compact: 12.14, dense: 11.26 },
+  typewriter: { default: 11.62, compact: 9.77, dense: 9.68 },
+};
+
+/** Line height for an image-backed card's text — mirrors the DOM tables' `leading-*` (spacious: `leading-snug`, Caveat `leading-tight`; compact Special Day sizes: 1.25 as before). */
+export function imageBackedLineHeight(template: NoteTemplate, fontFamily: NoteTextFontFamily): number {
+  if (template.contentTextSize !== "spacious") return 1.25;
+  return fontFamily === "handwritten" ? 1.25 : 1.375;
 }
 
 /**
@@ -411,7 +439,7 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
       throw new Error(`MemoryNoteCard: image-backed template "${templateId}" requires artworkDataUri`);
     }
     const area = template.contentArea!;
-    const fontSize = imageBackedFontSizePx(content.length) * (width / BASELINE_WIDTH);
+    const fontSize = imageBackedFontSizePx(content.length, template, fontFamily) * (width / BASELINE_WIDTH);
     return (
       <div style={{ position: "relative", display: "flex", width, height, transform: `rotate(${rotation}deg)`, overflow: "hidden" }}>
         {/* eslint-disable-next-line @next/next/no-img-element -- Satori server-side render, not an optimizable next/image asset */}
@@ -428,7 +456,7 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
             height: `${parseFloat(area.height)}%`,
           }}
         >
-          <span style={{ display: "flex", fontFamily: FONT_METRICS[fontFamily].family, fontSize, lineHeight: 1.25, color: PDF_COLORS.ink }}>{content}</span>
+          <span style={{ display: "flex", fontFamily: FONT_METRICS[fontFamily].family, fontSize, lineHeight: imageBackedLineHeight(template, fontFamily), color: PDF_COLORS.ink }}>{content}</span>
           {authorName && (
             <span style={{ display: "flex", marginTop: fontSize * 0.5, fontSize: fontSize * 0.85, color: PDF_COLORS.inkSoft }}>— {authorName}</span>
           )}

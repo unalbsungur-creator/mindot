@@ -137,6 +137,16 @@ export function estimateNoteFootprint(
     return { width: BASE_WIDTH, height: BASE_WIDTH };
   }
 
+  // Same hard geometry for image-backed templates (artwork + contentArea):
+  // Note.tsx fixes the card at the artwork's own aspect ratio and shrinks
+  // text into `contentArea` instead of growing the card, so the footprint is
+  // that fixed box — never the text-height estimate below, which would
+  // under-reserve a short message on a ~170px-tall card. Mirrors
+  // `estimateMemoryCardSize`'s image-backed branch (share card / PDF).
+  if (template.image && template.contentArea && template.imageWidth && template.imageHeight) {
+    return { width: BASE_WIDTH, height: Math.round((BASE_WIDTH * template.imageHeight) / template.imageWidth) };
+  }
+
   const tier = noteTextSizeTier(content.length);
   const metrics = FONT_METRICS[fontFamily][tier];
 

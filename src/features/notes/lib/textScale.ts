@@ -131,6 +131,52 @@ const IMAGE_BACKED_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTie
 };
 
 /**
+ * Image-backed templates with `contentTextSize: "spacious"` (the new
+ * Standard cards, e.g. "standard-classic") — their clean region is most of
+ * the card, so text sits close to a plain note's size instead of the tiny
+ * Special Day tiers above.
+ *
+ * Sized in `cqw` of the card (Note.tsx makes the spacious card's wrapper an
+ * `@container`), not rem: the text box is a fixed share of a card whose
+ * width changes (w-36 on a phone's world view, w-44 elsewhere), so a fixed
+ * rem size that fits at 176px overflows at 144px — measured. In cqw the
+ * text keeps exactly the card's proportions at every width, which is also
+ * how the share card and PDF scale it (`SPACIOUS_IMAGE_BACKED_FONT_PX` in
+ * features/sharing/services/noteCardSatori.tsx: the same sizes in px at the
+ * 176px baseline — `cqw = px / 176 × 100`; change both together).
+ * The author line is `0.85em` of these (see Note.tsx), as in the share card.
+ *
+ * Each value is just under the largest size at which every test message of
+ * that tier — Turkish, ALL-CAPS Turkish, German, and a run of very long
+ * words, up to the tier's length limit — still fits the "standard-classic"
+ * text box with 5% headroom, measured in the real DOM per font (computed
+ * `offsetHeight` of text + author vs. the box's `clientHeight`). Because
+ * the unit is cqw, that holds at every card width.
+ */
+const SPACIOUS_IMAGE_BACKED_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, string>> = {
+  modern: {
+    default: "text-[7.1cqw] leading-snug",
+    compact: "text-[5.7cqw] leading-snug",
+    dense: "text-[5.5cqw] leading-snug",
+  },
+  classic: {
+    default: "text-[6.9cqw] leading-snug",
+    compact: "text-[5.5cqw] leading-snug",
+    dense: "text-[5.4cqw] leading-snug",
+  },
+  handwritten: {
+    default: "text-[8.0cqw] leading-tight",
+    compact: "text-[6.9cqw] leading-tight",
+    dense: "text-[6.4cqw] leading-tight",
+  },
+  typewriter: {
+    default: "text-[6.6cqw] leading-snug",
+    compact: "text-[5.55cqw] leading-snug",
+    dense: "text-[5.5cqw] leading-snug",
+  },
+};
+
+/**
  * Football's smaller inset disc — same tiering, scaled down from its own
  * (already smaller than standard) baseline. EPIC 046: `compact`/`dense`
  * tuned tighter than the standard table's own tiers — real DOM measurement
@@ -180,10 +226,16 @@ const FOOTBALL_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, s
 export function noteTextScaleClass(
   contentLength: number,
   fontFamily: NoteTextFontFamily,
-  context: "standard" | "football" | "imageBacked"
+  context: "standard" | "football" | "imageBacked" | "imageBackedSpacious"
 ): string {
   const tier = noteTextSizeTier(contentLength);
   const table =
-    context === "football" ? FOOTBALL_TEXT_SCALE : context === "imageBacked" ? IMAGE_BACKED_TEXT_SCALE : STANDARD_TEXT_SCALE;
+    context === "football"
+      ? FOOTBALL_TEXT_SCALE
+      : context === "imageBacked"
+        ? IMAGE_BACKED_TEXT_SCALE
+        : context === "imageBackedSpacious"
+          ? SPACIOUS_IMAGE_BACKED_TEXT_SCALE
+          : STANDARD_TEXT_SCALE;
   return table[fontFamily][tier];
 }

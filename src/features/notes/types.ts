@@ -168,6 +168,17 @@ export interface NoteTemplate {
    */
   contentArea?: { top: string; left: string; width: string; height: string };
   /**
+   * Which text-size table an image-backed template's `contentArea` uses.
+   * `"compact"` (the default when omitted) is the small Special Day tiers,
+   * sized for their narrow clean regions; `"spacious"` is for artwork whose
+   * clean region is most of the card (the new Standard cards, e.g.
+   * "standard-classic"), so text reads at roughly a normal note's size.
+   * Every renderer reads it the same way — `noteTextScaleClass` (DOM) and
+   * `imageBackedFontSizePx` (Satori share card + PDF) — so web, share card
+   * and PDF never disagree about how big the text is.
+   */
+  contentTextSize?: "compact" | "spacious";
+  /**
    * EPIC 039: `category: "sports"` only — the round card's two (optionally
    * three, with `accentColor`) panel colors, drawn by
    * `features/notes/lib/sportsBall.ts` and reused identically by both
