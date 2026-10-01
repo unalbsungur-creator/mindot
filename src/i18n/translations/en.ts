@@ -790,7 +790,7 @@ export const en: Dictionary = {
     paginationLabel: "{page} / {total}",
   },
   legal: {
-    lastReviewed: "Informational notice · September 2026",
+    lastReviewed: "Informational notice · October 2026",
     reviewNotice:
       "This notice is written to explain MINDOT's current service and data-processing practices to users in plain terms. It does not constitute legal advice.",
     privacyTitle: "Privacy Policy",
@@ -803,11 +803,23 @@ export const en: Dictionary = {
       },
       {
         title: "What data we process",
-        body: "When you sign in with Google, basic identity information provided by Google — your account identifier, email address, display name, and profile image — may be processed to recognize your account and create your session. MINDOT does not request access to Gmail, Drive, Contacts, or other Google services. Depending on the features you use, MINDOT may also process the thought you write, your chosen sharing format, display name, language, personal-wall preferences, moderation and report records, and memory/project and access information.",
+        body: "When you sign in with Google, basic identity information provided by Google — your account identifier, email address, display name, and profile image — may be processed to recognize your account and create your session. MINDOT does not request access to Gmail, Drive, Contacts, or other Google services. When you sign in with Apple, Apple provides an account identifier and an email address, and your name only if you choose to share it the first time you sign in; Apple does not provide a profile image. Depending on the features you use, MINDOT may also process the thought you write, your chosen sharing format, display name, language, personal-wall preferences, likes, the users you block, in-app notifications, moderation and report records, memory/project and access information, and Token and order records. If someone invites you to MINDOT by email, the email address they entered is used to send that invitation.",
+      },
+      {
+        title: "Sign in with Apple and private relay email",
+        body: "If you choose Apple's “Hide My Email” option, Apple gives MINDOT a private relay address (for example, one ending in privaterelay.appleid.com) instead of your personal email address. MINDOT treats this address as your account email: it is never shown publicly and is never used as your display name. So that your Sign in with Apple connection can be ended when you delete your account, MINDOT keeps a sign-in credential issued by Apple in encrypted form, used only for that purpose.",
       },
       {
         title: "Thoughts and identity choices",
         body: "You can choose to share a thought anonymously or under your name. Thoughts submitted anonymously are never linked to you in public content. Thoughts submitted under your name, once approved, may appear on the public board. Your personal wall is managed separately and is private by default; you decide whether to make it public.",
+      },
+      {
+        title: "Reports, blocks and notifications",
+        body: "When you report a thought, the report records the thought, the reason you chose, any details you add, and either your account or a random identifier stored in your browser. Reports are reviewed by MINDOT's administrators; the reporter's identity is not shown to the author of the reported thought. The list of users you block is stored with your account so their named thoughts can be hidden from you; the blocked user is not notified. In-app notifications (for example, the moderation outcome of your thought or of your report) are shown only inside MINDOT and stored with your account.",
+      },
+      {
+        title: "Tokens, digital products and physical orders",
+        body: "MINDOT keeps a record of Token movements (for example, Tokens added to your balance and Tokens used to unlock a memory PDF) and of the PDFs you have unlocked. Where offered, digital frames are purchased on Shoppier; MINDOT stores the access code and which memory project it was redeemed for. Physical gifts are matched by an order number; box selection, payment and delivery take place on DilekKutum, and MINDOT does not store your delivery address. MINDOT does not process your payment card details; purchases made on these platforms are also subject to their own terms and privacy policies.",
       },
       {
         title: "Why we process data",
@@ -815,7 +827,7 @@ export const en: Dictionary = {
       },
       {
         title: "Who we may share data with",
-        body: "Data may be shared with authentication, hosting, database, security, communication, and similar technical service providers to the extent necessary to provide the MINDOT service. Content that has been made public may appear on the pages or images used to share that content. Private content is not made public outside the relevant user's own authorization. Where data is transferred to service providers located abroad, that transfer is carried out through a legal mechanism compliant with KVKK's current provisions on cross-border data transfers.",
+        body: "Sign-in is provided by Google and, where offered, Apple. Data may be shared with authentication, hosting, database, security, communication, and similar technical service providers to the extent necessary to provide the MINDOT service. Content that has been made public may appear on the pages or images used to share that content. Private content is not made public outside the relevant user's own authorization. Where data is transferred to service providers located abroad, that transfer is carried out through a legal mechanism compliant with KVKK's current provisions on cross-border data transfers.",
       },
       {
         title: "Cookies and local storage",
@@ -824,6 +836,11 @@ export const en: Dictionary = {
       {
         title: "Retention period",
         body: "Personal data is retained for as long as necessary for the purpose it was processed for, taking into account obligations under applicable law. Once the purpose requiring retention no longer applies, the relevant data is deleted, destroyed, or anonymized in a manner compliant with applicable law and technically feasible methods. Exact retention periods depend on the category of data and the applicable legal obligations.",
+        // LEGAL REVIEW REQUIRED: statutory retention periods (tax/accounting/consumer law) for retained Token, unlock, access-code and order records are deliberately not stated.
+      },
+      {
+        title: "Deleting your account",
+        body: "You can permanently delete your account at any time from the “Delete account” section of your account page (/me). Your account record — including your email address (also an Apple private relay address), name, profile image and public profile — is deleted, together with your notifications, likes and blocks, and with unpublished thoughts and memory projects that no other record refers to (for example a report, purchase or unlock); anything that is kept for that reason is detached from your identity. Thoughts already published stay on the wall without your name, as anonymous thoughts, and are removed from your personal wall; thoughts you published anonymously stay anonymous. Token, PDF unlock, access code and order records, and reports you filed, may be kept for record-keeping and applicable legal obligations, but they are no longer linked to your identity; any remaining Token balance can no longer be used. If you signed in with Apple, MINDOT also asks Apple to end your Sign in with Apple connection; if that can't be done at that moment, your account isn't deleted and you can try again.",
       },
       {
         title: "Security",
@@ -844,7 +861,7 @@ export const en: Dictionary = {
       },
       {
         title: "Account use",
-        body: "You can create a MINDOT account by signing in with Google. You are responsible for any content submitted through your account and for how your account is used. You should not share your account details with anyone else, and you should not use someone else's account.",
+        body: "You can create a MINDOT account by signing in with Google or, where offered, with Apple. Each email address can belong to only one MINDOT account; accounts created with different sign-in methods are not merged automatically. You are responsible for any content submitted through your account and for how your account is used. You should not share your account details with anyone else, and you should not use someone else's account.",
       },
       {
         title: "Submitting a thought",
@@ -857,6 +874,20 @@ export const en: Dictionary = {
       {
         title: "Anonymous and named sharing",
         body: "When you choose anonymous sharing, your thought is not linked to your name in public content. Named, approved thoughts may be shown in the public area or on your personal wall, depending on the features you choose and MINDOT's publication rules.",
+      },
+      {
+        title: "Moderation, reporting and blocking",
+        body: "MINDOT may decline to publish, or later remove from public view, content that violates these terms or the Community Guidelines, and may suspend an account's ability to submit thoughts. You can report any thought; reports are reviewed by people and do not remove content automatically. You can block a user who shares under their name: their named thoughts are then hidden from you only, and they are not notified. Anonymous thoughts cannot be blocked, so their authors can never be identified that way; use the report option for them instead.",
+      },
+      {
+        title: "Tokens, digital content and physical products",
+        body: "Tokens are a MINDOT in-service unit used to unlock a memory PDF: unlocking one PDF uses 1 Token once, and the PDF can then be downloaded again without using another Token. Tokens can only be used within MINDOT; there is no feature to transfer them to another account or withdraw them. Digital frames are, where offered, purchased on Shoppier and activated in MINDOT with a single-use access code tied to one memory project. Physical gifts are a separate product: MINDOT prepares the print, while box selection, payment and delivery take place on DilekKutum, and the two orders are matched by an order number. Purchases made on Shoppier or DilekKutum are also subject to that platform's own terms.",
+        // LEGAL REVIEW REQUIRED: refund / right-of-withdrawal rules for Tokens, digital content and physical gifts, and whether Tokens carry any cash value, are deliberately not stated.
+      },
+      {
+        title: "Deleting your account",
+        body: "You can permanently delete your account at any time from your account page; this cannot be undone. Thoughts that were already published stay on the wall anonymously, without your name, and any remaining Token balance can no longer be used. The Privacy Policy explains which records are deleted and which may be kept without being linked to you.",
+        // LEGAL REVIEW REQUIRED: the consumer-law treatment of an unused Token balance forfeited on account deletion.
       },
       {
         title: "Changes to or discontinuation of the service",
@@ -901,7 +932,11 @@ export const en: Dictionary = {
       },
       {
         title: "Report content",
-        body: "If you see content that violates the Community Guidelines, you can use the 'Report' option on that thought. Reports are sent to the moderation team for review.",
+        body: "If you see content that violates the Community Guidelines, you can use the 'Report' option on that thought and choose a reason. Reports are sent to the moderation team for review and do not remove content automatically. If you are signed in, you are notified in MINDOT when your report has been reviewed. The author of the thought is not told who reported it.",
+      },
+      {
+        title: "Block users",
+        body: "If you don't want to see a user's thoughts, you can, while signed in, block them from a thought they shared under their name on the board, or from their personal wall. You will no longer see the thoughts they share under their name; they are not notified, and you can unblock them at any time from your account page. To protect anonymity, anonymous thoughts can't be blocked and their authors are never revealed; if an anonymous thought bothers you, report it.",
       },
     ],
   },

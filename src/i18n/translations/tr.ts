@@ -738,7 +738,7 @@ export const tr: Dictionary = {
   states: { unexpectedTitle: "Bu an kesintiye uğradı", unexpectedBody: "MINDOT şu anda bu alanı açamadı. Özel bilgileriniz gösterilmedi.", retry: "Tekrar dene", home: "Ana sayfaya dön", board: "Duvarı keşfet", notFoundTitle: "Bu alan bulunamadı", notFoundBody: "Bağlantı eski, özel veya artık kullanılamıyor olabilir.", loadingTitle: "Notlar bir araya getiriliyor…" },
   notifications: { bellLabel: "Bildirimler", panelTitle: "Bildirimler", unreadCountLabel: "okunmamış", unreadBadgeLabel: "Okunmadı", markAsRead: "Okundu işaretle", markAllAsRead: "Tümünü okundu işaretle", markingAllAsRead: "İşaretleniyor…", viewAllLink: "Tüm bildirimler", emptyTitle: "Henüz bildirimin yok", emptyBody: "Bir gelişme olduğunda burada göreceksin.", loading: "Bildirimler yükleniyor…", error: "Bildirimler yüklenemedi.", retry: "Tekrar dene", typeMessageApproved: "Notun onaylandı.", typeMessageRejected: "Notun yayınlanmadı.", typeReportResolved: "Bildirimin çözüldü.", typeReportDismissed: "Bildirimin reddedildi.", pageTitle: "Bildirimler", pageSubtitle: "Tüm bildirim geçmişin, en yeniden en eskiye.", signInRequiredBody: "Bildirimlerini görmek için giriş yapmalısın.", paginationPrev: "Önceki", paginationNext: "Sonraki", paginationLabel: "{page} / {total}" },
   legal: {
-    lastReviewed: "Bilgilendirme metni · Eylül 2026",
+    lastReviewed: "Bilgilendirme metni · Ekim 2026",
     reviewNotice:
       "Bu metin, MINDOT’un mevcut hizmet ve veri işleme süreçlerini kullanıcıya açık biçimde anlatmak amacıyla hazırlanmıştır. Hukuki danışmanlık niteliğinde değildir.",
     privacyTitle: "Gizlilik Politikası",
@@ -751,11 +751,23 @@ export const tr: Dictionary = {
       },
       {
         title: "Hangi verileri işleriz?",
-        body: "Google ile giriş yaptığınızda hesabınızı tanımak ve oturumunuzu oluşturmak için Google tarafından sağlanan hesap kimliği, e-posta adresi, görünen ad ve profil görseli gibi temel kimlik bilgileri işlenebilir. MINDOT, Gmail, Drive, Kişiler veya başka Google hizmetlerine erişim istemez. Ayrıca yazdığınız düşünce, seçtiğiniz paylaşım biçimi, görünen isim, dil, kişisel duvar tercihleri, moderasyon ve bildirim kayıtları ile kullandığınız özelliklere bağlı olarak anı/proje ve erişim bilgileri işlenebilir.",
+        body: "Google ile giriş yaptığınızda hesabınızı tanımak ve oturumunuzu oluşturmak için Google tarafından sağlanan hesap kimliği, e-posta adresi, görünen ad ve profil görseli gibi temel kimlik bilgileri işlenebilir. MINDOT, Gmail, Drive, Kişiler veya başka Google hizmetlerine erişim istemez. Ayrıca yazdığınız düşünce, seçtiğiniz paylaşım biçimi, görünen isim, dil, kişisel duvar tercihleri, moderasyon ve bildirim kayıtları ile kullandığınız özelliklere bağlı olarak anı/proje ve erişim bilgileri işlenebilir. Apple ile giriş yaptığınızda Apple; bir hesap kimliği ve e-posta adresi, yalnızca ilk girişte paylaşmayı seçerseniz de adınızı sağlar; Apple profil görseli sağlamaz. Kullandığınız özelliklere bağlı olarak beğenileriniz, engellediğiniz kullanıcılar, uygulama içi bildirimleriniz ile Token ve sipariş kayıtlarınız da işlenebilir. Biri sizi MINDOT’a e-postayla davet ederse, girdiği e-posta adresi bu daveti göndermek için kullanılır.",
+      },
+      {
+        title: "Apple ile giriş ve gizli yönlendirme e-postası",
+        body: "Apple’ın “E-postamı Gizle” seçeneğini kullanırsanız Apple, MINDOT’a kişisel e-posta adresiniz yerine gizli bir yönlendirme adresi (örneğin privaterelay.appleid.com ile biten bir adres) iletir. MINDOT bu adresi hesap e-postanız olarak kullanır: kamuya açık hiçbir yerde gösterilmez ve görünen adınız olarak kullanılmaz. Hesabınızı sildiğinizde Apple ile giriş bağlantınızın sonlandırılabilmesi için MINDOT, Apple’ın verdiği bir giriş kimlik bilgisini şifrelenmiş olarak ve yalnızca bu amaçla saklar.",
       },
       {
         title: "Düşünceler ve kimlik seçimi",
         body: "Bir düşünceyi anonim veya adınızla paylaşmayı seçebilirsiniz. Anonim olarak gönderilen düşünceler kamuya açık içerikte sizinle ilişkilendirilmez. Adınızla gönderilen ve onaylanan düşünceler kamuya açık duvarda görünebilir. Kişisel duvarınız ayrıca yönetilir ve varsayılan olarak gizlidir; onu herkese açık hale getirip getirmeyeceğinize siz karar verirsiniz.",
+      },
+      {
+        title: "İçerik bildirimleri, engellemeler ve uygulama içi bildirimler",
+        body: "Bir düşünceyi ‘Bildir’ seçeneğiyle bildirdiğinizde kayıtta düşünce, seçtiğiniz neden, eklediğiniz açıklama ve hesabınız ya da tarayıcınızda saklanan rastgele bir tanımlayıcı yer alır. İçerik bildirimleri MINDOT yöneticileri tarafından incelenir; bildiren kişinin kimliği, bildirilen düşüncenin yazarına gösterilmez. Engellediğiniz kullanıcıların listesi, isimli düşüncelerinin size gösterilmemesi için hesabınızla birlikte saklanır; engellenen kullanıcıya haber verilmez. Uygulama içi bildirimler (örneğin düşüncenizin veya içerik bildiriminizin moderasyon sonucu) yalnızca MINDOT içinde gösterilir ve hesabınızla birlikte saklanır.",
+      },
+      {
+        title: "Token’lar, dijital ürünler ve fiziksel siparişler",
+        body: "MINDOT, Token hareketlerinin (örneğin bakiyenize eklenen Token’lar ve bir anı PDF’inin kilidini açmak için kullanılan Token’lar) ve kilidini açtığınız PDF’lerin kaydını tutar. Sunulduğu durumlarda dijital çerçeveler Shoppier üzerinden satın alınır; MINDOT erişim kodunu ve kodun hangi anı projesi için kullanıldığını saklar. Fiziksel hediyeler bir sipariş numarasıyla eşleştirilir; kutu seçimi, ödeme ve teslimat DilekKutum üzerinde gerçekleşir ve MINDOT teslimat adresinizi saklamaz. MINDOT ödeme kartı bilgilerinizi işlemez; bu platformlarda yapılan satın alımlar ayrıca o platformların kendi koşullarına ve gizlilik politikalarına tabidir.",
       },
       {
         title: "Verileri neden işleriz?",
@@ -763,7 +775,7 @@ export const tr: Dictionary = {
       },
       {
         title: "Kimlerle paylaşılabilir?",
-        body: "Veriler, MINDOT hizmetinin sunulması için gerekli olduğu ölçüde kimlik doğrulama, barındırma, veritabanı, güvenlik, iletişim ve benzeri teknik hizmet sağlayıcılarla paylaşılabilir. Kamuya açık hale getirilen içerikler, bu içeriklerin paylaşılması için kullanılan sayfalarda veya görsellerde gösterilebilir. Özel içerikler, ilgili kullanıcı yetkisi dışında kamuya açılmaz. Yurt dışındaki hizmet sağlayıcılara veri aktarımı söz konusu olduğunda aktarım, KVKK’nın yurt dışına veri aktarımına ilişkin güncel hükümlerine uygun bir hukuki mekanizma üzerinden gerçekleştirilir.",
+        body: "Giriş hizmeti Google ve sunulduğu durumlarda Apple tarafından sağlanır. Veriler, MINDOT hizmetinin sunulması için gerekli olduğu ölçüde kimlik doğrulama, barındırma, veritabanı, güvenlik, iletişim ve benzeri teknik hizmet sağlayıcılarla paylaşılabilir. Kamuya açık hale getirilen içerikler, bu içeriklerin paylaşılması için kullanılan sayfalarda veya görsellerde gösterilebilir. Özel içerikler, ilgili kullanıcı yetkisi dışında kamuya açılmaz. Yurt dışındaki hizmet sağlayıcılara veri aktarımı söz konusu olduğunda aktarım, KVKK’nın yurt dışına veri aktarımına ilişkin güncel hükümlerine uygun bir hukuki mekanizma üzerinden gerçekleştirilir.",
       },
       {
         title: "Çerezler ve yerel depolama",
@@ -772,6 +784,11 @@ export const tr: Dictionary = {
       {
         title: "Saklama süresi",
         body: "Kişisel veriler, işlenme amacı için gerekli olduğu süre boyunca ve ilgili mevzuatın öngördüğü yükümlülükler dikkate alınarak saklanır. Bir verinin saklanmasını gerektiren amaç ortadan kalktığında, ilgili veri mevzuata ve teknik olarak uygulanabilir yöntemlere uygun şekilde silinir, yok edilir veya anonim hale getirilir. Kesin saklama süreleri veri kategorisi ve hukuki yükümlülüklere göre belirlenir.",
+        // LEGAL REVIEW REQUIRED: statutory retention periods (tax/accounting/consumer law) for retained Token, unlock, access-code and order records are deliberately not stated.
+      },
+      {
+        title: "Hesabınızı silme",
+        body: "Hesabınızı istediğiniz zaman hesap sayfanızdaki (/me) “Hesabı sil” bölümünden kalıcı olarak silebilirsiniz. Hesap kaydınız — e-posta adresiniz (Apple gizli yönlendirme adresi dahil), adınız, profil görseliniz ve herkese açık profiliniz — uygulama içi bildirimleriniz, beğenileriniz ve engellemelerinizle birlikte silinir; başka bir kaydın (örneğin bir içerik bildirimi, satın alma veya kilit açma) atıfta bulunmadığı yayımlanmamış düşünceleriniz ve anı projeleriniz de silinir; bu nedenle tutulan kayıtlar kimliğinizden ayrılır. Yayımlanmış düşünceleriniz duvarda adınız kaldırılarak anonim düşünce olarak kalır ve kişisel duvarınızdan çıkarılır; anonim olarak yayımladığınız düşünceler anonim kalmaya devam eder. Token, PDF kilit açma, erişim kodu ve sipariş kayıtları ile gönderdiğiniz içerik bildirimleri, kayıt tutma ve ilgili hukuki yükümlülükler için saklanabilir; ancak artık kimliğinizle ilişkilendirilmez. Kalan Token bakiyeniz artık kullanılamaz. Apple ile giriş yaptıysanız MINDOT, Apple’dan Apple ile giriş bağlantınızı sonlandırmasını da ister; bu o anda yapılamazsa hesabınız silinmez ve daha sonra tekrar deneyebilirsiniz.",
       },
       {
         title: "Güvenlik",
@@ -792,7 +809,7 @@ export const tr: Dictionary = {
       },
       {
         title: "Hesap kullanımı",
-        body: "Google ile giriş yaparak bir MINDOT hesabı oluşturabilirsiniz. Hesabınız üzerinden gönderilen içeriklerin ve hesap kullanımının sorumluluğu size aittir. Hesap bilgilerinizi başkalarıyla paylaşmamalı ve başkasının hesabını kullanmamalısınız.",
+        body: "Google ile veya sunulduğu durumlarda Apple ile giriş yaparak bir MINDOT hesabı oluşturabilirsiniz. Her e-posta adresi yalnızca bir MINDOT hesabına ait olabilir; farklı giriş yöntemleriyle oluşturulan hesaplar otomatik olarak birleştirilmez. Hesabınız üzerinden gönderilen içeriklerin ve hesap kullanımının sorumluluğu size aittir. Hesap bilgilerinizi başkalarıyla paylaşmamalı ve başkasının hesabını kullanmamalısınız.",
       },
       {
         title: "Düşünce gönderme",
@@ -805,6 +822,20 @@ export const tr: Dictionary = {
       {
         title: "Anonimlik ve isimli paylaşım",
         body: "Anonim paylaşım seçtiğinizde düşünceniz kamuya açık içerikte adınızla ilişkilendirilmez. İsimli ve onaylanmış düşünceler, seçtiğiniz özelliklere ve MINDOT’un yayınlama kurallarına bağlı olarak kamuya açık alanda veya kişisel duvarınızda gösterilebilir.",
+      },
+      {
+        title: "Moderasyon, bildirme ve engelleme",
+        body: "MINDOT, bu koşullara veya Topluluk İlkeleri’ne aykırı içerikleri yayımlamayabilir ya da daha sonra kamuya açık alandan kaldırabilir ve bir hesabın düşünce gönderme imkânını askıya alabilir. Herhangi bir düşünceyi bildirebilirsiniz; bildirimler insanlar tarafından incelenir ve içeriği otomatik olarak kaldırmaz. Adıyla paylaşım yapan bir kullanıcıyı engelleyebilirsiniz: isimli düşünceleri yalnızca sizden gizlenir ve kullanıcıya haber verilmez. Anonim düşünceler engellenemez, böylece yazarları bu yolla asla tespit edilemez; bunlar için bildirme seçeneğini kullanın.",
+      },
+      {
+        title: "Token’lar, dijital içerik ve fiziksel ürünler",
+        body: "Token’lar, bir anı PDF’inin kilidini açmak için kullanılan MINDOT içi bir birimdir: bir PDF’in kilidini açmak bir kez 1 Token kullanır, ardından PDF yeniden Token harcanmadan indirilebilir. Token’lar yalnızca MINDOT içinde kullanılabilir; başka bir hesaba aktarılmalarını veya çekilmelerini sağlayan bir özellik yoktur. Dijital çerçeveler, sunulduğu durumlarda Shoppier üzerinden satın alınır ve MINDOT’ta tek bir anı projesine bağlanan, tek kullanımlık bir erişim koduyla etkinleştirilir. Fiziksel hediyeler ayrı bir üründür: baskıyı MINDOT hazırlar; kutu seçimi, ödeme ve teslimat DilekKutum üzerinde gerçekleşir ve iki sipariş bir sipariş numarasıyla eşleştirilir. Shoppier veya DilekKutum üzerinde yapılan satın alımlar ayrıca o platformun kendi koşullarına tabidir.",
+        // LEGAL REVIEW REQUIRED: refund / right-of-withdrawal rules for Tokens, digital content and physical gifts, and whether Tokens carry any cash value, are deliberately not stated.
+      },
+      {
+        title: "Hesabınızı silme",
+        body: "Hesabınızı istediğiniz zaman hesap sayfanızdan kalıcı olarak silebilirsiniz; bu işlem geri alınamaz. Daha önce yayımlanmış düşünceler duvarda adınız olmadan anonim olarak kalır ve kalan Token bakiyeniz artık kullanılamaz. Hangi kayıtların silindiğini ve hangilerinin sizinle ilişkilendirilmeden saklanabileceğini Gizlilik Politikası açıklar.",
+        // LEGAL REVIEW REQUIRED: the consumer-law treatment of an unused Token balance forfeited on account deletion.
       },
       {
         title: "Hizmetin değişmesi veya durdurulması",
@@ -849,7 +880,11 @@ export const tr: Dictionary = {
       },
       {
         title: "Bildirim yap",
-        body: "Topluluk İlkeleri’ne aykırı bir içerik gördüğünüzde düşünce üzerindeki 'Bildir' seçeneğini kullanabilirsiniz. Bildirimler inceleme için moderasyon ekibine iletilir.",
+        body: "Topluluk İlkeleri’ne aykırı bir içerik gördüğünüzde düşünce üzerindeki 'Bildir' seçeneğini kullanabilir ve bir neden seçebilirsiniz. Bildirimler inceleme için moderasyon ekibine iletilir ve içeriği otomatik olarak kaldırmaz. Giriş yapmışsanız, bildiriminiz incelendiğinde MINDOT içinde haberdar edilirsiniz. Düşüncenin yazarına onu kimin bildirdiği söylenmez.",
+      },
+      {
+        title: "Kullanıcı engelle",
+        body: "Bir kullanıcının düşüncelerini görmek istemiyorsanız, giriş yapmışken onu duvarda adıyla paylaştığı bir düşünceden ya da kişisel duvarından engelleyebilirsiniz. Böylece adıyla paylaştığı düşünceleri artık görmezsiniz; kullanıcıya haber verilmez ve engeli istediğiniz zaman hesap sayfanızdan kaldırabilirsiniz. Anonimliği korumak için anonim düşünceler engellenemez ve yazarları asla açığa çıkarılmaz; sizi rahatsız eden anonim bir düşünceyi bildirin.",
       },
     ],
   },

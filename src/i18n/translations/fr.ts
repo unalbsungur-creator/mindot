@@ -736,7 +736,7 @@ export const fr: Dictionary = {
   states: { unexpectedTitle: "Ce moment a été interrompu", unexpectedBody: "MINDOT ne peut pas ouvrir cet espace pour le moment. Vos informations privées n’ont pas été affichées.", retry: "Réessayer", home: "Retour à l’accueil", board: "Explorer le mur", notFoundTitle: "Cet espace est introuvable", notFoundBody: "Le lien est peut-être ancien, privé ou indisponible.", loadingTitle: "Rassemblement des notes…" },
   notifications: { bellLabel: "Notifications", panelTitle: "Notifications", unreadCountLabel: "non lues", unreadBadgeLabel: "Non lu", markAsRead: "Marquer comme lu", markAllAsRead: "Tout marquer comme lu", markingAllAsRead: "Marquage en cours…", viewAllLink: "Voir toutes les notifications", emptyTitle: "Aucune notification pour l'instant", emptyBody: "Les mises à jour apparaîtront ici.", loading: "Chargement des notifications…", error: "Impossible de charger les notifications.", retry: "Réessayer", typeMessageApproved: "Votre note a été approuvée.", typeMessageRejected: "Votre note n'a pas été publiée.", typeReportResolved: "Votre signalement a été traité.", typeReportDismissed: "Votre signalement a été rejeté.", pageTitle: "Notifications", pageSubtitle: "Votre historique complet, du plus récent au plus ancien.", signInRequiredBody: "Connectez-vous pour voir vos notifications.", paginationPrev: "Précédent", paginationNext: "Suivant", paginationLabel: "{page} / {total}" },
   legal: {
-    lastReviewed: "Note d'information · septembre 2026",
+    lastReviewed: "Note d'information · octobre 2026",
     reviewNotice:
       "Cette note a pour but d'expliquer clairement aux utilisateurs le fonctionnement actuel de MINDOT et les traitements de données associés. Elle ne constitue pas un conseil juridique.",
     privacyTitle: "Politique de confidentialité",
@@ -749,11 +749,23 @@ export const fr: Dictionary = {
       },
       {
         title: "Quelles données nous traitons",
-        body: "Lorsque vous vous connectez avec Google, des informations d'identité de base fournies par Google — votre identifiant de compte, votre adresse e-mail, votre nom affiché et votre photo de profil — peuvent être traitées pour reconnaître votre compte et créer votre session. MINDOT ne demande pas d'accès à Gmail, Drive, Contacts ou à d'autres services Google. Selon les fonctionnalités que vous utilisez, MINDOT peut également traiter la pensée que vous rédigez, le format de partage choisi, votre nom affiché, votre langue, vos préférences de mur personnel, les données de modération et de signalement, ainsi que les informations relatives aux souvenirs/projets et aux accès.",
+        body: "Lorsque vous vous connectez avec Google, des informations d'identité de base fournies par Google — votre identifiant de compte, votre adresse e-mail, votre nom affiché et votre photo de profil — peuvent être traitées pour reconnaître votre compte et créer votre session. MINDOT ne demande pas d'accès à Gmail, Drive, Contacts ou à d'autres services Google. Selon les fonctionnalités que vous utilisez, MINDOT peut également traiter la pensée que vous rédigez, le format de partage choisi, votre nom affiché, votre langue, vos préférences de mur personnel, les données de modération et de signalement, ainsi que les informations relatives aux souvenirs/projets et aux accès. Lorsque vous vous connectez avec Apple, Apple fournit un identifiant de compte et une adresse e-mail, ainsi que votre nom uniquement si vous choisissez de le partager lors de votre première connexion ; Apple ne fournit pas de photo de profil. Selon les fonctionnalités utilisées, les pensées que vous aimez, les utilisateurs que vous bloquez, vos notifications dans l'application ainsi que vos données de Tokens et de commandes peuvent également être traités. Si quelqu'un vous invite sur MINDOT par e-mail, l'adresse saisie est utilisée pour envoyer cette invitation.",
+      },
+      {
+        title: "Connexion avec Apple et adresse e-mail relais privée",
+        body: "Si vous choisissez l'option « Masquer mon adresse e-mail » d'Apple, Apple transmet à MINDOT une adresse relais privée (par exemple se terminant par privaterelay.appleid.com) au lieu de votre adresse e-mail personnelle. MINDOT traite cette adresse comme l'e-mail de votre compte : elle n'est jamais affichée publiquement ni utilisée comme nom affiché. Afin que votre connexion avec Apple puisse être interrompue lors de la suppression de votre compte, MINDOT conserve sous forme chiffrée un identifiant de connexion délivré par Apple, utilisé uniquement à cette fin.",
       },
       {
         title: "Pensées et choix d'identité",
         body: "Vous pouvez choisir de partager une pensée de manière anonyme ou sous votre nom. Les pensées envoyées anonymement ne sont jamais associées à vous dans le contenu public. Les pensées envoyées sous votre nom et approuvées peuvent apparaître sur le mur public. Votre mur personnel est géré séparément et reste privé par défaut ; vous décidez de le rendre public ou non.",
+      },
+      {
+        title: "Signalements, blocages et notifications",
+        body: "Lorsque vous signalez une pensée, le signalement enregistre la pensée, le motif choisi, les précisions éventuelles que vous ajoutez, ainsi que votre compte ou un identifiant aléatoire stocké dans votre navigateur. Les signalements sont examinés par les administrateurs de MINDOT ; l'identité de la personne qui signale n'est pas montrée à l'auteur de la pensée signalée. La liste des utilisateurs que vous bloquez est conservée avec votre compte afin que leurs pensées nominatives puissent vous être masquées ; l'utilisateur bloqué n'en est pas informé. Les notifications dans l'application (par exemple le résultat de la modération de votre pensée ou de votre signalement) ne sont affichées qu'au sein de MINDOT et sont conservées avec votre compte.",
+      },
+      {
+        title: "Tokens, produits numériques et commandes physiques",
+        body: "MINDOT enregistre les mouvements de Tokens (par exemple les Tokens ajoutés à votre solde et ceux utilisés pour débloquer un PDF souvenir) ainsi que les PDF que vous avez débloqués. Lorsqu'ils sont proposés, les cadres numériques sont achetés sur Shoppier ; MINDOT conserve le code d'accès et le projet souvenir pour lequel il a été utilisé. Les cadeaux physiques sont rapprochés grâce à un numéro de commande ; le choix de la boîte, le paiement et la livraison ont lieu sur DilekKutum, et MINDOT ne conserve pas votre adresse de livraison. MINDOT ne traite pas les données de votre carte de paiement ; les achats effectués sur ces plateformes sont également soumis à leurs propres conditions et politiques de confidentialité.",
       },
       {
         title: "Pourquoi nous traitons ces données",
@@ -761,7 +773,7 @@ export const fr: Dictionary = {
       },
       {
         title: "Avec qui nous pouvons partager les données",
-        body: "Les données peuvent être partagées, dans la mesure nécessaire à la fourniture du service MINDOT, avec des prestataires techniques d'authentification, d'hébergement, de base de données, de sécurité, de communication et de services similaires. Les contenus rendus publics peuvent apparaître sur les pages ou dans les images utilisées pour les partager. Les contenus privés ne sont pas rendus publics en dehors de l'autorisation de l'utilisateur concerné. Lorsque des données sont transférées à des prestataires situés à l'étranger, ce transfert s'effectue via un mécanisme juridique conforme aux dispositions actuelles du KVKK relatives aux transferts de données à l'étranger.",
+        body: "La connexion est assurée par Google et, lorsqu'elle est proposée, par Apple. Les données peuvent être partagées, dans la mesure nécessaire à la fourniture du service MINDOT, avec des prestataires techniques d'authentification, d'hébergement, de base de données, de sécurité, de communication et de services similaires. Les contenus rendus publics peuvent apparaître sur les pages ou dans les images utilisées pour les partager. Les contenus privés ne sont pas rendus publics en dehors de l'autorisation de l'utilisateur concerné. Lorsque des données sont transférées à des prestataires situés à l'étranger, ce transfert s'effectue via un mécanisme juridique conforme aux dispositions actuelles du KVKK relatives aux transferts de données à l'étranger.",
       },
       {
         title: "Cookies et stockage local",
@@ -770,6 +782,11 @@ export const fr: Dictionary = {
       {
         title: "Durée de conservation",
         body: "Les données personnelles sont conservées aussi longtemps que nécessaire à la finalité pour laquelle elles ont été traitées, en tenant compte des obligations prévues par la législation applicable. Lorsque la finalité justifiant la conservation cesse d'exister, les données concernées sont supprimées, détruites ou anonymisées conformément à la législation et aux méthodes techniquement applicables. Les durées de conservation précises dépendent de la catégorie de données et des obligations légales applicables.",
+        // LEGAL REVIEW REQUIRED: statutory retention periods (tax/accounting/consumer law) for retained Token, unlock, access-code and order records are deliberately not stated.
+      },
+      {
+        title: "Supprimer votre compte",
+        body: "Vous pouvez supprimer définitivement votre compte à tout moment depuis la section « Supprimer le compte » de votre page de compte (/me). Votre fiche de compte — y compris votre adresse e-mail (également une adresse relais privée Apple), votre nom, votre photo de profil et votre profil public — est supprimée, de même que vos notifications, vos « J'aime » et vos blocages, ainsi que les pensées non publiées et les projets souvenirs auxquels aucun autre enregistrement ne fait référence (par exemple un signalement, un achat ou un déblocage) ; ce qui est conservé pour cette raison est dissocié de votre identité. Les pensées déjà publiées restent sur le mur sans votre nom, en tant que pensées anonymes, et sont retirées de votre mur personnel ; les pensées publiées anonymement restent anonymes. Les enregistrements de Tokens, de déblocages de PDF, de codes d'accès et de commandes, ainsi que les signalements que vous avez envoyés, peuvent être conservés à des fins de suivi et au titre des obligations légales applicables, mais ne sont plus liés à votre identité ; tout solde de Tokens restant ne peut plus être utilisé. Si vous vous êtes connecté avec Apple, MINDOT demande également à Apple de mettre fin à votre connexion avec Apple ; si cela n'est pas possible à ce moment-là, votre compte n'est pas supprimé et vous pouvez réessayer.",
       },
       {
         title: "Sécurité",
@@ -790,7 +807,7 @@ export const fr: Dictionary = {
       },
       {
         title: "Utilisation du compte",
-        body: "Vous pouvez créer un compte MINDOT en vous connectant avec Google. Vous êtes responsable du contenu envoyé depuis votre compte et de l'utilisation qui en est faite. Vous ne devez pas partager vos identifiants de compte avec autrui, ni utiliser le compte d'une autre personne.",
+        body: "Vous pouvez créer un compte MINDOT en vous connectant avec Google ou, lorsque c'est proposé, avec Apple. Chaque adresse e-mail ne peut appartenir qu'à un seul compte MINDOT ; les comptes créés avec des méthodes de connexion différentes ne sont pas fusionnés automatiquement. Vous êtes responsable du contenu envoyé depuis votre compte et de l'utilisation qui en est faite. Vous ne devez pas partager vos identifiants de compte avec autrui, ni utiliser le compte d'une autre personne.",
       },
       {
         title: "Envoyer une pensée",
@@ -803,6 +820,20 @@ export const fr: Dictionary = {
       {
         title: "Partage anonyme et nominatif",
         body: "Lorsque vous choisissez le partage anonyme, votre pensée n'est pas associée à votre nom dans le contenu public. Les pensées nominatives et approuvées peuvent être affichées dans l'espace public ou sur votre mur personnel, selon les fonctionnalités choisies et les règles de publication de MINDOT.",
+      },
+      {
+        title: "Modération, signalement et blocage",
+        body: "MINDOT peut refuser de publier, ou retirer ultérieurement de l'espace public, un contenu contraire aux présentes conditions ou aux Règles de la communauté, et peut suspendre la possibilité pour un compte d'envoyer des pensées. Vous pouvez signaler n'importe quelle pensée ; les signalements sont examinés par des personnes et ne suppriment pas automatiquement le contenu. Vous pouvez bloquer un utilisateur qui partage sous son nom : ses pensées nominatives sont alors masquées pour vous seul, et il n'en est pas informé. Les pensées anonymes ne peuvent pas être bloquées, de sorte que leurs auteurs ne peuvent jamais être identifiés de cette manière ; utilisez plutôt l'option de signalement.",
+      },
+      {
+        title: "Tokens, contenu numérique et produits physiques",
+        body: "Les Tokens sont une unité interne à MINDOT servant à débloquer un PDF souvenir : débloquer un PDF utilise 1 Token une seule fois, puis le PDF peut être téléchargé à nouveau sans utiliser d'autre Token. Les Tokens ne peuvent être utilisés qu'au sein de MINDOT ; aucune fonctionnalité ne permet de les transférer vers un autre compte ni de les retirer. Les cadres numériques sont, lorsqu'ils sont proposés, achetés sur Shoppier et activés dans MINDOT avec un code d'accès à usage unique lié à un projet souvenir. Les cadeaux physiques sont un produit distinct : MINDOT prépare l'impression, tandis que le choix de la boîte, le paiement et la livraison ont lieu sur DilekKutum, les deux commandes étant rapprochées grâce à un numéro de commande. Les achats effectués sur Shoppier ou DilekKutum sont également soumis aux conditions propres à ces plateformes.",
+        // LEGAL REVIEW REQUIRED: refund / right-of-withdrawal rules for Tokens, digital content and physical gifts, and whether Tokens carry any cash value, are deliberately not stated.
+      },
+      {
+        title: "Supprimer votre compte",
+        body: "Vous pouvez supprimer définitivement votre compte à tout moment depuis votre page de compte ; cette action est irréversible. Les pensées déjà publiées restent sur le mur de manière anonyme, sans votre nom, et tout solde de Tokens restant ne peut plus être utilisé. La Politique de confidentialité explique quels enregistrements sont supprimés et lesquels peuvent être conservés sans être liés à vous.",
+        // LEGAL REVIEW REQUIRED: the consumer-law treatment of an unused Token balance forfeited on account deletion.
       },
       {
         title: "Modification ou interruption du service",
@@ -847,7 +878,11 @@ export const fr: Dictionary = {
       },
       {
         title: "Signaler un contenu",
-        body: "Si vous constatez un contenu contraire aux Règles de la communauté, vous pouvez utiliser l'option « Signaler » sur cette pensée. Les signalements sont transmis à l'équipe de modération pour examen.",
+        body: "Si vous constatez un contenu contraire aux Règles de la communauté, vous pouvez utiliser l'option « Signaler » sur cette pensée et choisir un motif. Les signalements sont transmis à l'équipe de modération pour examen et ne suppriment pas automatiquement le contenu. Si vous êtes connecté, vous êtes informé dans MINDOT lorsque votre signalement a été examiné. L'auteur de la pensée n'apprend pas qui l'a signalée.",
+      },
+      {
+        title: "Bloquer des utilisateurs",
+        body: "Si vous ne souhaitez plus voir les pensées d'un utilisateur, vous pouvez, une fois connecté, le bloquer depuis une pensée qu'il a partagée sous son nom sur le mur, ou depuis son mur personnel. Vous ne verrez plus les pensées qu'il partage sous son nom ; il n'en est pas informé, et vous pouvez le débloquer à tout moment depuis votre page de compte. Pour protéger l'anonymat, les pensées anonymes ne peuvent pas être bloquées et leurs auteurs ne sont jamais révélés ; si une pensée anonyme vous dérange, signalez-la.",
       },
     ],
   },
