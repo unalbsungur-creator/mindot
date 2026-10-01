@@ -178,6 +178,26 @@ After seeding, try:
 - `/u/devwall01` — the seeded enabled personal wall (one message deliberately hidden from it); `/u/devwall00` — the seeded disabled wall, showing the "private" state
 - `/admin/access-codes` and `/admin/orders` — the seeded digital access codes (one of each status) and the one seeded physical order, already mid-fulfilment
 
+### Standard card assets
+
+`npm run assets:validate-standard` checks every runtime Standard card image
+(`public/images/standard/web/*.png`, the only Standard artwork the app loads)
+and exits 1 if any fails. Pass file paths after `--` to check a new export
+before adding it: `npm run assets:validate-standard -- path/to/card.png`.
+
+A runtime asset must be a non-interlaced PNG with a real alpha channel; its
+outer pixel ring must not be fully opaque (a white/beige backdrop baked into
+the export fails — the card must sit on transparency, with any shadow in
+alpha); its longest side must be ≤ 1024px (~600px recommended); it must be
+≤ 500 KB; it must carry no text/EXIF metadata; and a palette PNG needs at
+least 64 colors. Failures that only a new export can fix are marked
+`NEEDS-DESIGNER-EXPORT` — the gate never edits, crops or cleans an image.
+
+Designer masters (full-size exports) are not runtime assets and should live
+outside `public/`, since everything under `public/` is deployed publicly. Any
+PNG left directly in `public/images/standard/` is listed as a master/candidate
+with the same measurements, without affecting the exit code.
+
 ### Production database workflow
 
 1. Create an empty production PostgreSQL database and set `DATABASE_URL` in
@@ -295,6 +315,8 @@ this repository.
 
 - [ ] `npm run lint`
 - [ ] `npx tsc --noEmit`
+- [ ] `npm test`
+- [ ] `npm run assets:validate-standard`
 - [ ] `npm run build`
 
 ### Manual QA — end-to-end checklist

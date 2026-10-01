@@ -12,7 +12,7 @@
     "preview:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy:cf": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "build:cf:staging": "tsx src/lib/deploy/buildStaging.ts",
-    "test": "tsx --test src/lib/appEnvironment.test.ts",
+    "test": "tsx --test src/lib/appEnvironment.test.ts src/lib/assets/standardAssetValidation.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:staging": "tsx src/lib/db/migrateStaging.ts",
@@ -23,7 +23,8 @@
     "db:create-admin": "tsx src/lib/db/createAdmin.ts",
     "db:repair-placements": "tsx src/lib/db/repairPlacements.ts",
     "db:recalibrate-sequence": "tsx src/lib/db/recalibratePlacementSequence.ts",
-    "auth:apple-secret": "tsx src/lib/createAppleClientSecret.ts"
+    "auth:apple-secret": "tsx src/lib/createAppleClientSecret.ts",
+    "assets:validate-standard": "tsx src/lib/assets/validateStandardAssets.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",
