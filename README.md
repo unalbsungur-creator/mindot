@@ -50,8 +50,82 @@ and brand name; `mind-ot.com` is only its technical web address. Set both
 `NEXT_PUBLIC_APP_URL` and `AUTH_URL` to the exact deployed HTTPS origin.
 
 Builds deliberately do not require a database or OAuth credentials. Runtime
-features validate their own configuration when invoked, allowing the same
-artifact to move from staging to production without embedding secrets.
+features validate their own configuration when invoked. A build is still
+environment-specific: robots.txt, the sitemap, `metadataBase` and client-side
+`NEXT_PUBLIC_*` values are fixed at build time, so staging and production are
+built separately (see "Staging" below).
+
+### Staging (`staging.mind-ot.com`)
+
+A separate Cloudflare Worker, `mindot-staging` (`env.staging` in
+`wrangler.jsonc`), on one fixed hostname — for mobile app development and
+OAuth / Universal Links testing. Preview URLs are never a substitute for it.
+
+| | Production | Staging |
+|---|---|---|
+| Worker | `mindot` (top level of `wrangler.jsonc`) | `mindot-staging` (`env.staging`) |
+| Origin / `AUTH_URL` | `https://mind-ot.com` | `https://staging.mind-ot.com` (committed var) |
+| `APP_ENV` | unset | `staging` (committed var) |
+| Database | production Hyperdrive → production Neon DB | its own Hyperdrive → a separate, empty staging DB |
+| Secrets | `wrangler secret put NAME` | `wrangler secret put NAME --env staging` |
+| Indexing | robots.txt + sitemap | `Disallow: /`, empty sitemap, `noindex` on every page |
+
+Guarantees in code (`src/lib/appEnvironment.ts`, checked by `npm test`):
+
+- `APP_ENV=staging` refuses to build an auth config unless `AUTH_URL` is
+  exactly the staging origin, so every Google/Apple `redirect_uri` is
+  staging's; it never accepts the production origin.
+- A staging Worker reaches the database only through its own `HYPERDRIVE`
+  binding — no `DATABASE_URL` fallback. Wrangler never inherits `hyperdrive`
+  into an environment, and `npm test` fails if staging's binding ever reuses
+  production's id.
+- `npm run build:cf:staging` refuses to run next to any `.env*`/`.dev.vars`
+  file: OpenNext embeds every value from those files into the uploaded Worker
+  bundle as runtime fallbacks, so staging is built from a clean worktree.
+- Session cookies are host-only and staging has its own `AUTH_SECRET`, so a
+  production session is never valid on staging.
+
+Build, migrate and deploy staging:
+
+```bash
+git worktree add ../mindot-staging-build      # clean checkout: no .env.local
+cd ../mindot-staging-build && npm ci
+npm run build:cf:staging
+STAGING_DATABASE_URL='postgresql://…' npm run db:migrate:staging   # all migrations, in journal order
+npx opennextjs-cloudflare deploy --env staging
+```
+
+`db:migrate:staging` reads its target only from `STAGING_DATABASE_URL` in the
+shell and refuses the local development `DATABASE_URL`. Create a staging
+admin the same way as locally, with the staging connection string passed in
+the shell: `DATABASE_URL='postgresql://…' ADMIN_EMAIL=… ADMIN_PASSWORD=… npm run db:create-admin`.
+
+Manual, one-time setup (Cloudflare / Neon / Google / Apple accounts):
+
+1. **Database** — create a new, empty Postgres database for staging (e.g. a
+   separate Neon project or database). Not a branch or copy of production:
+   that would bring real users and their content into staging.
+2. **Hyperdrive** — `npx wrangler hyperdrive create mindot-staging-db
+   --connection-string='postgresql://…'`, then add its id to `env.staging`
+   as `"hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<id>" }]`.
+3. **Secrets** — `npx wrangler secret put <NAME> --env staging` for
+   `AUTH_SECRET` (new, never production's), `GOOGLE_CLIENT_ID`,
+   `GOOGLE_CLIENT_SECRET`, and optionally `AUTH_APPLE_ID`,
+   `AUTH_APPLE_SECRET`, `AUTH_APPLE_TOKEN_KEY` (new key). Don't set
+   `DATABASE_URL`, `EMAIL_PROVIDER`, `SHOPPIER_PRODUCT_URL` or
+   `DILEKKUTUM_URL` on staging unless a test needs them — unset, email is
+   never sent and commerce links stay disabled.
+4. **Google OAuth** — a separate OAuth client for staging (recommended), with
+   authorized redirect URI `https://staging.mind-ot.com/api/auth/callback/google`
+   and JavaScript origin `https://staging.mind-ot.com`. Leave production's
+   client unchanged.
+5. **Apple (optional)** — a Services ID with domain `staging.mind-ot.com` and
+   return URL `https://staging.mind-ot.com/api/auth/callback/apple`; generate
+   its client secret with `npm run auth:apple-secret`.
+6. **DNS** — nothing to create by hand: the first `deploy --env staging`
+   attaches the `staging.mind-ot.com` custom domain (DNS record +
+   certificate) to the `mindot-staging` Worker, since `mind-ot.com` is a zone
+   in the same account.
 
 ## Environment variables
 

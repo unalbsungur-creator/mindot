@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { EnvironmentIsolationError, isStaging } from "@/lib/appEnvironment";
 import { requireRuntimeEnv } from "@/lib/env";
 import * as schema from "./schema";
 
@@ -40,8 +41,10 @@ const globalForDb = globalThis as unknown as { mindotSql?: Sql; mindotDb?: Datab
  * Postgres) is exactly the right fallback.
  */
 function resolveConnection(): { connectionString: string; options: PostgresOptions; isHyperdrive: boolean } {
+  let insideWorker = false;
   try {
     const { env } = getCloudflareContext();
+    insideWorker = true;
     if (env.HYPERDRIVE) {
       return {
         connectionString: env.HYPERDRIVE.connectionString,
@@ -53,6 +56,15 @@ function resolveConnection(): { connectionString: string; options: PostgresOptio
     }
   } catch {
     // Not running inside a Cloudflare Worker request — fall through to DATABASE_URL.
+  }
+  // A staging Worker reaches the database only through its own HYPERDRIVE
+  // binding (wrangler.jsonc env.staging, never inherited from production's).
+  // No DATABASE_URL fallback there: a stray secret or a build-embedded .env
+  // value must never route staging traffic to some other database.
+  // Operator scripts under Node (db:migrate:staging, db:create-admin) are
+  // outside any Worker and keep using an explicitly passed DATABASE_URL.
+  if (insideWorker && isStaging()) {
+    throw new EnvironmentIsolationError(["A staging Worker requires its own HYPERDRIVE binding."]);
   }
   return { connectionString: requireRuntimeEnv("DATABASE_URL"), options: { max: 5 }, isHyperdrive: false };
 }

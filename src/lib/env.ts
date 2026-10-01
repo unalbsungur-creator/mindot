@@ -1,4 +1,6 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { headers } from "next/headers";
+import { assertStagingIsolation } from "./appEnvironment";
 import { PRODUCTION_SITE_URL } from "./siteConfig";
 
 /**
@@ -66,7 +68,17 @@ export function requireRuntimeEnv(name: RuntimeEnvName): string {
  * database unless the operation actually needs it.
  */
 export function isDatabaseConfigured(): boolean {
-    return optionalEnv("DATABASE_URL") !== undefined;
+    return optionalEnv("DATABASE_URL") !== undefined || hasHyperdriveBinding();
+}
+
+// A staging Worker has a HYPERDRIVE binding but deliberately no
+// DATABASE_URL (see getDb()); production has both, so this changes nothing there.
+function hasHyperdriveBinding(): boolean {
+    try {
+        return Boolean(getCloudflareContext().env.HYPERDRIVE);
+    } catch {
+        return false;
+    }
 }
 
 function validAbsoluteUrl(value: string | undefined): URL | null {
@@ -145,6 +157,9 @@ export async function getRequestOrigin(): Promise<URL | null> {
 }
 
 export function getAuthRuntimeConfig() {
+    // Staging only (no-op elsewhere): refuse to build an auth config whose
+    // AUTH_URL — and so every OAuth redirect_uri — isn't the staging origin.
+    assertStagingIsolation();
     const appleId = optionalEnv("AUTH_APPLE_ID");
     const appleSecret = optionalEnv("AUTH_APPLE_SECRET");
     const appleTokenKey = optionalEnv("AUTH_APPLE_TOKEN_KEY");

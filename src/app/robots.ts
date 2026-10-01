@@ -1,7 +1,10 @@
 import type { MetadataRoute } from "next";
+import { isStaging } from "@/lib/appEnvironment";
 import { getAppUrl } from "@/lib/env";
 
 export default function robots(): MetadataRoute.Robots {
+    // Staging is never a search result: block everything, advertise no sitemap.
+    if (isStaging()) return { rules: { userAgent: "*", disallow: "/" } };
     return {
         rules: {
             userAgent: "*",

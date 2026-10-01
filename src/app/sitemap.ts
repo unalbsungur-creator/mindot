@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { isStaging } from "@/lib/appEnvironment";
 import { getAppUrl } from "@/lib/env";
 
 /**
@@ -13,6 +14,7 @@ import { getAppUrl } from "@/lib/env";
  * enumerating public per-entity URLs emerges later.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
+    if (isStaging()) return [];
     const origin = getAppUrl();
     return ["/", "/about", "/board", "/privacy", "/terms", "/community-guidelines"].map((path) => ({
         url: new URL(path, origin).toString(),

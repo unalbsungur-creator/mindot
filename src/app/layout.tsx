@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { OnboardingModal } from "@/features/onboarding/components/OnboardingModal";
 import { SOCIAL_LINKS } from "@/features/sharing/config/social";
 import { LocaleProvider } from "@/i18n/LocaleProvider";
+import { isStaging } from "@/lib/appEnvironment";
 import { getAppUrl, getAuthRuntimeConfig } from "@/lib/env";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE } from "@/lib/siteConfig";
 
@@ -68,6 +69,8 @@ export const metadata: Metadata = {
     url: "/",
   },
   twitter: { card: "summary_large_image" },
+  // Staging: noindex on every page, on top of robots.ts disallowing everything.
+  ...(isStaging() ? { robots: { index: false, follow: false } } : {}),
 };
 
 // Minimal, conservative JSON-LD: only genuinely-configured information

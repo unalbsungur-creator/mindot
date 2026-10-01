@@ -36,5 +36,41 @@
         // raises the budget to the platform maximum for this Worker.
         "limits": {
                 "cpu_ms": 300000
+        },
+        // Staging — a separate Worker ("mindot-staging") on one fixed
+        // hostname, for mobile app development and OAuth / Universal Links
+        // testing. Never a preview URL. Built with `npm run build:cf:staging`
+        // and deployed only with `--env staging` (see README "Staging").
+        // Everything above this block is production and is not changed by it.
+        //
+        // Wrangler does not inherit `vars` or `hyperdrive` into an
+        // environment, so staging can never pick up production's database
+        // binding by omission. Until a staging Hyperdrive config exists (it
+        // must point at a separate staging database — never production's,
+        // never a branch of it), this block deliberately has no `hyperdrive`
+        // entry and the staging Worker refuses every database query (getDb()
+        // requires HYPERDRIVE under APP_ENV=staging). Add it as
+        //   "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<staging config id>" }]
+        // src/lib/appEnvironment.test.ts fails if that id equals production's.
+        "env": {
+                "staging": {
+                        "name": "mindot-staging",
+                        "workers_dev": false,
+                        "preview_urls": false,
+                        "routes": [
+                                {
+                                        "pattern": "staging.mind-ot.com",
+                                        "custom_domain": true
+                                }
+                        ],
+                        // Non-secret. AUTH_URL fixes every OAuth redirect_uri to
+                        // staging; secrets (AUTH_SECRET, GOOGLE_*, AUTH_APPLE_*) are
+                        // set per-environment with `wrangler secret put --env staging`.
+                        "vars": {
+                                "APP_ENV": "staging",
+                                "AUTH_URL": "https://staging.mind-ot.com",
+                                "NEXT_PUBLIC_APP_URL": "https://staging.mind-ot.com"
+                        }
+                }
         }
 }

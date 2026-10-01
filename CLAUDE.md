@@ -257,6 +257,14 @@
 - `StatePanel` is the shared quiet loading/error/not-found primitive. Keep expected action errors as return values; use App Router error boundaries only for unexpected failures, following Next.js 16 conventions.
 - The infinite board height is flex-derived from its route shell rather than subtracting a hardcoded header height. Preserve its existing gesture and keyboard architecture.
 
+## Staging environment
+
+- `staging.mind-ot.com` is a separate Worker, `mindot-staging` (`env.staging` in `wrangler.jsonc`); everything at the top level of that file is production and stays untouched by staging work. Never use preview URLs as staging.
+- The deployment identity is the explicit `APP_ENV` (`src/lib/appEnvironment.ts`), a committed non-secret var on the staging Worker only. Unset means today's behavior (production under a production build, development otherwise). Never decide environment from the request hostname.
+- Under `APP_ENV=staging`: `getAuthRuntimeConfig()` throws `EnvironmentIsolationError` unless `AUTH_URL` (and `NEXT_PUBLIC_APP_URL`, if set) is exactly `STAGING_SITE_URL`; `getDb()` inside a Worker requires the staging `HYPERDRIVE` binding and never falls back to `DATABASE_URL`; robots.txt disallows everything, the sitemap is empty, and the root metadata is `noindex`. Runtime enforcement is staging-only — production's side of the rules is covered by `npm test`, not by new runtime checks.
+- OpenNext embeds every `.env*` value into the uploaded Worker bundle as runtime fallbacks (`.open-next/cloudflare/next-env.mjs`), so `npm run build:cf:staging` refuses to run next to any `.env*`/`.dev.vars` file — staging is built from a clean worktree. Staging migrations go through `npm run db:migrate:staging` (`STAGING_DATABASE_URL` from the shell only). The staging database is a fresh one, never a branch of production.
+- `npm test` (`src/lib/appEnvironment.test.ts`, node:test via tsx) checks the isolation rules, the `wrangler.jsonc` staging block (separate name, fixed custom domain, no preview/workers.dev URLs, staging-only vars, never production's Hyperdrive id, no secrets as vars) and the migration journal. The manual Cloudflare/Neon/Google/Apple setup is listed in README's "Staging".
+
 ## Production identity, SEO & social configuration
 
 - **Brand vs. domain.** The visible product name is always `MINDOT` — never a hyphenated or spaced variant (`Mind-Ot`, `Mind Ot`, `MIND-OT`). The production domain is `mind-ot.com` (canonical origin `https://mind-ot.com`); the hyphen belongs to the URL, never to on-screen copy, `<title>` text, or Open Graph `siteName`. Both are centralized in `src/lib/siteConfig.ts` (`SITE_NAME`, `SITE_TAGLINE`, `SITE_DESCRIPTION`, `PRODUCTION_SITE_URL`) — read from there rather than repeating either literal in a new route.

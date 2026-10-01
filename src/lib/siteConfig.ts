@@ -31,3 +31,11 @@ export const SITE_DESCRIPTION =
  * is set.
  */
 export const PRODUCTION_SITE_URL = "https://mind-ot.com";
+
+/**
+ * The one fixed staging origin (mobile app development, OAuth and Universal
+ * Links testing) — never a preview URL. Only a deployment that declares
+ * APP_ENV=staging may use it, and such a deployment may use nothing else;
+ * see src/lib/appEnvironment.ts.
+ */
+export const STAGING_SITE_URL = "https://staging.mind-ot.com";
