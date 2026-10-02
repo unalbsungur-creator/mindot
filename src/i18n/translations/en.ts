@@ -119,6 +119,7 @@ export const en: Dictionary = {
       "kraft-tag": "Kraft Tag",
       "pink-square": "Pink Square",
       "standard-classic": "Classic MINDOT",
+      "standard-minimal": "Minimal",
       "birthday-confetti": "Birthday Confetti",
       "valentines-heart": "Valentine's Note",
       "mothers-day-bloom": "Mother's Day Bloom",

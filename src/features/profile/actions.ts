@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/features/auth/auth";
 import { messageRepository } from "@/features/messages/repository";
+import { maxMessageLength } from "@/features/messages/lib/messageLength";
 import { MESSAGE_MAX_LENGTH } from "@/features/messages/types";
 import { userRepository } from "@/features/users/repository";
 
@@ -73,7 +74,8 @@ export async function setMessageWallVisibility(messageId: string, show: boolean)
  * clause). `empty-content`/`too-long` mirror `submitMessage`'s own
  * validation exactly (same trim + Unicode-aware length check against the
  * same `MESSAGE_MAX_LENGTH`), so an edited note is held to the identical
- * bar a brand-new one already is.
+ * bar a brand-new one already is — including its card's own, stricter
+ * `maxCharacters` (read from the stored message, never from the client).
  */
 export async function submitMessageRevision(messageId: string, content: string): Promise<ProfileActionResult> {
   const session = await auth();
@@ -82,6 +84,13 @@ export async function submitMessageRevision(messageId: string, content: string):
   const trimmed = content.trim();
   if (!trimmed) return { ok: false, error: "empty-content" };
   if ([...trimmed].length > MESSAGE_MAX_LENGTH) return { ok: false, error: "too-long" };
+
+  // The card's own limit comes from the stored message's template. Someone
+  // else's (or a missing) message answers "forbidden" before any length
+  // check, so the result never reveals another author's card.
+  const existing = await messageRepository.getById(messageId);
+  if (!existing || existing.authorId !== session.user.id) return { ok: false, error: "forbidden" };
+  if ([...trimmed].length > maxMessageLength(existing.templateId)) return { ok: false, error: "too-long" };
 
   const updated = await messageRepository.submitRevision(messageId, session.user.id, trimmed);
   if (!updated) return { ok: false, error: "forbidden" };

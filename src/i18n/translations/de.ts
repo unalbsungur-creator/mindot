@@ -117,6 +117,7 @@ export const de: Dictionary = {
       "kraft-tag": "Kraft-Anhänger",
       "pink-square": "Rosa Quadrat",
       "standard-classic": "Klassisches MINDOT",
+      "standard-minimal": "Minimal",
       "birthday-confetti": "Geburtstagskonfetti",
       "valentines-heart": "Valentinstag-Notiz",
       "mothers-day-bloom": "Muttertagsblüte",

@@ -117,6 +117,7 @@ export const fr: Dictionary = {
       "kraft-tag": "Étiquette kraft",
       "pink-square": "Carré rose",
       "standard-classic": "MINDOT classique",
+      "standard-minimal": "Minimal",
       "birthday-confetti": "Confettis d'anniversaire",
       "valentines-heart": "Note de la Saint-Valentin",
       "mothers-day-bloom": "Fleur de la fête des mères",

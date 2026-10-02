@@ -179,6 +179,16 @@ export interface NoteTemplate {
    */
   contentTextSize?: "compact" | "spacious";
   /**
+   * A per-card message length limit, below the global `MESSAGE_MAX_LENGTH`
+   * (150). Omitted on every card that predates it, so those keep 150
+   * unchanged; the new illustrated Standard cards after "standard-classic"
+   * set 100 (V1 product rule). Read only through `maxMessageLength`
+   * (features/messages/lib/messageLength.ts), which the write form, the
+   * archive edit dialog, `submitMessage` and `submitMessageRevision` all
+   * use — the server check is the real boundary, the client one is UX.
+   */
+  maxCharacters?: number;
+  /**
    * EPIC 039: `category: "sports"` only — the round card's two (optionally
    * three, with `accentColor`) panel colors, drawn by
    * `features/notes/lib/sportsBall.ts` and reused identically by both

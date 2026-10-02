@@ -204,6 +204,37 @@ export const noteTemplates: NoteTemplate[] = [
     contentArea: { top: "8%", left: "8%", width: "84%", height: "68%" },
     contentTextSize: "spacious",
   },
+  // Asset: `web/minimal.png` is derived from the designer's master
+  // `public/images/standard/minimal.png` (500×500 RGBA, transparent
+  // surroundings, no baked shadow) — cropped to its visible pixels (alpha > 0:
+  // x 34–470, y 19–464, keeping the torn right edge) and resized with Lanczos
+  // to 600px wide (600×612 RGBA, 305 KB), the same 600px class as
+  // classic-mindot.png, rather than leaving the share card / PDF to upscale a
+  // 437px crop themselves.
+  //
+  // `contentArea`, measured on that derivative: the blue paper is plain
+  // except a few tiny specks and the printed footer (rule — dot — rule), whose
+  // ink spans 91.0–95.1% of the height (x 18.8–76.7%). Same box as
+  // "standard-classic" — 8% inset from the top/left/right paper edges — ending
+  // at 84%, a ~7% gap above the footer like Classic's gap above its logo.
+  // 100-character V1 limit (`maxCharacters`); at that length the shared
+  // "spacious" sizes leave room to spare in this box.
+  {
+    id: "standard-minimal",
+    name: "Minimal",
+    paper: "blue",
+    shape: "sticky",
+    attachment: "none",
+    font: "sans",
+    category: "standard",
+    enabled: true,
+    image: "/images/standard/web/minimal.png",
+    imageWidth: 600,
+    imageHeight: 612,
+    contentArea: { top: "8%", left: "8%", width: "84%", height: "76%" },
+    contentTextSize: "spacious",
+    maxCharacters: 100,
+  },
   // EPIC: Özel Günler İçin Tercih Edilebilir Post-it Tasarımları /
   // Special Day Post-it Shapes & Decorative Styles. Eight special-occasion
   // templates, permanently selectable (no availableFrom/availableUntil —

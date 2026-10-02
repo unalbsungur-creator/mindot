@@ -8,6 +8,7 @@ import type { NoteTextFontFamily } from "@/features/notes/types";
 import { getModerationService } from "@/features/moderation/service";
 import { userRepository } from "@/features/users/repository";
 import { CONTENT_CONSENT_VERSION } from "./consent";
+import { maxMessageLength } from "./lib/messageLength";
 import { messageRepository } from "./repository";
 import { MESSAGE_MAX_LENGTH, type Message } from "./types";
 
@@ -124,6 +125,11 @@ export async function submitMessage(input: SubmitMessageInput): Promise<SubmitMe
   const template = getNoteTemplate(input.templateId);
   if (template.id !== input.templateId || !isTemplateAvailable(template)) {
     return { ok: false, error: "invalid-template" };
+  }
+  // A card can be stricter than the global limit above (the new illustrated
+  // Standard cards take 100 characters) — enforced here, not only in the form.
+  if ([...content].length > maxMessageLength(template.id)) {
+    return { ok: false, error: "too-long" };
   }
 
   const fontFamily: NoteTextFontFamily = VALID_FONT_FAMILIES.includes(input.fontFamily as NoteTextFontFamily)

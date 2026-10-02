@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { getNoteTemplate } from "@/features/notes/config/templates";
 import { Note } from "@/features/notes/components/Note";
 import { templateDisplayName } from "@/features/notes/lib/templateDisplayName";
-import { MESSAGE_MAX_LENGTH } from "@/features/messages/types";
+import { maxMessageLength } from "@/features/messages/lib/messageLength";
 import { setMessageWallVisibility, submitMessageRevision } from "@/features/profile/actions";
 import { ArchiveSearchFilter } from "@/features/profile/components/ArchiveSearchFilter";
 import { TimeRangeFilter } from "@/features/profile/components/TimeRangeFilter";
@@ -204,6 +204,7 @@ export function ArchivePageContent({ isSignedIn, messages: initialMessages, page
                       <EditMessageAction
                         messageId={message.id}
                         content={message.content}
+                        maxLength={maxMessageLength(message.templateId)}
                         onSubmitted={(newContent) =>
                           setMessages((current) =>
                             current.map((m) =>
@@ -293,10 +294,13 @@ function WallVisibilityToggle({
 function EditMessageAction({
   messageId,
   content,
+  maxLength,
   onSubmitted,
 }: {
   messageId: string;
   content: string;
+  /** The note's own card limit (`maxMessageLength`) — 150 for most cards. */
+  maxLength: number;
   onSubmitted: (newContent: string) => void;
 }) {
   const { dictionary } = useLocale();
@@ -333,7 +337,7 @@ function EditMessageAction({
       setError(dictionary.archive.editErrorEmpty);
       return;
     }
-    if ([...trimmed].length > MESSAGE_MAX_LENGTH) {
+    if ([...trimmed].length > maxLength) {
       setError(dictionary.archive.editErrorTooLong);
       return;
     }
@@ -385,11 +389,11 @@ function EditMessageAction({
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 rows={4}
-                maxLength={MESSAGE_MAX_LENGTH}
+                maxLength={maxLength}
                 className="w-full rounded-md border border-border bg-canvas p-2.5 text-sm text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
               />
               <span className="text-right text-xs text-ink-soft">
-                {[...draft].length}/{MESSAGE_MAX_LENGTH}
+                {[...draft].length}/{maxLength}
               </span>
               {error && <p className="text-xs text-red-600">{error}</p>}
               <div className="flex justify-end gap-2 pt-1">

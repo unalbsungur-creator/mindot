@@ -15,7 +15,7 @@ import { useLocale } from "@/i18n/LocaleProvider";
 import { submitMessage, type SubmitMessageError } from "../actions";
 import { CONTENT_CONSENT_VERSION } from "../consent";
 import { consumeWriteDraft, saveWriteDraft } from "../lib/draftPersistence";
-import { MESSAGE_MAX_LENGTH } from "../types";
+import { maxMessageLength } from "../lib/messageLength";
 
 interface WriteThoughtFormProps {
   invitationToken?: string;
@@ -148,12 +148,16 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
   }, [sessionUser, content, templateId, fontFamily, isAnonymous, displayName, language, consentChecked, invitationToken]);
 
   const charCount = [...content].length;
-  const overLimit = charCount > MESSAGE_MAX_LENGTH;
+  // The selected card's limit: 150 (MESSAGE_MAX_LENGTH) for most cards, lower
+  // for cards with their own `maxCharacters`. Switching to a stricter card
+  // keeps the text as typed — it just turns over-limit until shortened.
+  const maxLength = maxMessageLength(templateId);
+  const overLimit = charCount > maxLength;
   // EPIC 045: an "approaching the limit" visual cue — purely a color
   // change (no new copy needed; `characterCount`'s "{count} / {max}" text
   // already says the number), so it reads as urgency without adding a
   // second string to translate across all five locales.
-  const nearLimit = !overLimit && charCount >= MESSAGE_MAX_LENGTH - 15;
+  const nearLimit = !overLimit && charCount >= maxLength - 15;
   const hasContent = content.trim().length > 0 && !overLimit;
   const canSubmit = hasContent && consentChecked && !isPending && !isSuspended;
   const canContinueToGoogle = hasContent && consentChecked && !isSuspended;
@@ -183,8 +187,9 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
   // the button ALSO requires non-empty content, with nothing on screen ever
   // saying so, so a writer who only noticed the checkbox had no way to know
   // why the button stayed disabled.
-  const continueRequirementsHint =
-    hasContent && consentChecked
+  const continueRequirementsHint = overLimit
+    ? dictionary.write.errorTooLong
+    : hasContent && consentChecked
       ? null
       : !hasContent && !consentChecked
         ? dictionary.write.continueRequirementsBoth
@@ -255,14 +260,14 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
           placeholder={dictionary.write.contentPlaceholder}
           rows={5}
           // EPIC 045: native maxLength hard-blocks any keystroke or paste
-          // past MESSAGE_MAX_LENGTH — the browser truncates a paste that
+          // past the selected card's limit — the browser truncates a paste that
           // would exceed it automatically, so no separate paste handler
           // is needed. [...content].length (used by charCount/overLimit
           // below) can only exceed this via a pre-EPIC-045 restored draft
           // (drafts are plain localStorage, saved before this limit
           // existed) — overLimit's existing red-counter + disabled-submit
           // behavior already handles that gracefully.
-          maxLength={MESSAGE_MAX_LENGTH}
+          maxLength={maxLength}
           className="w-full rounded-md border border-border bg-surface p-4 text-base leading-relaxed text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
         />
         <span
@@ -274,7 +279,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
         >
           {dictionary.write.characterCount
             .replace("{count}", String(charCount))
-            .replace("{max}", String(MESSAGE_MAX_LENGTH))}
+            .replace("{max}", String(maxLength))}
         </span>
       </div>
 

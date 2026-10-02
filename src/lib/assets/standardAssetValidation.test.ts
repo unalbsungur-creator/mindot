@@ -12,7 +12,7 @@ import path from "node:path";
 import { after, describe, it } from "node:test";
 import { deflateSync } from "node:zlib";
 import { decodePng } from "./png";
-import { analyzeStandardAsset, validateStandardAssetFile } from "./standardAssetValidation";
+import { analyzeStandardAsset, STANDARD_ASSET_LIMITS, validateStandardAssetFile } from "./standardAssetValidation";
 import { runStandardAssetGate } from "./validateStandardAssets";
 
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
@@ -175,13 +175,19 @@ describe("Standard card asset gate", () => {
     assert.deepEqual(report.failures, ["file not found"]);
   });
 
-  it("fails the real opaque candidate masters when they are present locally", (t) => {
+  // The candidate masters are local, untracked designer files and change over
+  // time (the first exports were opaque RGB; the current ones are cut-outs), so
+  // this checks the gate's verdict against what each file actually is rather
+  // than assuming either. The opaque cases themselves are pinned above by
+  // synthetic fixtures.
+  it("judges the real candidate masters by what they are, when present locally", (t) => {
     const candidates = ["public/images/standard/archive.png", "public/images/standard/quote.png"].filter((file) => existsSync(file));
     if (candidates.length === 0) return t.skip("candidate masters are not in this checkout");
     for (const file of candidates) {
       const report = validateStandardAssetFile(file);
-      assert.equal(report.verdict, "FAIL", file);
-      assert.equal(report.needsDesignerExport, true, file);
+      const opaqueExport = report.hasAlpha === false || (report.opaqueEdgeRatio ?? 0) >= STANDARD_ASSET_LIMITS.maxOpaqueEdgeRatio;
+      assert.equal(report.needsDesignerExport, opaqueExport, file);
+      if (opaqueExport) assert.equal(report.verdict, "FAIL", file);
     }
   });
 });
