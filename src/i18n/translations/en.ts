@@ -476,6 +476,7 @@ export const en: Dictionary = {
       "memory-orange": "Memory Orange",
       "premium-edition": "Premium Edition",
     },
+    pdfDownloadSlogan: "Keep it in mind.",
   },
   adminAccessCodes: {
     title: "Digital Access Codes",

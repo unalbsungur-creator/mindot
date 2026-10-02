@@ -1,6 +1,5 @@
-import { Circle, Defs, Document, G, Image, Page, RadialGradient, Rect, Stop, Svg, Text, View } from "@react-pdf/renderer";
-import { DOT_RADIUS, DOTS } from "@/components/brand/BrandMark";
-import { PDF_BRAND_FONT_FAMILY, PDF_FONT_FAMILY } from "./fonts";
+import { Circle, Document, Image, Page, Rect, Svg, Text, View } from "@react-pdf/renderer";
+import { PDF_FONT_FAMILY } from "./fonts";
 import { PDF_COLORS } from "./pdfPalette";
 
 /**
@@ -68,194 +67,140 @@ export function MemoryPdfDocument({ imagePngBuffer }: MemoryPdfProps) {
 // (digital frame) still gets MemoryPdfDocument above: its frame is a chosen,
 // paid design and is never swapped for this one.
 //
-// Everything on this page except the card is vector: background, particles,
-// the faint D, the logo and the metadata. The card is the one raster
-// (`renderPdfCardImage`, pdfCardImage.tsx — the share image's own card
-// renderer), so the page costs a single card-sized PNG instead of the old
-// full-page 1440×1800 raster. Nothing here is shared with the share image.
+// Three layers, bottom to top, each absolutely placed inside the page:
+//
+// 1. The designer's background, `public/images/pdf/mindot-pdf-background-v2-clean.png`
+//    (pdfBackground.ts) — night-navy field, the D mark + MINDOT wordmark,
+//    the orange/blue particle arcs, the hairline rings, and the glowing
+//    orange card frame with its dashed inner border. It is language-free
+//    and carries no slogan, date or domain, so none of those can ever be
+//    stale or in the wrong language. Nothing it contains is redrawn here.
+// 2. The real card (`renderPdfCardImage`, pdfCardImage.tsx — the share
+//    image's own `MemoryNoteCard`), centred inside the frame's dashed border.
+// 3. Text the background deliberately leaves out: the localized PDF slogan
+//    (`memory.pdfDownloadSlogan`, "AKLINDA KALSIN."), template name · the
+//    generation date, and the canonical domain.
+//
+// Nothing here is shared with the share image.
 // ---------------------------------------------------------------------------
 
+/**
+ * The background's pixel geometry, measured on the asset itself (1024×1536,
+ * opaque RGB): the orange frame's outer edge runs x 204–820, y 402–1062,
+ * and its dashed inner border x 218–805, y 416–1048. `CARD_WINDOW` is the
+ * area just inside that dashed border. Re-measure these if the asset changes.
+ */
+export const PDF_BACKGROUND_SIZE = { width: 1024, height: 1536 };
+const CARD_WINDOW = { x: 219, y: 417, width: 586, height: 631 };
+/** Breathing room between the card and the dashed border, in background pixels. */
+const CARD_WINDOW_PADDING = 26;
+
+/**
+ * 8 × 12 in (576 × 864 pt) — the background's own 2:3 shape, so it fills the
+ * page edge to edge with no crop or letterbox. Derived from the asset's size
+ * rather than written down twice.
+ */
+const V2_PAGE_WIDTH_PT = 576;
+const V2_PAGE_HEIGHT_PT = (V2_PAGE_WIDTH_PT * PDF_BACKGROUND_SIZE.height) / PDF_BACKGROUND_SIZE.width;
+/** Points per background pixel. */
+const V2_SCALE = V2_PAGE_WIDTH_PT / PDF_BACKGROUND_SIZE.width;
+
 const V2 = {
-  background: "#0b1626",
-  glow: "#1c324a",
   orange: PDF_COLORS.orange,
-  /** The logo's own bowl blue (sampled from public/D Logo.png's blue dots). */
-  logoBlue: "#4f7099",
-  /** Soft mist blue (pdfPalette.ts's paper "blue"). */
-  mist: "#cfe1e8",
   ink: "#f7f3ea",
+  mist: "#cfe1e8",
 };
 
-/** Deterministic pseudo-random sequence (mulberry32) — every download of the same note is byte-stable. */
-function seededRandom(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-interface Box {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-interface Dot {
-  cx: number;
-  cy: number;
-  r: number;
-  fill: string;
-  opacity: number;
-}
-
-/** Faint paper grain over the whole page, plus small brand particles drifting in from two corners — never behind the card. */
-function backgroundDots(card: Box): Dot[] {
-  const random = seededRandom(0x6d696e64); // "mind"
-  const keepOut = { x: card.x - 18, y: card.y - 18, width: card.width + 36, height: card.height + 36 };
-  const behindCard = (x: number, y: number) =>
-    x > keepOut.x && x < keepOut.x + keepOut.width && y > keepOut.y && y < keepOut.y + keepOut.height;
-  const dots: Dot[] = [];
-
-  for (let i = 0; i < 260; i++) {
-    dots.push({ cx: random() * PAGE_WIDTH_PT, cy: random() * PAGE_HEIGHT_PT, r: 0.35 + random() * 0.35, fill: V2.mist, opacity: 0.05 + random() * 0.05 });
-  }
-  for (let i = 0; i < 70; i++) {
-    const topRight = i % 2 === 0;
-    // Distance from the corner (denser near it) and an independent angle across the quarter-circle.
-    const spread = Math.pow(random(), 1.4);
-    const angle = random() * (Math.PI / 2);
-    const distance = spread * PAGE_WIDTH_PT * 0.62;
-    const x = topRight ? PAGE_WIDTH_PT - Math.cos(angle) * distance : Math.cos(angle) * distance;
-    const y = topRight ? Math.sin(angle) * distance : PAGE_HEIGHT_PT - Math.sin(angle) * distance;
-    const orange = random() < 0.45;
-    const r = 0.9 + random() * 1.8;
-    if (behindCard(x, y)) continue;
-    dots.push({ cx: x, cy: y, r, fill: orange ? V2.orange : V2.logoBlue, opacity: (orange ? 0.35 : 0.45) * (1 - spread * 0.6) });
-  }
-  return dots;
-}
-
-/** The BrandMark dot grid (same DOTS/DOT_RADIUS as the site logo) — orange stem, logo-blue bowl. */
-function BrandDots({ size }: { size: number }) {
-  return (
-    <Svg width={size} height={(size * 7.8) / 5.8} viewBox="-0.9 -0.9 5.8 7.8">
-      {DOTS.map((dot) => (
-        <Circle
-          key={`${dot.x}-${dot.y}`}
-          cx={dot.x}
-          cy={dot.y}
-          r={dot.variant === "landing" ? DOT_RADIUS * 1.35 : DOT_RADIUS}
-          fill={dot.variant === "bowl" ? V2.logoBlue : V2.orange}
-        />
-      ))}
-    </Svg>
-  );
-}
-
 export interface PdfDownloadDocumentProps {
+  /** The background PNG's bytes (pdfBackground.ts) — embedded once, never re-encoded. */
+  background: Buffer;
   /** The rendered card block (pdfCardImage.tsx). */
   card: { png: Buffer; width: number; height: number };
-  /** `boardPage.slogan` in the note's own language. */
+  /** `memory.pdfDownloadSlogan`, already uppercased for its locale ("AKLINDA KALSIN."). */
   slogan: string;
   /** Localized, uppercased template name, e.g. "KLASİK MINDOT". */
   templateLabel: string;
-  /** DD.MM.YYYY — the same date the share image prints. */
-  date: string | null;
+  /** The generation date, already formatted (lib/pdfDownloadDate.ts), e.g. "<D> EKİM <YYYY>" in Turkish. */
+  date: string;
+  /** The canonical domain as printed, e.g. "MIND-OT.COM". */
+  domain: string;
 }
 
-export function PdfDownloadDocument({ card, slogan, templateLabel, date }: PdfDownloadDocumentProps) {
-  // Card block: as large as fits between the logo band and the metadata band,
-  // never more than 0.5pt per px (≈144 DPI) — always exactly one page.
-  const top = 104;
-  const bottom = PAGE_HEIGHT_PT - 168;
-  const scale = Math.min(0.5, 470 / card.width, (bottom - top) / card.height);
-  const width = card.width * scale;
-  const height = card.height * scale;
-  const cardBox: Box = { x: (PAGE_WIDTH_PT - width) / 2, y: top + (bottom - top - height) / 2, width, height };
-  const centerX = PAGE_WIDTH_PT / 2;
-  const centerY = cardBox.y + cardBox.height / 2;
-  const motifSize = 170;
+/** Last word in orange, the rest in ink — the background design's two-tone slogan treatment, for any language. */
+function splitSlogan(slogan: string): [string, string] {
+  const index = slogan.lastIndexOf(" ");
+  return index === -1 ? ["", slogan] : [slogan.slice(0, index + 1), slogan.slice(index + 1)];
+}
+
+export function PdfDownloadDocument({ background, card, slogan, templateLabel, date, domain }: PdfDownloadDocumentProps) {
+  // Fit the card block inside the frame's dashed border (never past it, never
+  // upscaled beyond 0.5pt per px ≈ 144 DPI), centred on the window.
+  const windowX = (CARD_WINDOW.x + CARD_WINDOW_PADDING) * V2_SCALE;
+  const windowY = (CARD_WINDOW.y + CARD_WINDOW_PADDING) * V2_SCALE;
+  const windowWidth = (CARD_WINDOW.width - CARD_WINDOW_PADDING * 2) * V2_SCALE;
+  const windowHeight = (CARD_WINDOW.height - CARD_WINDOW_PADDING * 2) * V2_SCALE;
+  const scale = Math.min(0.5, windowWidth / card.width, windowHeight / card.height);
+  const cardWidth = card.width * scale;
+  const cardHeight = card.height * scale;
+  const cardX = windowX + (windowWidth - cardWidth) / 2;
+  const cardY = windowY + (windowHeight - cardHeight) / 2;
+  const [sloganHead, sloganTail] = splitSlogan(slogan);
+  const frameBottom = 1062 * V2_SCALE;
 
   return (
     <Document title="MINDOT" author="MINDOT">
       {/* Every layer is absolutely placed inside the page bounds: a layer reaching past the edge makes
-          react-pdf flow content onto extra pages (measured: 3 pages), and wrap={false} renders blank. */}
-      <Page size={{ width: PAGE_WIDTH_PT, height: PAGE_HEIGHT_PT }} style={{ padding: 0, backgroundColor: V2.background }}>
-        {/* 1–2. Night-navy field, a soft glow behind the card, two hairline rings, particles and grain. */}
-        <Svg
-          style={{ position: "absolute", top: 0, left: 0 }}
-          width={PAGE_WIDTH_PT}
-          height={PAGE_HEIGHT_PT}
-          viewBox={`0 0 ${PAGE_WIDTH_PT} ${PAGE_HEIGHT_PT}`}
-        >
-          <Defs>
-            <RadialGradient id="glow" cx="50%" cy="50%" r="50%">
-              <Stop offset="0%" stopColor={V2.glow} stopOpacity={0.95} />
-              <Stop offset="100%" stopColor={V2.background} stopOpacity={0} />
-            </RadialGradient>
-          </Defs>
-          <Rect x={0} y={0} width={PAGE_WIDTH_PT} height={PAGE_HEIGHT_PT} fill={V2.background} />
-          <Circle cx={centerX} cy={centerY} r={360} fill="url(#glow)" />
-          <Circle cx={centerX} cy={centerY} r={318} fill="none" stroke={V2.mist} strokeWidth={0.5} strokeOpacity={0.07} />
-          <Circle cx={centerX} cy={centerY} r={372} fill="none" stroke={V2.mist} strokeWidth={0.5} strokeOpacity={0.045} />
-          {backgroundDots(cardBox).map((dot, index) => (
-            <Circle key={index} cx={dot.cx} cy={dot.cy} r={dot.r} fill={dot.fill} fillOpacity={dot.opacity} />
-          ))}
-          {/* A very faint, large D in the bottom-right corner — the only oversized brand form, clear of
-              the card and the metadata. Drawn inside this page-sized SVG: a separate layer reaching past
-              the page edge makes react-pdf push content onto further pages. */}
-          <G transform={`translate(${PAGE_WIDTH_PT - motifSize - 16} ${PAGE_HEIGHT_PT - (motifSize * 7.8) / 5.8 - 14}) scale(${motifSize / 5.8})`}>
-            {DOTS.map((dot) => (
-              <Circle
-                key={`${dot.x}-${dot.y}`}
-                cx={dot.x + 0.9}
-                cy={dot.y + 0.9}
-                r={dot.variant === "landing" ? DOT_RADIUS * 1.35 : DOT_RADIUS}
-                fill={dot.variant === "bowl" ? V2.logoBlue : V2.orange}
-                fillOpacity={0.05}
-              />
-            ))}
-          </G>
-        </Svg>
-
-
-        {/* 3. Small logo: dot mark + MIN·D·OT wordmark (MindotLogo.tsx's horizontal lockup). */}
-        <View
-          style={{ position: "absolute", top: 46, left: 0, width: PAGE_WIDTH_PT, display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "center" }}
-        >
-          <BrandDots size={13} />
-          <Text style={{ marginLeft: 9, fontFamily: PDF_FONT_FAMILY, fontWeight: "bold", fontSize: 11, letterSpacing: 4.5, color: V2.ink }}>
-            MIN<Text style={{ color: V2.orange }}>D</Text>OT
-          </Text>
-        </View>
-
-        {/* 4. The real card — the page's hero. */}
+          react-pdf flow content onto extra pages, and wrap={false} renders blank. */}
+      <Page size={{ width: V2_PAGE_WIDTH_PT, height: V2_PAGE_HEIGHT_PT }} style={{ padding: 0, backgroundColor: "#001e3c" }}>
+        {/* 1. Background — embedded from its raw bytes, so pdfkit stores the PNG's own compressed data once. */}
         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt prop; this is a PDF render target, not DOM */}
         <Image
-          src={`data:image/png;base64,${card.png.toString("base64")}`}
-          style={{ position: "absolute", left: cardBox.x, top: cardBox.y, width: cardBox.width, height: cardBox.height }}
+          src={{ data: background, format: "png" }}
+          style={{ position: "absolute", left: 0, top: 0, width: V2_PAGE_WIDTH_PT, height: V2_PAGE_HEIGHT_PT }}
         />
 
-        {/* 5. Editorial metadata: the brand dot, the slogan, a hairline, template · date. */}
+        {/* 2. The real card — the page's hero, inside the background's frame. */}
+        {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt prop; this is a PDF render target, not DOM */}
+        <Image src={{ data: card.png, format: "png" }} style={{ position: "absolute", left: cardX, top: cardY, width: cardWidth, height: cardHeight }} />
+
+        {/* 3. Text the background leaves out: orange rule, slogan, rule-dot-rule, template · date. */}
         <View
-          style={{ position: "absolute", left: 0, top: PAGE_HEIGHT_PT - 124, width: PAGE_WIDTH_PT, display: "flex", flexDirection: "column", alignItems: "center" }}
+          style={{ position: "absolute", left: 0, top: frameBottom + 30, width: V2_PAGE_WIDTH_PT, display: "flex", flexDirection: "column", alignItems: "center" }}
         >
-          <Svg width={6} height={6} viewBox="0 0 6 6">
-            <Circle cx={3} cy={3} r={3} fill={V2.orange} />
+          <Svg width={34} height={2} viewBox="0 0 34 2">
+            <Rect x={0} y={0} width={34} height={1.6} fill={V2.orange} />
           </Svg>
-          <Text style={{ marginTop: 14, fontFamily: PDF_BRAND_FONT_FAMILY, fontSize: 17, color: V2.ink }}>{slogan}</Text>
-          <Svg width={44} height={1} viewBox="0 0 44 1" style={{ marginTop: 14 }}>
-            <Rect x={0} y={0} width={44} height={0.6} fill={V2.mist} fillOpacity={0.35} />
+          <Text style={{ marginTop: 16, fontFamily: PDF_FONT_FAMILY, fontWeight: "bold", fontSize: 17, letterSpacing: 4.2, color: V2.ink }}>
+            {sloganHead}
+            <Text style={{ color: V2.orange }}>{sloganTail}</Text>
+          </Text>
+          <Svg width={150} height={6} viewBox="0 0 150 6" style={{ marginTop: 16 }}>
+            <Rect x={0} y={2.7} width={66} height={0.6} fill={V2.mist} fillOpacity={0.35} />
+            <Circle cx={75} cy={3} r={3} fill={V2.orange} />
+            <Rect x={84} y={2.7} width={66} height={0.6} fill={V2.mist} fillOpacity={0.35} />
           </Svg>
-          <Text style={{ marginTop: 12, fontFamily: PDF_FONT_FAMILY, fontSize: 7.5, letterSpacing: 2.2, color: V2.mist, opacity: 0.75 }}>
-            {date ? `${templateLabel}  ·  ${date}` : templateLabel}
+          <Text style={{ marginTop: 14, fontFamily: PDF_FONT_FAMILY, fontSize: 7.5, letterSpacing: 2.2, color: V2.mist, opacity: 0.8 }}>
+            {`${templateLabel}  ·  ${date}`}
           </Text>
         </View>
+
+        {/* The canonical domain, quietly at the foot of the page. */}
+        <Text
+          style={{
+            position: "absolute",
+            left: 0,
+            top: V2_PAGE_HEIGHT_PT - 46,
+            width: V2_PAGE_WIDTH_PT,
+            textAlign: "center",
+            fontFamily: PDF_FONT_FAMILY,
+            fontSize: 6.5,
+            letterSpacing: 2.6,
+            color: V2.mist,
+            opacity: 0.55,
+          }}
+        >
+          {domain}
+        </Text>
       </Page>
     </Document>
   );

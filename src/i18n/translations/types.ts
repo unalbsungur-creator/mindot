@@ -500,6 +500,13 @@ export interface Dictionary {
      * `write.templateNames`.
      */
     frameNames: Record<string, string>;
+    /**
+     * PDF Download V2's own slogan, printed uppercased under the card on the
+     * unframed Memory PDF ("Aklında kalsın." → "AKLINDA KALSIN."). A
+     * deliberately different line from `boardPage.slogan` ("Aklında
+     * kalmasın."), which the share image and the board keep using.
+     */
+    pdfDownloadSlogan: string;
   };
   adminAccessCodes: {
     title: string;

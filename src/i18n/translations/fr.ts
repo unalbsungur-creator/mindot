@@ -474,6 +474,7 @@ export const fr: Dictionary = {
       "memory-orange": "Orange souvenir",
       "premium-edition": "Édition Premium",
     },
+    pdfDownloadSlogan: "Garde-le en tête.",
   },
   adminAccessCodes: {
     title: "Codes d'accès numériques",

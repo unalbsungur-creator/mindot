@@ -474,6 +474,7 @@ export const es: Dictionary = {
       "memory-orange": "Naranja recuerdo",
       "premium-edition": "Edición Premium",
     },
+    pdfDownloadSlogan: "Tenlo presente.",
   },
   adminAccessCodes: {
     title: "Códigos de acceso digital",

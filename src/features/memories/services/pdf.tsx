@@ -1,16 +1,20 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getNoteTemplate } from "@/features/notes/config/templates";
 import { templateDisplayName } from "@/features/notes/lib/templateDisplayName";
 import { matchBrowserLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/translations";
+import { PRODUCTION_SITE_URL } from "@/lib/siteConfig";
 import { getPublicMessageById } from "@/features/board/repository";
 import { getShareFormat } from "@/features/sharing/config/shareFormats";
 import { sloganForLanguage, toShareCardNote } from "@/features/sharing/lib/shareCardData";
-import { renderShareCard } from "@/features/sharing/services/shareCardRenderer";
-import { getFrameTemplate } from "../config/frameTemplates";
+import { renderShareCard, type ShareCardNote } from "@/features/sharing/services/shareCardRenderer";
+import { getFrameTemplate, type FrameTemplate } from "../config/frameTemplates";
 import { resolveCaptureRegion } from "../lib/captureRegion";
+import { formatPdfDownloadDate } from "../lib/pdfDownloadDate";
 import type { MemoryProject } from "../types";
 import { ensurePdfFontsRegistered, ensurePdfYogaWasmUrlConfigured } from "./fonts";
+import { loadPdfBackground } from "./pdfBackground";
 import { ensurePdfMeasureFontsLoaded } from "./pdfTextMeasure";
 import { renderPdfCardImage } from "./pdfCardImage";
 import { MemoryPdfDocument, PdfDownloadDocument } from "./renderer";
@@ -40,16 +44,18 @@ const PDF_RENDER_HEIGHT = 1800;
  *
  * - Unframed (personal PDF, physical gift) — PDF Download V2: the card,
  *   rendered by the share image's own card component (`renderPdfCardImage`,
- *   pdfCardImage.tsx), on a vector MINDOT page (`PdfDownloadDocument`,
- *   renderer.tsx). It deliberately no longer matches the share image; the
- *   share image itself is untouched by this path.
+ *   pdfCardImage.tsx), inside the designer's background artwork
+ *   (`loadPdfBackground`), with the PDF slogan, the generation date and the
+ *   domain as text (`PdfDownloadDocument`, renderer.tsx). It deliberately no
+ *   longer matches the share image; the share image itself is untouched by
+ *   this path.
  * - Framed (digital frame): the chosen frame is a paid design, so its PDF
  *   stays the exact composition `renderShareCard` produces for the "print"
  *   format, rendered at PDF_RENDER_WIDTH x PDF_RENDER_HEIGHT (see above)
  *   and wrapped by `MemoryPdfDocument` in a one-page PDF.
  *
- * Both use the same `toShareCardNote`/`sloganForLanguage` mapping as the
- * share routes, so the card content, author visibility and date agree.
+ * Both use the same `toShareCardNote` mapping as the share routes, so the
+ * card content and author visibility agree.
  */
 export async function generateMemoryPdf(project: MemoryProject): Promise<Buffer> {
   const message = await getPublicMessageById(project.messageId);
@@ -72,29 +78,61 @@ export async function generateMemoryPdf(project: MemoryProject): Promise<Buffer>
   // PDF-only divergence from Share this fix exists to eliminate.
   const frame = project.frameTemplateId ? getFrameTemplate(project.frameTemplateId) : null;
 
-  // PDF Download V2 (unframed projects — personal PDF / physical gift): the
-  // card on a vector MINDOT page (renderer.tsx's PdfDownloadDocument). The
-  // share image is not involved: renderShareCard below only ever runs for a
-  // framed project, whose PDF keeps its chosen frame's composition.
-  if (!frame) {
-    const primary = toShareCardNote(region.primary);
-    const locale = matchBrowserLocale(message.language);
-    const card = await renderPdfCardImage(primary, region.surrounding.map(toShareCardNote));
-    const templateLabel = templateDisplayName(getNoteTemplate(primary.templateId), getDictionary(locale)).toLocaleUpperCase(locale);
-    return renderToBuffer(
-      <PdfDownloadDocument card={card} slogan={sloganForLanguage(message.language)} templateLabel={templateLabel} date={primary.date ?? null} />
-    );
-  }
+  const primary = toShareCardNote(region.primary);
+  const surrounding = region.surrounding.map(toShareCardNote);
+  return frame
+    ? renderFramedMemoryPdf(primary, surrounding, frame, message.language)
+    : renderUnframedMemoryPdf(primary, surrounding, message.language, new Date());
+}
 
+/**
+ * PDF Download V2 (unframed projects — personal PDF / physical gift): the
+ * card inside the background artwork (renderer.tsx's PdfDownloadDocument).
+ * The share image is not involved. Text follows the note's own language,
+ * like the share image's slogan. `now` is when the printed date is taken
+ * from — the real current time from `generateMemoryPdf`. Expects its
+ * font/Yoga setup to have run.
+ */
+export async function renderUnframedMemoryPdf(primary: ShareCardNote, surrounding: ShareCardNote[], language: string, now: Date): Promise<Buffer> {
+  const locale = matchBrowserLocale(language);
+  const dictionary = getDictionary(locale);
+  const [background, card] = await Promise.all([loadPdfBackground(), renderPdfCardImage(primary, surrounding)]);
+  return renderToBuffer(
+    <PdfDownloadDocument
+      background={background}
+      card={card}
+      slogan={dictionary.memory.pdfDownloadSlogan.toLocaleUpperCase(locale)}
+      templateLabel={templateDisplayName(getNoteTemplate(primary.templateId), dictionary).toLocaleUpperCase(locale)}
+      date={formatPdfDownloadDate(now, locale, requestTimeZone())}
+      domain={new URL(PRODUCTION_SITE_URL).host.toUpperCase()}
+    />
+  );
+}
+
+/** Framed projects (digital frame): the chosen, paid frame's share "print" composition, unchanged by V2. */
+export async function renderFramedMemoryPdf(primary: ShareCardNote, surrounding: ShareCardNote[], frame: FrameTemplate, language: string): Promise<Buffer> {
   const shareImage = await renderShareCard({
-    primary: toShareCardNote(region.primary),
-    surrounding: region.surrounding.map(toShareCardNote),
+    primary,
+    surrounding,
     format: { ...getShareFormat("print"), width: PDF_RENDER_WIDTH, height: PDF_RENDER_HEIGHT },
     frame,
-    slogan: sloganForLanguage(message.language),
+    slogan: sloganForLanguage(language),
   });
   const imagePngBuffer = Buffer.from(await shareImage.arrayBuffer());
+  return renderToBuffer(<MemoryPdfDocument imagePngBuffer={imagePngBuffer} />);
+}
 
-  const buffer = await renderToBuffer(<MemoryPdfDocument imagePngBuffer={imagePngBuffer} />);
-  return buffer;
+/**
+ * The downloader's IANA time zone, from Cloudflare's per-request geo data
+ * (`request.cf.timezone`), so a download just after local midnight prints
+ * the local day rather than the Worker's UTC one. Outside a Worker request
+ * (`next dev`, scripts) there is none and the runtime default applies.
+ */
+function requestTimeZone(): string | undefined {
+  try {
+    const timezone = (getCloudflareContext().cf as { timezone?: unknown } | undefined)?.timezone;
+    return typeof timezone === "string" && timezone ? timezone : undefined;
+  } catch {
+    return undefined;
+  }
 }

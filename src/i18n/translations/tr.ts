@@ -476,6 +476,7 @@ export const tr: Dictionary = {
       "memory-orange": "Anı Turuncusu",
       "premium-edition": "Premium Sürüm",
     },
+    pdfDownloadSlogan: "Aklında kalsın.",
   },
   adminAccessCodes: {
     title: "Dijital Erişim Kodları",
