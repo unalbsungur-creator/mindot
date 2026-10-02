@@ -235,6 +235,38 @@ export const noteTemplates: NoteTemplate[] = [
     contentTextSize: "spacious",
     maxCharacters: 100,
   },
+  // Asset: `web/quote.png` is derived from the designer's master
+  // `public/images/standard/quote.png` (500×500 RGBA, transparent
+  // surroundings — the earlier opaque textured backdrop is gone) — cropped to
+  // its visible pixels (x 17–485, y 13–482) and resized with Lanczos to 600px
+  // wide (600×601 RGBA, 356 KB), like web/minimal.png.
+  //
+  // `contentArea`, measured on that derivative: a double rule frames the
+  // cream paper (inner line at x 5.2% / 94.3%, y 7.7% / 92.8%), with gold
+  // quote marks at the top-left (x 8.8–18.5%, y 5.0–12.0%) and bottom-right
+  // (x 82.5–91.7%, y 87.5–94.2%). The text box keeps ~4.5% inside the inner
+  // line on both sides and starts 3% below the top mark, ending 2.5% above
+  // the bottom one — wider than Classic's inset-from-the-paper-edge rule
+  // would allow here, because the frame, not the paper edge, is the
+  // boundary. At 90 characters (the largest "spacious" tier) the worst case
+  // (German long words) just fits, exactly like Classic at 90; at the
+  // 100-character limit there is ~10% to spare.
+  {
+    id: "standard-quote",
+    name: "Quote",
+    paper: "cream",
+    shape: "sticky",
+    attachment: "none",
+    font: "sans",
+    category: "standard",
+    enabled: true,
+    image: "/images/standard/web/quote.png",
+    imageWidth: 600,
+    imageHeight: 601,
+    contentArea: { top: "15%", left: "10%", width: "80%", height: "70%" },
+    contentTextSize: "spacious",
+    maxCharacters: 100,
+  },
   // EPIC: Özel Günler İçin Tercih Edilebilir Post-it Tasarımları /
   // Special Day Post-it Shapes & Decorative Styles. Eight special-occasion
   // templates, permanently selectable (no availableFrom/availableUntil —

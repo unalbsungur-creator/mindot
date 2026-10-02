@@ -120,6 +120,7 @@ export const en: Dictionary = {
       "pink-square": "Pink Square",
       "standard-classic": "Classic MINDOT",
       "standard-minimal": "Minimal",
+      "standard-quote": "Quote",
       "birthday-confetti": "Birthday Confetti",
       "valentines-heart": "Valentine's Note",
       "mothers-day-bloom": "Mother's Day Bloom",

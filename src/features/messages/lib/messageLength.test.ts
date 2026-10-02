@@ -8,8 +8,9 @@ test("the global limit is still 150", () => {
   assert.equal(MESSAGE_MAX_LENGTH, 150);
 });
 
-test("standard-minimal is limited to 100 characters", () => {
+test("the illustrated standard cards after Classic are limited to 100 characters", () => {
   assert.equal(maxMessageLength("standard-minimal"), 100);
+  assert.equal(maxMessageLength("standard-quote"), 100);
 });
 
 test("standard-classic and every card without its own limit keep 150", () => {
@@ -19,9 +20,9 @@ test("standard-classic and every card without its own limit keep 150", () => {
   for (const template of unlimited) assert.equal(maxMessageLength(template.id), 150, template.id);
 });
 
-test("only standard-minimal sets its own limit", () => {
+test("only the new illustrated standard cards set their own limit", () => {
   assert.deepEqual(
     noteTemplates.filter((template) => template.maxCharacters !== undefined).map((template) => template.id),
-    ["standard-minimal"]
+    ["standard-minimal", "standard-quote"]
   );
 });

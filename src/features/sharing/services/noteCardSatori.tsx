@@ -456,7 +456,12 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
             height: `${parseFloat(area.height)}%`,
           }}
         >
-          <span style={{ display: "flex", fontFamily: FONT_METRICS[fontFamily].family, fontSize, lineHeight: imageBackedLineHeight(template, fontFamily), color: PDF_COLORS.ink }}>{content}</span>
+          {/* `break-word`: Satori never breaks a word on its own, so a single word wider than
+              `contentArea` (a German compound like "Geschwindigkeitsbegrenzungen") ran past the
+              box — over the printed frame on standard-quote, off the card edge at the largest
+              size. This breaks only such a word, like Note.tsx's `break-words` in the DOM;
+              every line that already fit lays out exactly as before. Never `break-all`. */}
+          <span style={{ display: "flex", fontFamily: FONT_METRICS[fontFamily].family, fontSize, lineHeight: imageBackedLineHeight(template, fontFamily), color: PDF_COLORS.ink, wordBreak: "break-word" }}>{content}</span>
           {authorName && (
             <span style={{ display: "flex", marginTop: fontSize * 0.5, fontSize: fontSize * 0.85, color: PDF_COLORS.inkSoft }}>— {authorName}</span>
           )}
