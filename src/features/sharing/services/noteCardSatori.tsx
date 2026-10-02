@@ -535,6 +535,8 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
                 fontSize: metrics.fontSize * scale * footballFontScale(content.length),
                 lineHeight: 1.3,
                 color: PDF_COLORS.ink,
+                // Same as the image-backed text above: break only a word too wide for the line.
+                wordBreak: "break-word",
               }}
             >
               {content}
@@ -569,6 +571,8 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
               fontSize: metrics.fontSize * scale,
               lineHeight: 1.4,
               color: PDF_COLORS.ink,
+              // Same as the image-backed text above: break only a word too wide for the line.
+              wordBreak: "break-word",
             }}
           >
             {content}
