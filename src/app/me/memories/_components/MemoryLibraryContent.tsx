@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { SignInOptions } from "@/components/auth/SignInOptions";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -51,8 +51,25 @@ function physicalStatusLabel(dictionary: Dictionary, status: string): string {
   return labels[status] ?? status;
 }
 
+const subscribeToNothing = () => () => {};
+
+/**
+ * `false` on the server and during hydration, `true` afterwards. The project
+ * date is formatted with the browser's own locale/timezone, which the server
+ * can't know — rendering it before hydration made the server and client text
+ * differ (React #418).
+ */
+function useHasHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false
+  );
+}
+
 export function MemoryLibraryContent({ isSignedIn, items, tokenBalance }: MemoryLibraryContentProps) {
   const { dictionary } = useLocale();
+  const hasHydrated = useHasHydrated();
   const [balance, setBalance] = useState(tokenBalance);
   const [unlockedIds, setUnlockedIds] = useState<ReadonlySet<string>>(
     () => new Set(items.filter((item) => item.pdfUnlocked).map((item) => item.projectId))
@@ -140,7 +157,9 @@ export function MemoryLibraryContent({ isSignedIn, items, tokenBalance }: Memory
                     </Badge>
                   )}
                 </div>
-                <span className="text-xs text-ink-soft">{new Date(item.createdAt).toLocaleDateString()}</span>
+                <span className="text-xs text-ink-soft">
+                  {hasHydrated ? new Date(item.createdAt).toLocaleDateString() : "\u00a0"}
+                </span>
                 {item.physicalOrder && (
                   <span className="font-mono text-xs text-ink-soft">{item.physicalOrder.orderNumber}</span>
                 )}
