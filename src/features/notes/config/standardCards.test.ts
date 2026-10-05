@@ -90,6 +90,25 @@ test("Archive is registered with its approved values", () => {
   });
 });
 
+test("Nature is registered with its approved values", () => {
+  assert.deepEqual(getNoteTemplate("standard-nature"), {
+    id: "standard-nature",
+    name: "Nature",
+    paper: "cream",
+    shape: "sticky",
+    attachment: "none",
+    font: "sans",
+    category: "standard",
+    enabled: true,
+    image: "/images/standard/web/nature.png",
+    imageWidth: 500,
+    imageHeight: 500,
+    contentArea: { top: "14%", left: "10%", width: "80%", height: "72%" },
+    contentTextSize: "spacious",
+    maxCharacters: 100,
+  });
+});
+
 test("Classic stays outside the redesign rules", () => {
   const classic = getNoteTemplate("standard-classic");
   assert.equal(classic.maxCharacters, undefined);

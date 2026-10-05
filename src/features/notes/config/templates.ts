@@ -275,6 +275,22 @@ export const noteTemplates: NoteTemplate[] = [
     imageHeight: 500,
     contentArea: { top: "14%", left: "10%", width: "80%", height: "72%" },
   }),
+  // Asset: `web/nature.png` (identical to the master
+  // `public/images/standard/nature.png`; 500×500 RGBA, no metadata, SHA-256
+  // 5583c99c3eb3f71254ccd43d5554c8e52fb70e605f0b9a3a15d1b1e64b2c2109) — an
+  // opaque cream paper with the botanical decoration kept on its outer edges.
+  //
+  // `contentArea` (x 10–90%, y 14–86%) is the redesign brief's preferred 80×72
+  // safe area (docs/STANDARD_CARD_REDESIGN_BRIEF.md).
+  defineStandardCard({
+    id: "standard-nature",
+    name: "Nature",
+    paper: "cream",
+    image: "/images/standard/web/nature.png",
+    imageWidth: 500,
+    imageHeight: 500,
+    contentArea: { top: "14%", left: "10%", width: "80%", height: "72%" },
+  }),
   // EPIC: Özel Günler İçin Tercih Edilebilir Post-it Tasarımları /
   // Special Day Post-it Shapes & Decorative Styles. Eight special-occasion
   // templates, permanently selectable (no availableFrom/availableUntil —
