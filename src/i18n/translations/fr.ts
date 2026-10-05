@@ -119,6 +119,7 @@ export const fr: Dictionary = {
       "standard-classic": "MINDOT classique",
       "standard-minimal": "Minimal",
       "standard-quote": "Citation",
+      "standard-archive": "Archives",
       "birthday-confetti": "Confettis d'anniversaire",
       "valentines-heart": "Note de la Saint-Valentin",
       "mothers-day-bloom": "Fleur de la fête des mères",

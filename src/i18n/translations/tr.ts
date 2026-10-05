@@ -121,6 +121,7 @@ export const tr: Dictionary = {
       "standard-classic": "Klasik MINDOT",
       "standard-minimal": "Minimal",
       "standard-quote": "Söz",
+      "standard-archive": "Arşiv",
       "birthday-confetti": "Doğum Günü Konfetisi",
       "valentines-heart": "Sevgililer Günü Notu",
       "mothers-day-bloom": "Anneler Günü Çiçeği",

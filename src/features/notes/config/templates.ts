@@ -254,6 +254,27 @@ export const noteTemplates: NoteTemplate[] = [
     imageHeight: 601,
     contentArea: { top: "15%", left: "10%", width: "80%", height: "70%" },
   }),
+  // Asset: `web/archive.png` (identical to the master
+  // `public/images/standard/archive.png`; 500×500 RGBA, no metadata, SHA-256
+  // d46d42f9b9ef119f9f684421fdb875d0dc368f7ae70471cef89621df30eab447) — a
+  // vintage travel-journal / archival collage. The cream parchment is the main
+  // surface; the decorative collage pieces (photos, compass, dried flowers,
+  // map scraps, leaves, book) stay on the outer edges. The parchment's torn
+  // left edge was widened to x 5.9–8.0% along y 14–86%.
+  //
+  // `contentArea` (x 10–90%, y 14–86%) is the redesign brief's preferred 80×72
+  // safe area (docs/STANDARD_CARD_REDESIGN_BRIEF.md). Verified on this asset:
+  // no collage object inside that box, and a 100-character message did not
+  // overflow it in a browser render.
+  defineStandardCard({
+    id: "standard-archive",
+    name: "Archive",
+    paper: "cream",
+    image: "/images/standard/web/archive.png",
+    imageWidth: 500,
+    imageHeight: 500,
+    contentArea: { top: "14%", left: "10%", width: "80%", height: "72%" },
+  }),
   // EPIC: Özel Günler İçin Tercih Edilebilir Post-it Tasarımları /
   // Special Day Post-it Shapes & Decorative Styles. Eight special-occasion
   // templates, permanently selectable (no availableFrom/availableUntil —

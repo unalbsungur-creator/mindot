@@ -121,6 +121,7 @@ export const en: Dictionary = {
       "standard-classic": "Classic MINDOT",
       "standard-minimal": "Minimal",
       "standard-quote": "Quote",
+      "standard-archive": "Archive",
       "birthday-confetti": "Birthday Confetti",
       "valentines-heart": "Valentine's Note",
       "mothers-day-bloom": "Mother's Day Bloom",
