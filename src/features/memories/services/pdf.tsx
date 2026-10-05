@@ -1,9 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { getNoteTemplate } from "@/features/notes/config/templates";
-import { templateDisplayName } from "@/features/notes/lib/templateDisplayName";
 import { matchBrowserLocale } from "@/i18n/config";
-import { getDictionary } from "@/i18n/translations";
 import { PRODUCTION_SITE_URL } from "@/lib/siteConfig";
 import { getPublicMessageById } from "@/features/board/repository";
 import { getShareFormat } from "@/features/sharing/config/shareFormats";
@@ -85,24 +82,25 @@ export async function generateMemoryPdf(project: MemoryProject): Promise<Buffer>
     : renderUnframedMemoryPdf(primary, surrounding, message.language, new Date());
 }
 
+/** The PDF footer's brand slogan — the same fixed phrase in every language, never a card/template name. */
+const PDF_DOWNLOAD_SLOGAN = "AKLINDA KALMASIN.";
+
 /**
  * PDF Download V2 (unframed projects — personal PDF / physical gift): the
  * card inside the background artwork (renderer.tsx's PdfDownloadDocument).
- * The share image is not involved. Text follows the note's own language,
- * like the share image's slogan. `now` is when the printed date is taken
- * from — the real current time from `generateMemoryPdf`. Expects its
- * font/Yoga setup to have run.
+ * The share image is not involved. The slogan is fixed; the date follows
+ * the note's own language. `now` is when the printed date is taken from —
+ * the real current time from `generateMemoryPdf`. Expects its font/Yoga
+ * setup to have run.
  */
 export async function renderUnframedMemoryPdf(primary: ShareCardNote, surrounding: ShareCardNote[], language: string, now: Date): Promise<Buffer> {
   const locale = matchBrowserLocale(language);
-  const dictionary = getDictionary(locale);
   const [background, card] = await Promise.all([loadPdfBackground(), renderPdfCardImage(primary, surrounding)]);
   return renderToBuffer(
     <PdfDownloadDocument
       background={background}
       card={card}
-      slogan={dictionary.memory.pdfDownloadSlogan.toLocaleUpperCase(locale)}
-      templateLabel={templateDisplayName(getNoteTemplate(primary.templateId), dictionary).toLocaleUpperCase(locale)}
+      slogan={PDF_DOWNLOAD_SLOGAN}
       date={formatPdfDownloadDate(now, locale, requestTimeZone())}
       domain={new URL(PRODUCTION_SITE_URL).host.toUpperCase()}
     />

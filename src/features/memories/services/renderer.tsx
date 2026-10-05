@@ -77,9 +77,9 @@ export function MemoryPdfDocument({ imagePngBuffer }: MemoryPdfProps) {
 //    stale or in the wrong language. Nothing it contains is redrawn here.
 // 2. The real card (`renderPdfCardImage`, pdfCardImage.tsx — the share
 //    image's own `MemoryNoteCard`), centred inside the frame's dashed border.
-// 3. Text the background deliberately leaves out: the localized PDF slogan
-//    (`memory.pdfDownloadSlogan`, "AKLINDA KALSIN."), template name · the
-//    generation date, and the canonical domain.
+// 3. Text the background deliberately leaves out: the fixed slogan
+//    ("AKLINDA KALMASIN."), the generation date, and the canonical domain.
+//    The card's template name is never printed.
 //
 // Nothing here is shared with the share image.
 // ---------------------------------------------------------------------------
@@ -116,10 +116,8 @@ export interface PdfDownloadDocumentProps {
   background: Buffer;
   /** The rendered card block (pdfCardImage.tsx). */
   card: { png: Buffer; width: number; height: number };
-  /** `memory.pdfDownloadSlogan`, already uppercased for its locale ("AKLINDA KALSIN."). */
+  /** The fixed brand slogan, already uppercased ("AKLINDA KALMASIN."). */
   slogan: string;
-  /** Localized, uppercased template name, e.g. "KLASİK MINDOT". */
-  templateLabel: string;
   /** The generation date, already formatted (lib/pdfDownloadDate.ts), e.g. "<D> EKİM <YYYY>" in Turkish. */
   date: string;
   /** The canonical domain as printed, e.g. "MIND-OT.COM". */
@@ -132,7 +130,7 @@ function splitSlogan(slogan: string): [string, string] {
   return index === -1 ? ["", slogan] : [slogan.slice(0, index + 1), slogan.slice(index + 1)];
 }
 
-export function PdfDownloadDocument({ background, card, slogan, templateLabel, date, domain }: PdfDownloadDocumentProps) {
+export function PdfDownloadDocument({ background, card, slogan, date, domain }: PdfDownloadDocumentProps) {
   // Fit the card block inside the frame's dashed border (never past it, never
   // upscaled beyond 0.5pt per px ≈ 144 DPI), centred on the window.
   const windowX = (CARD_WINDOW.x + CARD_WINDOW_PADDING) * V2_SCALE;
@@ -163,7 +161,7 @@ export function PdfDownloadDocument({ background, card, slogan, templateLabel, d
         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt prop; this is a PDF render target, not DOM */}
         <Image src={{ data: card.png, format: "png" }} style={{ position: "absolute", left: cardX, top: cardY, width: cardWidth, height: cardHeight }} />
 
-        {/* 3. Text the background leaves out: orange rule, slogan, rule-dot-rule, template · date. */}
+        {/* 3. Text the background leaves out: orange rule, slogan, rule-dot-rule, date. */}
         <View
           style={{ position: "absolute", left: 0, top: frameBottom + 30, width: V2_PAGE_WIDTH_PT, display: "flex", flexDirection: "column", alignItems: "center" }}
         >
@@ -180,7 +178,7 @@ export function PdfDownloadDocument({ background, card, slogan, templateLabel, d
             <Rect x={84} y={2.7} width={66} height={0.6} fill={V2.mist} fillOpacity={0.35} />
           </Svg>
           <Text style={{ marginTop: 14, fontFamily: PDF_FONT_FAMILY, fontSize: 7.5, letterSpacing: 2.2, color: V2.mist, opacity: 0.8 }}>
-            {`${templateLabel}  ·  ${date}`}
+            {date}
           </Text>
         </View>
 
