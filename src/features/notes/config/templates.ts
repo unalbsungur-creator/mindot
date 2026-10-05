@@ -1,4 +1,5 @@
 import type { NoteTemplate, NoteTemplateCategory } from "../types";
+import { defineStandardCard } from "./standardCards";
 
 /**
  * The template registry. Adding a future style — a heart-shaped Valentine's
@@ -217,24 +218,17 @@ export const noteTemplates: NoteTemplate[] = [
   // ink spans 91.0–95.1% of the height (x 18.8–76.7%). Same box as
   // "standard-classic" — 8% inset from the top/left/right paper edges — ending
   // at 84%, a ~7% gap above the footer like Classic's gap above its logo.
-  // 100-character V1 limit (`maxCharacters`); at that length the shared
-  // "spacious" sizes leave room to spare in this box.
-  {
+  // 100-character V1 limit (`maxCharacters`, set by `defineStandardCard`); at
+  // that length the shared "spacious" sizes leave room to spare in this box.
+  defineStandardCard({
     id: "standard-minimal",
     name: "Minimal",
     paper: "blue",
-    shape: "sticky",
-    attachment: "none",
-    font: "sans",
-    category: "standard",
-    enabled: true,
     image: "/images/standard/web/minimal.png",
     imageWidth: 600,
     imageHeight: 612,
     contentArea: { top: "8%", left: "8%", width: "84%", height: "76%" },
-    contentTextSize: "spacious",
-    maxCharacters: 100,
-  },
+  }),
   // Asset: `web/quote.png` is derived from the designer's master
   // `public/images/standard/quote.png` (500×500 RGBA, transparent
   // surroundings — the earlier opaque textured backdrop is gone) — cropped to
@@ -251,22 +245,15 @@ export const noteTemplates: NoteTemplate[] = [
   // boundary. At 90 characters (the largest "spacious" tier) the worst case
   // (German long words) just fits, exactly like Classic at 90; at the
   // 100-character limit there is ~10% to spare.
-  {
+  defineStandardCard({
     id: "standard-quote",
     name: "Quote",
     paper: "cream",
-    shape: "sticky",
-    attachment: "none",
-    font: "sans",
-    category: "standard",
-    enabled: true,
     image: "/images/standard/web/quote.png",
     imageWidth: 600,
     imageHeight: 601,
     contentArea: { top: "15%", left: "10%", width: "80%", height: "70%" },
-    contentTextSize: "spacious",
-    maxCharacters: 100,
-  },
+  }),
   // EPIC: Özel Günler İçin Tercih Edilebilir Post-it Tasarımları /
   // Special Day Post-it Shapes & Decorative Styles. Eight special-occasion
   // templates, permanently selectable (no availableFrom/availableUntil —
