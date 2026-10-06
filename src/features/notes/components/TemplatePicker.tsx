@@ -19,6 +19,15 @@ function isStandard(template: NoteTemplate) {
   return template.category === undefined || template.category === "standard";
 }
 
+/** The rail a template lives in — "all" only when the id isn't an active template. */
+function categoryOf(templates: NoteTemplate[], templateId: string): TemplateCategoryFilter {
+  const template = templates.find((tpl) => tpl.id === templateId);
+  if (!template) return "all";
+  if (template.category === "seasonal") return "seasonal";
+  if (template.category === "sports") return "sports";
+  return "standard";
+}
+
 /**
  * EPIC 039: "Bir Nokta Bırak" Kart Seçimini Kategori + Yatay Kaydırmalı
  * Tasarıma Dönüştürme. Replaces the old single flat/grouped grid with a
@@ -50,13 +59,23 @@ export function TemplatePicker({ value, onChange, label }: TemplatePickerProps) 
   // to (so restoring a saved draft, or the initial default template, opens
   // on a rail that actually shows the selected card) rather than always
   // starting on "All".
-  const [activeCategory, setActiveCategory] = useState<TemplateCategoryFilter>(() => {
-    const current = templates.find((tpl) => tpl.id === value);
-    if (!current) return "all";
-    if (current.category === "seasonal") return "seasonal";
-    if (current.category === "sports") return "sports";
-    return "standard";
-  });
+  const [activeCategory, setActiveCategory] = useState<TemplateCategoryFilter>(() => categoryOf(templates, value));
+
+  // A selection changed from outside the rail — a restored draft, set after
+  // this component's first render — can belong to a category that isn't
+  // showing. Follow it, so the picker never shows a rail without the
+  // selected card. Adjusted during render (React's "storing information from
+  // previous renders" pattern), not in an effect, so the wrong rail never
+  // paints first. Clicks and arrow keys only ever pick from the visible rail,
+  // so they never trigger this.
+  const [syncedValue, setSyncedValue] = useState(value);
+  if (value !== syncedValue) {
+    setSyncedValue(value);
+    const category = categoryOf(templates, value);
+    if (activeCategory !== "all" && category !== "all" && category !== activeCategory) {
+      setActiveCategory(category);
+    }
+  }
 
   const categoryLabels: Record<TemplateCategoryFilter, string> = {
     all: t.templateCategoryAllLabel,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/cn";
 import { SportsTemplateCard } from "./SportsTemplateCard";
@@ -52,6 +52,49 @@ export function HorizontalTemplateRail({
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const selectedIndex = templates.findIndex((t) => t.id === value);
+
+  // Whether the rail can scroll further each way — drives the arrows'
+  // disabled state. Starts "at the start" (also the server render).
+  const [edges, setEdges] = useState({ atStart: true, atEnd: false });
+  const updateEdges = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atStart = el.scrollLeft <= 1;
+    const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;
+    setEdges((prev) => (prev.atStart === atStart && prev.atEnd === atEnd ? prev : { atStart, atEnd }));
+  }, []);
+
+  // A ResizeObserver reports once on observe, so this also sets the initial
+  // state, and again whenever the rail's width changes (viewport resize).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(updateEdges);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [updateEdges]);
+
+  // Keeps the selected card fully in view whenever the rail mounts (a
+  // category switch remounts it — see TemplatePicker's `key`) or the
+  // selection changes, including a restored draft. Scrolls the rail only,
+  // never the page — `scrollIntoView` would also move the page vertically —
+  // and only as far as needed, so an already-visible card never moves.
+  // Arrow keys still center their card themselves (`handleKeyDown`); by the
+  // time this runs it is already in view and nothing happens.
+  useEffect(() => {
+    const el = scrollRef.current;
+    const card = selectedIndex >= 0 ? buttonRefs.current[selectedIndex] : null;
+    if (!el || !card) return;
+    const rail = el.getBoundingClientRect();
+    const box = card.getBoundingClientRect();
+    // Room for the selection glow (`-inset-1.5`) outside the card itself.
+    const margin = 8;
+    if (box.left < rail.left) {
+      el.scrollBy({ left: box.left - rail.left - margin, behavior: "instant" });
+    } else if (box.right > rail.right) {
+      el.scrollBy({ left: box.right - rail.right + margin, behavior: "instant" });
+    }
+  }, [selectedIndex]);
 
   function scrollByAmount(direction: 1 | -1) {
     const el = scrollRef.current;
@@ -108,8 +151,9 @@ export function HorizontalTemplateRail({
       <button
         type="button"
         aria-label={prevLabel}
+        disabled={edges.atStart}
         onClick={() => scrollByAmount(-1)}
-        className="hidden shrink-0 items-center justify-center rounded-full border border-border bg-surface p-1.5 text-ink-soft transition-colors hover:border-navy/40 hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange sm:flex"
+        className="hidden shrink-0 items-center justify-center rounded-full border border-border bg-surface p-1.5 text-ink-soft transition-colors hover:border-navy/40 hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange disabled:cursor-default disabled:opacity-40 disabled:hover:border-border disabled:hover:text-ink-soft sm:flex"
       >
         <ChevronIcon direction="left" />
       </button>
@@ -121,6 +165,7 @@ export function HorizontalTemplateRail({
         tabIndex={-1}
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}
+        onScroll={updateEdges}
         // `py-2` clears the selection glow's `-inset-1.5` — any less and the
         // glow overflows vertically, which `overflow-x-auto` turns into a
         // vertical scrollbar.
@@ -204,8 +249,9 @@ export function HorizontalTemplateRail({
       <button
         type="button"
         aria-label={nextLabel}
+        disabled={edges.atEnd}
         onClick={() => scrollByAmount(1)}
-        className="hidden shrink-0 items-center justify-center rounded-full border border-border bg-surface p-1.5 text-ink-soft transition-colors hover:border-navy/40 hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange sm:flex"
+        className="hidden shrink-0 items-center justify-center rounded-full border border-border bg-surface p-1.5 text-ink-soft transition-colors hover:border-navy/40 hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange disabled:cursor-default disabled:opacity-40 disabled:hover:border-border disabled:hover:text-ink-soft sm:flex"
       >
         <ChevronIcon direction="right" />
       </button>
