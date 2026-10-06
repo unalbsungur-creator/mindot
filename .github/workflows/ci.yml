@@ -1,0 +1,44 @@
+name: CI
+
+# Quality gate only: tests, lint and type check on every push and pull
+# request. Never deploys and needs no secrets — no database, no .env.local,
+# no Cloudflare credentials (every check here runs without them).
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Test, lint, type check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # Runs the `postinstall` patch-package step, as locally.
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run lint
+
+      # PageProps/LayoutProps are global types Next generates into the
+      # gitignored next-env.d.ts and .next/types; a clean checkout has
+      # neither, so generate them first (no build, no env needed).
+      - run: npx next typegen
+
+      - run: npx tsc --noEmit
