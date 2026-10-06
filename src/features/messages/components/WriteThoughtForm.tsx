@@ -40,7 +40,7 @@ interface WriteThoughtFormProps {
 }
 
 /**
- * EPIC — Kart Yazı Tipi Seçenekleri: the four font choices, in the order
+ * EPIC — Kart Yazı Tipi Seçenekleri: the font choices, in the order
  * they're shown. Each button's own `className` renders its label in the
  * actual typeface it selects (`noteFontFamilyClass` — the same mapping
  * `Note.tsx` uses for the real card, so this preview is never a second,
@@ -50,13 +50,25 @@ interface WriteThoughtFormProps {
  */
 const FONT_OPTIONS: {
   value: NoteTextFontFamily;
-  labelKey: "fontModernLabel" | "fontClassicLabel" | "fontHandwrittenLabel" | "fontTypewriterLabel";
+  labelKey:
+    | "fontModernLabel"
+    | "fontClassicLabel"
+    | "fontHandwrittenLabel"
+    | "fontTypewriterLabel"
+    | "fontSerifLabel"
+    | "fontMonoLabel"
+    | "fontElegantLabel"
+    | "fontBoldLabel";
   className: string;
 }[] = [
     { value: "modern", labelKey: "fontModernLabel", className: noteFontFamilyClass("modern") },
     { value: "classic", labelKey: "fontClassicLabel", className: noteFontFamilyClass("classic") },
     { value: "handwritten", labelKey: "fontHandwrittenLabel", className: noteFontFamilyClass("handwritten") },
     { value: "typewriter", labelKey: "fontTypewriterLabel", className: noteFontFamilyClass("typewriter") },
+    { value: "serif", labelKey: "fontSerifLabel", className: noteFontFamilyClass("serif") },
+    { value: "mono", labelKey: "fontMonoLabel", className: noteFontFamilyClass("mono") },
+    { value: "elegant", labelKey: "fontElegantLabel", className: noteFontFamilyClass("elegant") },
+    { value: "bold", labelKey: "fontBoldLabel", className: noteFontFamilyClass("bold") },
   ];
 
 export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = false }: WriteThoughtFormProps) {
@@ -290,49 +302,53 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
         <Note note={previewNote} variant="static" />
       </div>
 
-      <div className="order-3 flex min-w-0 flex-col gap-6 lg:order-none lg:col-start-1 lg:row-start-2">
+      {/* Spans both columns on lg so the single-row card rail reaches the
+          preview's right edge and shows more cards at once. */}
+      <div className="order-3 flex min-w-0 flex-col gap-2 lg:order-none lg:col-span-2 lg:row-start-2">
+        <span className="text-sm font-medium text-navy">{dictionary.write.templateLabel}</span>
+        <TemplatePicker
+          value={templateId}
+          onChange={(id) => {
+            markEdited();
+            setTemplateId(id);
+          }}
+          label={dictionary.write.templateLabel}
+        />
+      </div>
 
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-navy">{dictionary.write.templateLabel}</span>
-          <TemplatePicker
-            value={templateId}
-            onChange={(id) => {
-              markEdited();
-              setTemplateId(id);
-            }}
-            label={dictionary.write.templateLabel}
-          />
+      {/* Full width on lg like the card picker above, so all font choices fit
+          in one row; narrower screens scroll the row sideways. */}
+      <div className="order-4 flex min-w-0 flex-col gap-2 lg:order-none lg:col-span-2 lg:row-start-3">
+        <span className="text-sm font-medium text-navy">{dictionary.write.fontFamilyLabel}</span>
+        <div role="radiogroup" aria-label={dictionary.write.fontFamilyLabel} className="flex gap-2 overflow-x-auto p-0.5">
+          {FONT_OPTIONS.map((option) => {
+            const selected = fontFamily === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => {
+                  markEdited();
+                  setFontFamily(option.value);
+                }}
+                className={cn(
+                  "shrink-0 rounded-pill border px-4 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange",
+                  option.className,
+                  selected
+                    ? "border-navy bg-navy text-white"
+                    : "border-border bg-surface text-ink-soft hover:border-navy/40 hover:text-navy"
+                )}
+              >
+                {dictionary.write[option.labelKey]}
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-navy">{dictionary.write.fontFamilyLabel}</span>
-          <div role="radiogroup" aria-label={dictionary.write.fontFamilyLabel} className="flex flex-wrap gap-2">
-            {FONT_OPTIONS.map((option) => {
-              const selected = fontFamily === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => {
-                    markEdited();
-                    setFontFamily(option.value);
-                  }}
-                  className={cn(
-                    "shrink-0 rounded-pill border px-4 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange",
-                    option.className,
-                    selected
-                      ? "border-navy bg-navy text-white"
-                      : "border-border bg-surface text-ink-soft hover:border-navy/40 hover:text-navy"
-                  )}
-                >
-                  {dictionary.write[option.labelKey]}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      <div className="order-5 flex min-w-0 flex-col gap-6 lg:order-none lg:col-start-1 lg:row-start-4">
 
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-medium text-navy">{dictionary.write.identityHeading}</legend>

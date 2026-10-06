@@ -121,7 +121,10 @@ export function HorizontalTemplateRail({
         tabIndex={-1}
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}
-        className="flex min-w-0 flex-1 gap-3 overflow-x-auto py-1"
+        // `py-2` clears the selection glow's `-inset-1.5` — any less and the
+        // glow overflows vertically, which `overflow-x-auto` turns into a
+        // vertical scrollbar.
+        className="flex min-w-0 flex-1 gap-3 overflow-x-auto py-2"
         // No `scrollBehavior: "smooth"` here (deliberately) — confirmed by
         // real-browser testing that it makes `scrollBy`/`scrollTo` calls
         // silently no-op; every programmatic scroll below uses

@@ -97,6 +97,28 @@ const FONT_METRICS: Record<NoteTextFontFamily, Record<NoteTextSizeTier, { charsP
     compact: { charsPerLine: 20, lineHeight: 17 },
     dense: { charsPerLine: 23, lineHeight: 15 },
   },
+  // Heavier/tracked variants of the families above — a character or two
+  // fewer per line than their base family at the same size.
+  serif: {
+    default: { charsPerLine: 17, lineHeight: 21 },
+    compact: { charsPerLine: 19, lineHeight: 19 },
+    dense: { charsPerLine: 22, lineHeight: 17 },
+  },
+  mono: {
+    default: { charsPerLine: 17, lineHeight: 19 },
+    compact: { charsPerLine: 20, lineHeight: 17 },
+    dense: { charsPerLine: 23, lineHeight: 15 },
+  },
+  elegant: {
+    default: { charsPerLine: 16, lineHeight: 21 },
+    compact: { charsPerLine: 18, lineHeight: 19 },
+    dense: { charsPerLine: 21, lineHeight: 17 },
+  },
+  bold: {
+    default: { charsPerLine: 17, lineHeight: 21 },
+    compact: { charsPerLine: 20, lineHeight: 19 },
+    dense: { charsPerLine: 23, lineHeight: 17 },
+  },
 };
 
 function estimateLineCount(content: string, charsPerLine: number): number {

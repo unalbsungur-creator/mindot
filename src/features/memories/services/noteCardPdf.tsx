@@ -36,7 +36,7 @@ import { getNoteTemplate } from "@/features/notes/config/templates";
 import type { NoteDecoration, NoteShape, NoteTextFontFamily } from "@/features/notes/types";
 import { PDF_FONT_FAMILY, PDF_HAND_FONT_FAMILY, PDF_BRAND_FONT_FAMILY, PDF_MONO_FONT_FAMILY } from "./fonts";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "./pdfPalette";
-import { safeTextScale, wrapTextToLines } from "./pdfTextMeasure";
+import { PDF_LETTER_SPACING_EM, safeTextScale, wrapTextToLines } from "./pdfTextMeasure";
 
 /**
  * Works around a confirmed react-pdf/`@react-pdf/textkit` line-breaking
@@ -96,12 +96,29 @@ export function estimateMemoryCardSize(templateId: string, content: string, widt
 const BASELINE_WIDTH = 176;
 
 /** EPIC — Kart Yazı Tipi Seçenekleri: keyed by the writer's chosen `fontFamily`, mirroring noteCardSatori.tsx's own table — `family` is the exact react-pdf `Font.register` name from fonts.ts. */
-const FONT_METRICS: Record<NoteTextFontFamily, { fontSize: number; family: string }> = {
+const FONT_METRICS: Record<NoteTextFontFamily, { fontSize: number; family: string; fontWeight?: "normal" | 600 | "bold" }> = {
   modern: { fontSize: 15.2, family: PDF_FONT_FAMILY },
   classic: { fontSize: 15.2, family: PDF_BRAND_FONT_FAMILY },
   handwritten: { fontSize: 18, family: PDF_HAND_FONT_FAMILY },
   typewriter: { fontSize: 14, family: PDF_MONO_FONT_FAMILY },
+  // Weight/spacing variants — each weight is a real file registered in
+  // fonts.ts; Elegant's spacing comes from PDF_LETTER_SPACING_EM.
+  serif: { fontSize: 15.2, family: PDF_BRAND_FONT_FAMILY, fontWeight: 600 },
+  mono: { fontSize: 14, family: PDF_MONO_FONT_FAMILY, fontWeight: "bold" },
+  elegant: { fontSize: 15.2, family: PDF_BRAND_FONT_FAMILY },
+  bold: { fontSize: 15.2, family: PDF_FONT_FAMILY, fontWeight: "bold" },
 };
+
+/** The react-pdf text style for a note's own font choice at `fontSize` pt: family, weight and letter spacing together. */
+function noteTextFontStyle(fontFamily: NoteTextFontFamily, fontSize: number) {
+  const metrics = FONT_METRICS[fontFamily];
+  const letterSpacingEm = PDF_LETTER_SPACING_EM[fontFamily];
+  return {
+    fontFamily: metrics.family,
+    fontWeight: metrics.fontWeight ?? "normal",
+    ...(letterSpacingEm ? { letterSpacing: letterSpacingEm * fontSize } : {}),
+  };
+}
 
 export interface MemoryNoteCardPdfInput {
   content: string;
@@ -389,6 +406,14 @@ export function MemoryNoteCardPdf({ content, authorName, templateId, fontFamily,
     const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily);
     const area = template.contentArea!;
     const fontSize = imageBackedFontSizePx(content.length, template, fontFamily) * (width / BASELINE_WIDTH);
+    // Same guaranteed-fit text as the CSS-card branch below: without it a
+    // word wider than `contentArea` ran past the box, and react-pdf's own
+    // wrapping split ordinary words mid-character.
+    const areaWidth = width * (parseFloat(area.width) / 100);
+    const contentFontSize = fontSize * safeTextScale(content, fontFamily, fontSize, 1, areaWidth);
+    // Wrap a little inside the box: a line measured right at its edge is
+    // re-wrapped by react-pdf, which then splits a word mid-character.
+    const wrappedContent = wrapTextToLines(content, fontFamily, contentFontSize, areaWidth * 0.96).join("\n");
     return (
       <View style={{ position: "relative", width, height, transform: `rotate(${rotation}deg)` }}>
         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt prop; this is a PDF render target, not DOM */}
@@ -405,7 +430,7 @@ export function MemoryNoteCardPdf({ content, authorName, templateId, fontFamily,
             height: `${parseFloat(area.height)}%`,
           }}
         >
-          <Text style={{ fontFamily: FONT_METRICS[fontFamily].family, fontSize, lineHeight: imageBackedLineHeight(template, fontFamily), color: PDF_COLORS.ink }}>{pdfSafeText(content)}</Text>
+          <Text style={{ ...noteTextFontStyle(fontFamily, contentFontSize), fontSize: contentFontSize, lineHeight: imageBackedLineHeight(template, fontFamily), color: PDF_COLORS.ink }}>{pdfSafeText(wrappedContent)}</Text>
           {authorName && (
             <Text style={{ marginTop: fontSize * 0.5, fontSize: fontSize * 0.85, color: PDF_COLORS.inkSoft }}>{pdfSafeText(`— ${authorName}`)}</Text>
           )}
@@ -422,7 +447,6 @@ export function MemoryNoteCardPdf({ content, authorName, templateId, fontFamily,
   const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily);
   const shape = shapeDescriptorFor(template.shape, width, height, scale);
   const metrics = FONT_METRICS[fontFamily];
-  const pdfFontFamily = metrics.family;
   const paperColor = PDF_PAPER_COLORS[template.paper] ?? PDF_PAPER_COLORS.white;
 
   const paddingStyle = isHeart
@@ -471,7 +495,7 @@ export function MemoryNoteCardPdf({ content, authorName, templateId, fontFamily,
       )}
 
       <View style={{ position: "absolute", top: 0, left: 0, width, height, display: "flex", flexDirection: "column", justifyContent: isHeart || isFootball ? "center" : "flex-start", ...paddingStyle }}>
-        <Text style={{ fontFamily: pdfFontFamily, fontSize: contentFontSize, lineHeight: 1.4, color: PDF_COLORS.ink }}>{pdfSafeText(wrappedContent)}</Text>
+        <Text style={{ ...noteTextFontStyle(fontFamily, contentFontSize), fontSize: contentFontSize, lineHeight: 1.4, color: PDF_COLORS.ink }}>{pdfSafeText(wrappedContent)}</Text>
         {wrappedAuthor && (
           <Text style={{ marginTop: 12 * scale, fontSize: authorFontSize, color: PDF_COLORS.inkSoft }}>{pdfSafeText(wrappedAuthor)}</Text>
         )}

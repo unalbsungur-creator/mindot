@@ -77,7 +77,10 @@ const BASELINE_WIDTH = 176;
  * `family` is the literal Satori `fontFamily` string, matched to whichever
  * WOFF `shareFonts.ts` registers under that exact name.
  */
-const FONT_METRICS: Record<NoteTextFontFamily, { charsPerLine: number; lineHeight: number; fontSize: number; family: string }> = {
+const FONT_METRICS: Record<
+  NoteTextFontFamily,
+  { charsPerLine: number; lineHeight: number; fontSize: number; family: string; fontWeight?: 400 | 600 | 700; letterSpacingEm?: number }
+> = {
   // Same measurement basis as features/notes/lib/footprint.ts (176px card,
   // ~144px of text width after padding) — reused as a *ratio* (chars per
   // line is resolution-independent), not imported, because that module's
@@ -90,7 +93,24 @@ const FONT_METRICS: Record<NoteTextFontFamily, { charsPerLine: number; lineHeigh
   classic: { charsPerLine: 17, lineHeight: 21, fontSize: 15.2, family: "Fraunces" },
   handwritten: { charsPerLine: 15, lineHeight: 23, fontSize: 18, family: "Caveat" },
   typewriter: { charsPerLine: 15, lineHeight: 20, fontSize: 14, family: "Geist Mono" },
+  // Weight/spacing variants — each weight is a real WOFF registered in
+  // shareFonts.ts (Satori never synthesizes bold), mirroring the DOM's
+  // `noteFontFamilyClass` (lib/textScale.ts).
+  serif: { charsPerLine: 16, lineHeight: 21, fontSize: 15.2, family: "Fraunces", fontWeight: 600 },
+  mono: { charsPerLine: 15, lineHeight: 20, fontSize: 14, family: "Geist Mono", fontWeight: 700 },
+  elegant: { charsPerLine: 15, lineHeight: 21, fontSize: 15.2, family: "Fraunces", letterSpacingEm: 0.06 },
+  bold: { charsPerLine: 17, lineHeight: 21, fontSize: 15.2, family: "Noto Sans", fontWeight: 700 },
 };
+
+/** The Satori text style for a note's own font choice at `fontSize` px: family, weight and letter spacing together. */
+function noteTextFontStyle(fontFamily: NoteTextFontFamily, fontSize: number) {
+  const metrics = FONT_METRICS[fontFamily];
+  return {
+    fontFamily: metrics.family,
+    fontWeight: metrics.fontWeight ?? 400,
+    ...(metrics.letterSpacingEm ? { letterSpacing: metrics.letterSpacingEm * fontSize } : {}),
+  };
+}
 const MAX_ESTIMATED_LINES = 20;
 
 export interface MemoryNoteCardInput {
@@ -228,9 +248,13 @@ export function imageBackedFontSizePx(
  */
 const SPACIOUS_IMAGE_BACKED_FONT_PX: Record<NoteTextFontFamily, Record<"default" | "compact" | "dense", number>> = {
   modern: { default: 12.5, compact: 10.03, dense: 9.68 },
-  classic: { default: 12.14, compact: 9.68, dense: 9.5 },
+  classic: { default: 12.14, compact: 9.68, dense: 9.33 },
   handwritten: { default: 14.08, compact: 12.14, dense: 11.26 },
   typewriter: { default: 11.62, compact: 9.77, dense: 9.68 },
+  serif: { default: 11.79, compact: 9.42, dense: 8.98 },
+  mono: { default: 11.62, compact: 9.77, dense: 9.68 },
+  elegant: { default: 11.09, compact: 8.8, dense: 8.62 },
+  bold: { default: 11.79, compact: 9.42, dense: 9.15 },
 };
 
 /** Line height for an image-backed card's text — mirrors the DOM tables' `leading-*` (spacious: `leading-snug`, Caveat `leading-tight`; compact Special Day sizes: 1.25 as before). */
@@ -461,7 +485,7 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
               box — over the printed frame on standard-quote, off the card edge at the largest
               size. This breaks only such a word, like Note.tsx's `break-words` in the DOM;
               every line that already fit lays out exactly as before. Never `break-all`. */}
-          <span style={{ display: "flex", fontFamily: FONT_METRICS[fontFamily].family, fontSize, lineHeight: imageBackedLineHeight(template, fontFamily), color: PDF_COLORS.ink, wordBreak: "break-word" }}>{content}</span>
+          <span style={{ display: "flex", ...noteTextFontStyle(fontFamily, fontSize), fontSize, lineHeight: imageBackedLineHeight(template, fontFamily), color: PDF_COLORS.ink, wordBreak: "break-word" }}>{content}</span>
           {authorName && (
             <span style={{ display: "flex", marginTop: fontSize * 0.5, fontSize: fontSize * 0.85, color: PDF_COLORS.inkSoft }}>— {authorName}</span>
           )}
@@ -477,7 +501,6 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
   const scale = width / BASELINE_WIDTH;
   const shape = shapeStyleFor(template.shape, width, height, scale);
   const metrics = FONT_METRICS[fontFamily];
-  const satoriFontFamily = metrics.family;
   const paperColor = PDF_PAPER_COLORS[template.paper] ?? PDF_PAPER_COLORS.white;
 
   const paddingStyle = isHeart
@@ -531,7 +554,7 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
             <span
               style={{
                 display: "flex",
-                fontFamily: satoriFontFamily,
+                ...noteTextFontStyle(fontFamily, metrics.fontSize * scale * footballFontScale(content.length)),
                 fontSize: metrics.fontSize * scale * footballFontScale(content.length),
                 lineHeight: 1.3,
                 color: PDF_COLORS.ink,
@@ -567,7 +590,7 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
           <span
             style={{
               display: "flex",
-              fontFamily: satoriFontFamily,
+              ...noteTextFontStyle(fontFamily, metrics.fontSize * scale),
               fontSize: metrics.fontSize * scale,
               lineHeight: 1.4,
               color: PDF_COLORS.ink,

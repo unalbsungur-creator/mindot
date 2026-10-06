@@ -145,6 +145,10 @@ export interface Dictionary {
     fontClassicLabel: string;
     fontHandwrittenLabel: string;
     fontTypewriterLabel: string;
+    fontSerifLabel: string;
+    fontMonoLabel: string;
+    fontElegantLabel: string;
+    fontBoldLabel: string;
     nameLabel: string;
     namePlaceholder: string;
     anonymousLabel: string;

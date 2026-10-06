@@ -74,6 +74,16 @@ const FONT_PATHS: Record<PdfMeasureFont, string> = {
   classic: "/fonts/share/Fraunces-Regular.woff",
   handwritten: "/fonts/share/Caveat-Regular.woff",
   typewriter: "/fonts/share/GeistMono-Regular.woff",
+  // The same weight files fonts.ts registers for these choices.
+  serif: "/fonts/share/Fraunces-SemiBold.woff",
+  mono: "/fonts/share/GeistMono-Bold.woff",
+  elegant: "/fonts/share/Fraunces-Regular.woff",
+  bold: "/fonts/share/NotoSans-Bold.woff",
+};
+
+/** Letter spacing (em) a font choice renders with — must match noteCardPdf.tsx's `FONT_METRICS`, so wrapping measures what's actually drawn. */
+export const PDF_LETTER_SPACING_EM: Partial<Record<PdfMeasureFont, number>> = {
+  elegant: 0.06,
 };
 
 const fontCache = new Map<PdfMeasureFont, Font>();
@@ -114,8 +124,9 @@ function loadFont(font: PdfMeasureFont): Font {
   return loaded;
 }
 
-function measureWidthPt(loaded: Font, text: string, fontSizePt: number): number {
-  return (loaded.layout(text).advanceWidth / loaded.unitsPerEm) * fontSizePt;
+function measureWidthPt(font: PdfMeasureFont, loaded: Font, text: string, fontSizePt: number): number {
+  const tracking = (PDF_LETTER_SPACING_EM[font] ?? 0) * fontSizePt * [...text].length;
+  return (loaded.layout(text).advanceWidth / loaded.unitsPerEm) * fontSizePt + tracking;
 }
 
 export function widestWordWidthPt(text: string, font: PdfMeasureFont, fontSizePt: number): number {
@@ -124,7 +135,7 @@ export function widestWordWidthPt(text: string, font: PdfMeasureFont, fontSizePt
   const loaded = loadFont(font);
   let max = 0;
   for (const word of words) {
-    const width = measureWidthPt(loaded, word, fontSizePt);
+    const width = measureWidthPt(font, loaded, word, fontSizePt);
     if (width > max) max = width;
   }
   return max;
@@ -159,7 +170,7 @@ export function safeTextScale(text: string, font: PdfMeasureFont, baseFontSizePt
  */
 export function wrapTextToLines(text: string, font: PdfMeasureFont, fontSizePt: number, maxWidthPt: number): string[] {
   const loaded = loadFont(font);
-  const spaceWidth = measureWidthPt(loaded, " ", fontSizePt) || fontSizePt * 0.25;
+  const spaceWidth = measureWidthPt(font, loaded, " ", fontSizePt) || fontSizePt * 0.25;
   const lines: string[] = [];
 
   for (const paragraph of text.split("\n")) {
@@ -171,7 +182,7 @@ export function wrapTextToLines(text: string, font: PdfMeasureFont, fontSizePt: 
     let current = "";
     let currentWidth = 0;
     for (const word of words) {
-      const wordWidth = measureWidthPt(loaded, word, fontSizePt);
+      const wordWidth = measureWidthPt(font, loaded, word, fontSizePt);
       const withWord = current ? currentWidth + spaceWidth + wordWidth : wordWidth;
       if (current && withWord > maxWidthPt) {
         lines.push(current);

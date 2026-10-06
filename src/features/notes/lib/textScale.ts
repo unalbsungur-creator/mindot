@@ -50,6 +50,17 @@ export function noteFontFamilyClass(fontFamily: NoteTextFontFamily): string {
       return "font-hand";
     case "typewriter":
       return "font-mono";
+    // Weight/spacing variants of the same four families — the share card
+    // and PDF map each to the matching real WOFF weight (shareFonts.ts,
+    // fonts.ts), never a synthesized bold.
+    case "serif":
+      return "font-display font-semibold";
+    case "mono":
+      return "font-mono font-bold";
+    case "elegant":
+      return "font-display tracking-[0.06em]";
+    case "bold":
+      return "font-bold";
     case "modern":
     default:
       return "";
@@ -91,6 +102,26 @@ const STANDARD_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, s
     compact: "text-[0.75rem] leading-snug",
     dense: "text-[0.65rem] leading-snug",
   },
+  serif: {
+    default: "text-[0.95rem] leading-snug",
+    compact: "text-[0.85rem] leading-snug",
+    dense: "text-[0.75rem] leading-snug",
+  },
+  mono: {
+    default: "text-[0.85rem] leading-snug",
+    compact: "text-[0.75rem] leading-snug",
+    dense: "text-[0.65rem] leading-snug",
+  },
+  elegant: {
+    default: "text-[0.95rem] leading-snug",
+    compact: "text-[0.85rem] leading-snug",
+    dense: "text-[0.75rem] leading-snug",
+  },
+  bold: {
+    default: "text-[0.95rem] leading-snug",
+    compact: "text-[0.85rem] leading-snug",
+    dense: "text-[0.75rem] leading-snug",
+  },
 };
 
 /**
@@ -121,12 +152,34 @@ const IMAGE_BACKED_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTie
   handwritten: {
     default: "text-[0.92rem] leading-tight",
     compact: "text-[0.72rem] leading-tight",
-    dense: "text-[0.58rem] leading-none",
+    dense: "text-[0.54rem] leading-none",
   },
   typewriter: {
     default: "text-[0.62rem] leading-tight",
     compact: "text-[0.46rem] leading-tight",
     dense: "text-[0.4rem] leading-none",
+  },
+  // The variants below are wider than their base family (heavier glyphs,
+  // or Elegant's letter spacing), so they step down a notch in this tight box.
+  serif: {
+    default: "text-[0.56rem] leading-tight",
+    compact: "text-[0.52rem] leading-tight",
+    dense: "text-[0.44rem] leading-none",
+  },
+  mono: {
+    default: "text-[0.62rem] leading-tight",
+    compact: "text-[0.46rem] leading-tight",
+    dense: "text-[0.4rem] leading-none",
+  },
+  elegant: {
+    default: "text-[0.54rem] leading-tight",
+    compact: "text-[0.5rem] leading-tight",
+    dense: "text-[0.42rem] leading-none",
+  },
+  bold: {
+    default: "text-[0.55rem] leading-tight",
+    compact: "text-[0.51rem] leading-tight",
+    dense: "text-[0.43rem] leading-none",
   },
 };
 
@@ -162,7 +215,7 @@ const SPACIOUS_IMAGE_BACKED_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTe
   classic: {
     default: "text-[6.9cqw] leading-snug",
     compact: "text-[5.5cqw] leading-snug",
-    dense: "text-[5.4cqw] leading-snug",
+    dense: "text-[5.3cqw] leading-snug",
   },
   handwritten: {
     default: "text-[8.0cqw] leading-tight",
@@ -173,6 +226,27 @@ const SPACIOUS_IMAGE_BACKED_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTe
     default: "text-[6.6cqw] leading-snug",
     compact: "text-[5.55cqw] leading-snug",
     dense: "text-[5.5cqw] leading-snug",
+  },
+  serif: {
+    default: "text-[6.7cqw] leading-snug",
+    compact: "text-[5.35cqw] leading-snug",
+    dense: "text-[5.1cqw] leading-snug",
+  },
+  // Geist Mono Bold keeps the regular weight's fixed advance width.
+  mono: {
+    default: "text-[6.6cqw] leading-snug",
+    compact: "text-[5.55cqw] leading-snug",
+    dense: "text-[5.5cqw] leading-snug",
+  },
+  elegant: {
+    default: "text-[6.3cqw] leading-snug",
+    compact: "text-[5cqw] leading-snug",
+    dense: "text-[4.9cqw] leading-snug",
+  },
+  bold: {
+    default: "text-[6.7cqw] leading-snug",
+    compact: "text-[5.35cqw] leading-snug",
+    dense: "text-[5.2cqw] leading-snug",
   },
 };
 
@@ -214,6 +288,26 @@ const FOOTBALL_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, s
     default: "text-[0.46rem] leading-[1.2]",
     compact: "text-[0.38rem] leading-[1.15]",
     dense: "text-[0.32rem] leading-[1.05]",
+  },
+  serif: {
+    default: "text-[0.52rem] leading-[1.25]",
+    compact: "text-[0.4rem] leading-[1.2]",
+    dense: "text-[0.34rem] leading-[1.1]",
+  },
+  mono: {
+    default: "text-[0.46rem] leading-[1.2]",
+    compact: "text-[0.38rem] leading-[1.15]",
+    dense: "text-[0.32rem] leading-[1.05]",
+  },
+  elegant: {
+    default: "text-[0.5rem] leading-[1.25]",
+    compact: "text-[0.39rem] leading-[1.2]",
+    dense: "text-[0.33rem] leading-[1.1]",
+  },
+  bold: {
+    default: "text-[0.55rem] leading-[1.25]",
+    compact: "text-[0.43rem] leading-[1.2]",
+    dense: "text-[0.37rem] leading-[1.1]",
   },
 };
 

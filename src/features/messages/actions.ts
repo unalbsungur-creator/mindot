@@ -17,7 +17,16 @@ import { MESSAGE_MAX_LENGTH, type Message } from "./types";
 // (a stale client build, a hand-crafted request) falls back to "modern",
 // the same default a pre-this-feature message already gets from the DB
 // column's own default — never trusted from the client without this check.
-const VALID_FONT_FAMILIES: readonly NoteTextFontFamily[] = ["modern", "classic", "handwritten", "typewriter"];
+const VALID_FONT_FAMILIES: readonly NoteTextFontFamily[] = [
+  "modern",
+  "classic",
+  "handwritten",
+  "typewriter",
+  "serif",
+  "mono",
+  "elegant",
+  "bold",
+];
 const DEFAULT_FONT_FAMILY: NoteTextFontFamily = "modern";
 
 export interface SubmitMessageInput {

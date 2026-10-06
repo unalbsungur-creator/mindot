@@ -50,7 +50,16 @@ export type NoteFont = "hand" | "sans";
  * `lib/textScale.ts`, the one place both this and the EPIC 045 length-based
  * size tiering come together.
  */
-export type NoteTextFontFamily = "modern" | "classic" | "handwritten" | "typewriter";
+export type NoteTextFontFamily =
+  | "modern"
+  | "classic"
+  | "handwritten"
+  | "typewriter"
+  // Weight/spacing variants of the same four families — no new font files.
+  | "serif"
+  | "mono"
+  | "elegant"
+  | "bold";
 
 export type NoteSize = "sm" | "md" | "lg";
 
