@@ -7,7 +7,7 @@
 /** One tile's edge length in world pixels at zoom = 1. */
 export const TILE_PX = 720;
 
-export const MIN_ZOOM = 0.5;
+export const MIN_ZOOM = 0.35;
 export const MAX_ZOOM = 2.2;
 export const DEFAULT_ZOOM = 1;
 

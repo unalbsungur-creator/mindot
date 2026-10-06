@@ -120,7 +120,11 @@ export function useTileCache(
 }
 
 function pruneFarFromWanted(cache: Map<string, TileCacheEntry>, wanted: TileCoord[]): Map<string, TileCacheEntry> {
-  if (cache.size <= MAX_CACHED_TILES) return cache;
+  // Never below what's on screen: at the widest zoom-out a large viewport can
+  // want more than MAX_CACHED_TILES, and pruning visible tiles would just
+  // refetch them in a loop.
+  const limit = Math.max(MAX_CACHED_TILES, wanted.length);
+  if (cache.size <= limit) return cache;
 
   const center = wanted[Math.floor(wanted.length / 2)] ?? { x: 0, y: 0 };
   const entries = [...cache.entries()].sort(
@@ -128,7 +132,7 @@ function pruneFarFromWanted(cache: Map<string, TileCacheEntry>, wanted: TileCoor
   );
 
   const next = new Map(cache);
-  const excess = cache.size - MAX_CACHED_TILES;
+  const excess = cache.size - limit;
   for (let i = 0; i < excess; i++) {
     next.delete(entries[i][0]);
   }
