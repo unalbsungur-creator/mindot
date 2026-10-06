@@ -291,6 +291,15 @@ export const noteTemplates: NoteTemplate[] = [
     imageHeight: 500,
     contentArea: { top: "14%", left: "10%", width: "80%", height: "72%" },
   }),
+  defineStandardCard({
+    id: "standard-artwork",
+    name: "Artwork",
+    paper: "cream",
+    image: "/images/standard/web/artwork.png",
+    imageWidth: 500,
+    imageHeight: 500,
+    contentArea: { top: "14%", left: "10%", width: "80%", height: "72%" },
+  }),
   // EPIC: Özel Günler İçin Tercih Edilebilir Post-it Tasarımları /
   // Special Day Post-it Shapes & Decorative Styles. Eight special-occasion
   // templates, permanently selectable (no availableFrom/availableUntil —

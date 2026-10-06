@@ -123,6 +123,7 @@ export const en: Dictionary = {
       "standard-quote": "Quote",
       "standard-archive": "Archive",
       "standard-nature": "Nature",
+      "standard-artwork": "Artwork",
       "birthday-confetti": "Birthday Confetti",
       "valentines-heart": "Valentine's Note",
       "mothers-day-bloom": "Mother's Day Bloom",

@@ -123,6 +123,7 @@ export const tr: Dictionary = {
       "standard-quote": "Söz",
       "standard-archive": "Arşiv",
       "standard-nature": "Doğa",
+      "standard-artwork": "Sanat",
       "birthday-confetti": "Doğum Günü Konfetisi",
       "valentines-heart": "Sevgililer Günü Notu",
       "mothers-day-bloom": "Anneler Günü Çiçeği",
