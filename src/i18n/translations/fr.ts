@@ -122,6 +122,7 @@ export const fr: Dictionary = {
       "standard-archive": "Archives",
       "standard-nature": "Nature",
       "standard-artwork": "Artwork",
+      "standard-creative": "Innovant",
       "birthday-confetti": "Confettis d'anniversaire",
       "valentines-heart": "Note de la Saint-Valentin",
       "mothers-day-bloom": "Fleur de la fête des mères",

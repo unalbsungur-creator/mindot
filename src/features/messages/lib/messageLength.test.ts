@@ -24,6 +24,6 @@ test("standard-classic and every card without its own limit keep 150", () => {
 test("only the new illustrated standard cards set their own limit", () => {
   assert.deepEqual(
     noteTemplates.filter((template) => template.maxCharacters !== undefined).map((template) => template.id),
-    ["standard-minimal", "standard-quote", "standard-archive", "standard-nature", "standard-artwork"]
+    ["standard-minimal", "standard-quote", "standard-archive", "standard-nature", "standard-artwork", "standard-creative"]
   );
 });
