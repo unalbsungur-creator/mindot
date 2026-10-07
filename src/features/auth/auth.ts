@@ -2,13 +2,12 @@ import NextAuth, { type DefaultSession, type NextAuthConfig } from "next-auth";
 import Apple from "next-auth/providers/apple";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import { appleUserId } from "@/features/users/lib/providerIds";
 import { userRepository } from "@/features/users/repository";
 import { verifyPassword } from "@/features/users/lib/password";
 import type { UserRole } from "@/features/users/types";
 import { getAuthRuntimeConfig } from "@/lib/env";
-import { appleTokenRepository } from "./appleTokenRepository";
 import { parseAppleProfile } from "./lib/appleProfile";
+import { checkAppleSignIn, checkGoogleSignIn, finishAppleSignIn, finishGoogleSignIn, type ProviderSignInCheck } from "./service";
 
 /**
  * Google (normal users) + Credentials (admin only), one Auth.js instance,
@@ -188,26 +187,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
      * decided by `authorize()`.
      */
     async signIn({ account, profile }) {
-      let userId: string | null = null;
-      let email: string | null = null;
+      // The account rules themselves live in ./service (shared with any
+      // future non-Auth.js sign-in); this only adapts the outcome to
+      // Auth.js: a redirect with an allow-listed reason, or a plain refusal.
+      let check: ProviderSignInCheck;
       if (account?.provider === "google") {
-        userId = typeof profile?.sub === "string" ? profile.sub : null;
-        email = typeof profile?.email === "string" ? profile.email : null;
+        const sub = typeof profile?.sub === "string" ? profile.sub : null;
+        if (!sub) return false;
+        check = await checkGoogleSignIn({
+          sub,
+          email: typeof profile?.email === "string" ? profile.email : null,
+          name: null,
+          picture: null,
+        });
       } else if (account?.provider === "apple") {
         const identity = parseAppleProfile(profile);
-        userId = identity ? appleUserId(identity.sub) : null;
-        email = identity?.email ?? null;
+        if (!identity) return false;
+        check = await checkAppleSignIn(identity);
       } else {
         return true;
       }
-      if (!userId) return false;
 
-      const outcome = await userRepository.classifyProviderSignIn(userId, email);
-      if (outcome === "email-in-use") return `/login?error=${"account-exists" satisfies SignInRefusal}`;
-      if (outcome === "email-missing") {
-        return account.provider === "apple" ? `/login?error=${"apple-email-missing" satisfies SignInRefusal}` : false;
-      }
-      return true;
+      if (check.ok) return true;
+      if (check.refusal === "account-exists") return `/login?error=${"account-exists" satisfies SignInRefusal}`;
+      if (check.refusal === "apple-email-missing") return `/login?error=${"apple-email-missing" satisfies SignInRefusal}`;
+      return false;
     },
     async jwt({ token, profile, user, account }) {
       // Sign in with Apple — only right after a fresh Apple sign-in. The
@@ -218,16 +222,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (account?.provider === "apple") {
         const identity = parseAppleProfile(profile);
         if (!identity) throw new Error("Invalid Apple profile.");
-        const dbUser = await userRepository.upsertFromAppleProfile(identity);
         // Apple's refresh token exists only here, in this sign-in's token
         // response — kept, encrypted, solely so account deletion can revoke
         // it at Apple (see features/users/accountDeletion.ts). Never put in
-        // the JWT, never logged.
-        if (typeof account.refresh_token === "string" && account.refresh_token && authRuntime.appleTokenKey) {
-          await appleTokenRepository.save(dbUser.id, "web", account.refresh_token, authRuntime.appleTokenKey);
-        }
+        // the JWT, never logged. The web flow is the "web" Apple client.
+        const refreshToken =
+          typeof account.refresh_token === "string" && account.refresh_token && authRuntime.appleTokenKey
+            ? { refreshToken: account.refresh_token, encryptionKey: authRuntime.appleTokenKey }
+            : null;
+        const { user: dbUser, role } = await finishAppleSignIn(identity, "web", refreshToken);
         token.sub = dbUser.id;
-        token.role = "user";
+        token.role = role;
         token.authProvider = "apple";
         token.name = dbUser.name;
         token.email = dbUser.email;
@@ -238,14 +243,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // on every request that reuses an existing JWT — so this upsert runs
       // once per sign-in, not once per page load.
       if (account?.provider === "google" && profile?.sub && typeof profile.email === "string") {
-        const dbUser = await userRepository.upsertFromGoogleProfile({
-          id: profile.sub,
+        const { user: dbUser, role } = await finishGoogleSignIn({
+          sub: profile.sub,
           email: profile.email,
           name: typeof profile.name === "string" ? profile.name : null,
-          image: typeof profile.picture === "string" ? profile.picture : null,
+          picture: typeof profile.picture === "string" ? profile.picture : null,
         });
         token.sub = dbUser.id;
-        token.role = dbUser.role;
+        token.role = role;
         // EPIC 031: deterministic, not inferred — a Google sign-in is
         // always "google", full stop, regardless of what role the account
         // happens to hold. This is what lets authorization code (and any
