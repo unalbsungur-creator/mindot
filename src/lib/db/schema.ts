@@ -678,14 +678,52 @@ export const userBlocks = pgTable(
 // Review 5.1.1(v)). Encrypted before it ever reaches this table (AES-256-GCM
 // under AUTH_APPLE_TOKEN_KEY, bound to user_id — see
 // features/auth/lib/appleTokenCrypto.ts); never plaintext, never the
-// client secret or private key. One row per Apple account, replaced on
-// each Apple sign-in; Google/admin accounts never have one. Removed inside
+// client secret or private key. One row per Apple account and client
+// (`web` = the Services ID flow, `ios` = the native app's bundle ID — Apple
+// issues and revokes each under its own client_id), replaced on each Apple
+// sign-in from that client; rows that predate the column are `web`.
+// Google/admin accounts never have one. Removed inside
 // userRepository.deleteAccount's transaction.
-export const appleSignInTokens = pgTable("apple_sign_in_tokens", {
-  userId: text("user_id")
-    .primaryKey()
-    .references(() => users.id),
-  encryptedRefreshToken: text("encrypted_refresh_token").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const appleTokenClientEnum = pgEnum("apple_token_client", ["web", "ios"]);
+
+export const appleSignInTokens = pgTable(
+  "apple_sign_in_tokens",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    client: appleTokenClientEnum("client").notNull().default("web"),
+    encryptedRefreshToken: text("encrypted_refresh_token").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.client] })]
+);
+
+export const mobilePlatformEnum = pgEnum("mobile_platform", ["ios", "android"]);
+
+// Mobile app sessions — the native apps can't hold the web's JWT cookie, so
+// each signed-in device gets one row here. Only SHA-256 hashes of refresh
+// tokens are stored, never the tokens themselves. On each rotation the old
+// hash moves to `previous_refresh_token_hash`: presenting that immediately
+// previous token again is treated as reuse (a stolen token) and revokes the
+// session. Only one generation back is kept — no separate token history.
+// Not ON DELETE CASCADE, like every other FK to users.id: account deletion
+// removes these explicitly in userRepository.deleteAccount.
+export const mobileSessions = pgTable(
+  "mobile_sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    refreshTokenHash: text("refresh_token_hash").notNull().unique(),
+    previousRefreshTokenHash: text("previous_refresh_token_hash"),
+    platform: mobilePlatformEnum("platform").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("mobile_sessions_user_idx").on(table.userId)]
+);

@@ -9,6 +9,7 @@ import {
   messageLikes,
   messageReports,
   messages,
+  mobileSessions,
   notifications,
   physicalOrders,
   tokenLedger,
@@ -389,8 +390,11 @@ class DrizzleUserRepository implements UserRepository {
    *   DELETED
    *     - users row (email, name, image, publicId, wall settings)
    *     - notifications they received
-   *     - their stored (encrypted) Apple refresh token, if any — revoked at
-   *       Apple *before* this transaction by deleteUserAccount
+   *     - their stored (encrypted) Apple refresh tokens, every client (web
+   *       and iOS) — the web one revoked at Apple *before* this transaction
+   *       by deleteUserAccount
+   *     - their mobile app sessions (refresh-token hashes) — signs out every
+   *       device
    *     - user blocks in both directions (their own block list, and blocks
    *       of them — their content is anonymized, so those can't apply anymore)
    *     - their likes (like counts decremented to stay consistent)
@@ -446,7 +450,9 @@ class DrizzleUserRepository implements UserRepository {
       });
 
       await tx.delete(notifications).where(eq(notifications.recipientUserId, userId));
+      // Every client's row (web and iOS) — no per-client filter on purpose.
       await tx.delete(appleSignInTokens).where(eq(appleSignInTokens.userId, userId));
+      await tx.delete(mobileSessions).where(eq(mobileSessions.userId, userId));
       await tx.delete(userBlocks).where(or(eq(userBlocks.blockerUserId, userId), eq(userBlocks.blockedUserId, userId)));
 
       await tx

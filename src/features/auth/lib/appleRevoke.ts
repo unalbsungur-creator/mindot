@@ -59,12 +59,17 @@ export async function revokeAppleRefreshToken(
   return "failed";
 }
 
-/** Revokes whatever Apple authorization is stored for this (Apple) account. */
+/**
+ * Revokes the web Apple authorization stored for this (Apple) account. Only
+ * the `"web"` token: it is the one AUTH_APPLE_ID/AUTH_APPLE_SECRET (the
+ * Services ID) can revoke. An `"ios"` token belongs to the app's bundle ID
+ * and needs that client's own credentials — not handled here yet.
+ */
 export async function revokeAppleAuthorizationForUser(userId: string, fetchImpl: typeof fetch = fetch): Promise<AppleRevokeOutcome> {
   const config = getAuthRuntimeConfig();
   if (!config.appleId || !config.appleSecret || !config.appleTokenKey) return "not-configured";
 
-  const stored = await appleTokenRepository.read(userId, config.appleTokenKey);
+  const stored = await appleTokenRepository.read(userId, "web", config.appleTokenKey);
   if (stored === "none") return "nothing-to-revoke";
   if (stored === "unreadable") return "unreadable";
   return revokeAppleRefreshToken(stored, { clientId: config.appleId, clientSecret: config.appleSecret }, fetchImpl);

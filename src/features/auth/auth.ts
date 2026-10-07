@@ -224,7 +224,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // it at Apple (see features/users/accountDeletion.ts). Never put in
         // the JWT, never logged.
         if (typeof account.refresh_token === "string" && account.refresh_token && authRuntime.appleTokenKey) {
-          await appleTokenRepository.save(dbUser.id, account.refresh_token, authRuntime.appleTokenKey);
+          await appleTokenRepository.save(dbUser.id, "web", account.refresh_token, authRuntime.appleTokenKey);
         }
         token.sub = dbUser.id;
         token.role = "user";
