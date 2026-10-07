@@ -45,13 +45,12 @@
         //
         // Wrangler does not inherit `vars` or `hyperdrive` into an
         // environment, so staging can never pick up production's database
-        // binding by omission. Until a staging Hyperdrive config exists (it
-        // must point at a separate staging database — never production's,
-        // never a branch of it), this block deliberately has no `hyperdrive`
-        // entry and the staging Worker refuses every database query (getDb()
-        // requires HYPERDRIVE under APP_ENV=staging). Add it as
-        //   "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<staging config id>" }]
-        // src/lib/appEnvironment.test.ts fails if that id equals production's.
+        // binding by omission. Staging has its own Hyperdrive config and
+        // HYPERDRIVE binding below, pointing at a separate staging database —
+        // never production's, never a branch of it; the top-level production
+        // binding is untouched. getDb() requires this binding under
+        // APP_ENV=staging, and src/lib/appEnvironment.test.ts fails if its id
+        // ever equals production's.
         "env": {
                 "staging": {
                         "name": "mindot-staging",
@@ -70,7 +69,13 @@
                                 "APP_ENV": "staging",
                                 "AUTH_URL": "https://staging.mind-ot.com",
                                 "NEXT_PUBLIC_APP_URL": "https://staging.mind-ot.com"
-                        }
+                        },
+                        "hyperdrive": [
+                                {
+                                        "binding": "HYPERDRIVE",
+                                        "id": "72f3259d07af436d8ff1319a6f845234"
+                                }
+                        ]
                 }
         }
 }
