@@ -141,7 +141,7 @@ describe("wrangler.jsonc", () => {
 
   it("keeps secrets out of the committed config", () => {
     const names = [config.vars, staging?.vars].flatMap((vars) => Object.keys(vars ?? {}));
-    for (const secret of ["AUTH_SECRET", "DATABASE_URL", "GOOGLE_CLIENT_SECRET", "AUTH_APPLE_SECRET", "AUTH_APPLE_TOKEN_KEY"]) {
+    for (const secret of ["AUTH_SECRET", "DATABASE_URL", "GOOGLE_CLIENT_SECRET", "AUTH_APPLE_SECRET", "AUTH_APPLE_TOKEN_KEY", "MOBILE_JWT_SECRET"]) {
       assert.ok(!names.includes(secret), `${secret} must be a wrangler secret, not a var`);
     }
   });

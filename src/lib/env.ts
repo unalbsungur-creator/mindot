@@ -18,6 +18,8 @@ export type RuntimeEnvName =
     | "DATABASE_URL"
     | "GOOGLE_CLIENT_ID"
     | "GOOGLE_CLIENT_SECRET"
+    // Mobile API access tokens (HS256) — never AUTH_SECRET; see getMobileAuthConfig.
+    | "MOBILE_JWT_SECRET"
     | "NEXT_PUBLIC_APP_URL"
     // EPIC: E-mail Gönderimi İçin Güvenli Mimari — only read when the
     // "resend" email provider is actually selected (EMAIL_PROVIDER=resend,
@@ -31,8 +33,11 @@ export type RuntimeEnvName =
 export class RuntimeConfigurationError extends Error {
     readonly code = "RUNTIME_CONFIGURATION_ERROR";
 
-    constructor(readonly variable: RuntimeEnvName) {
-        super(`Required runtime configuration is missing: ${variable}.`);
+    constructor(
+        readonly variable: RuntimeEnvName,
+        readonly problem: "missing" | "invalid" = "missing"
+    ) {
+        super(`Required runtime configuration is ${problem}: ${variable}.`);
         this.name = "RuntimeConfigurationError";
     }
 }
@@ -179,5 +184,37 @@ export function getAuthRuntimeConfig() {
         // Apple only returns to HTTPS origins; its cross-site form_post
         // callback also needs Secure (SameSite=None) check cookies.
         secureOrigin: optionalEnv("AUTH_URL")?.startsWith("https://") ?? false,
+    };
+}
+
+/** The fixed `aud` of every mobile access token — never a web/Auth.js audience. */
+export const MOBILE_JWT_AUDIENCE = "mindot-mobile-api";
+/** Minimum MOBILE_JWT_SECRET length, in bytes of its UTF-8 encoding (HS256 needs ≥ 256 bits of key). */
+export const MOBILE_JWT_SECRET_MIN_BYTES = 32;
+const MOBILE_ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
+
+/**
+ * Configuration for the native apps' Bearer access tokens. Fails closed:
+ * throws (never returns a partial config) when MOBILE_JWT_SECRET is missing
+ * or shorter than 32 bytes — there is no fallback to AUTH_SECRET, which
+ * stays Auth.js's alone. Each deployment (production, staging) needs its
+ * own secret, so a token from one can never verify on the other; the
+ * issuer differs per deployment too.
+ *
+ * The issuer is the canonical origin (`getAppUrl()`). Under APP_ENV=staging,
+ * the same `assertStagingIsolation()` that guards Auth.js runs first, so the
+ * issuer can only ever be the staging origin there.
+ */
+export function getMobileAuthConfig() {
+    assertStagingIsolation();
+    const mobileJwtSecret = requireRuntimeEnv("MOBILE_JWT_SECRET");
+    if (new TextEncoder().encode(mobileJwtSecret).byteLength < MOBILE_JWT_SECRET_MIN_BYTES) {
+        throw new RuntimeConfigurationError("MOBILE_JWT_SECRET", "invalid");
+    }
+    return {
+        mobileJwtSecret,
+        mobileJwtIssuer: getAppUrl().origin,
+        mobileJwtAudience: MOBILE_JWT_AUDIENCE,
+        accessTokenTtlSeconds: MOBILE_ACCESS_TOKEN_TTL_SECONDS,
     };
 }
