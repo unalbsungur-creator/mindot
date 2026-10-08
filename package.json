@@ -12,7 +12,7 @@
     "preview:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy:cf": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "build:cf:staging": "tsx src/lib/deploy/buildStaging.ts",
-    "test": "tsx --test src/lib/appEnvironment.test.ts src/lib/assets/standardAssetValidation.test.ts src/features/memories/lib/pdfDownloadDate.test.ts src/features/messages/lib/messageLength.test.ts src/features/notes/config/standardCards.test.ts src/features/auth/service.test.ts",
+    "test": "tsx --test src/lib/appEnvironment.test.ts src/lib/assets/standardAssetValidation.test.ts src/features/memories/lib/pdfDownloadDate.test.ts src/features/messages/lib/messageLength.test.ts src/features/notes/config/standardCards.test.ts src/features/auth/service.test.ts src/features/messages/service.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:staging": "tsx src/lib/db/migrateStaging.ts",
