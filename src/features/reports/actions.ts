@@ -3,50 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/features/auth/auth";
 import { requireAdmin } from "@/features/auth/requireAdmin";
-import { getPublicMessageById } from "@/features/board/repository";
 import { messageRepository } from "@/features/messages/repository";
 import { notifyReportDismissed, notifyReportResolved } from "@/features/notifications/events";
 import { reportRepository } from "./repository";
-import { REPORT_REASONS, type ReportReason } from "./types";
+import { reportMessageAsReporter, type ReportMessageResult } from "./service";
+import type { ReportReason } from "./types";
 
-const MAX_DETAILS_LENGTH = 500;
-
-export type ReportMessageError = "not-found" | "invalid-reason" | "already-reported" | "no-identity" | "rate-limited";
-
-// EPIC 018: filing a report never touches messages.status (see the doc
-// comment below), so unrestricted report volume can't remove content on
-// its own — but it can still waste an admin's time or be used to try to
-// pressure removal by sheer volume. Generous enough that someone
-// genuinely reporting several different bad posts in one browsing session
-// is never blocked.
-const REPORT_RATE_LIMIT_MAX = 10;
-const REPORT_RATE_LIMIT_WINDOW_MINUTES = 10;
-
-export interface ReportMessageResult {
-  ok: boolean;
-  error?: ReportMessageError;
-}
+export type { ReportMessageError, ReportMessageResult } from "./service";
 
 /**
- * Files a report against a public message. Every fact this trusts is
- * re-derived or re-verified here, never taken from the client as-is:
- *
- * - The reporter's identity: a signed-in session's own `user.id` always
- *   wins over any client-supplied `anonymousId` (identical rule to
- *   `likeMessage` in features/messages/like-actions.ts, so a signed-in
- *   visitor can never end up reporting as two different identities).
- * - The message itself: `getPublicMessageById` re-fetches and re-checks
- *   `status === "approved"` server-side — the same function the public
- *   board/share/memory flows already use — so a pending, rejected, or
- *   archived messageId can never be reported, regardless of what a client
- *   claims about it. This also means an anonymous message's real author
- *   never enters this function at all (getPublicMessageById already
- *   strips it), so a report can never leak that identity.
- *
- * Filing a report never writes to `messages` — see reportRepository.create
- * and schema.ts's doc comment on `messageReports`: this is advisory input
- * for an admin, exactly like the AI pre-screen, never a removal decision
- * on its own.
+ * The web entry point for reporting a public message (`ReportDialog`).
+ * Only the session is read here — a signed-in account's id always wins
+ * over the client's `anonymousId`, and anonymous reporting stays allowed —
+ * while every rule (identity, rate limit, reason, public-message check,
+ * details, duplicate) lives in reportMessageAsReporter (./service).
  */
 export async function reportMessage(input: {
   messageId: string;
@@ -55,48 +25,12 @@ export async function reportMessage(input: {
   anonymousId?: string;
 }): Promise<ReportMessageResult> {
   const session = await auth();
-  const reporterId = session?.user?.id ?? null;
-  const anonymousReporterId = reporterId ? null : (input.anonymousId ?? null);
+  const result = await reportMessageAsReporter({ ...input, reporterId: session?.user?.id ?? null });
 
-  if (!reporterId && !anonymousReporterId) {
-    return { ok: false, error: "no-identity" };
+  if (result.ok) {
+    revalidatePath("/admin/reports");
   }
-
-  // EPIC 018: identity resolved above the same way likeMessage/reportMessage
-  // already did — signed-in session always wins over a client-supplied
-  // anonymousId — so this reads the real, server-resolved identity, never
-  // anything the client claims. Checked before any further validation or
-  // DB read below, and before the DB insert.
-  const recentCount = await reportRepository.countRecentByIdentity({ reporterId, anonymousReporterId }, REPORT_RATE_LIMIT_WINDOW_MINUTES);
-  if (recentCount >= REPORT_RATE_LIMIT_MAX) {
-    return { ok: false, error: "rate-limited" };
-  }
-
-  if (!REPORT_REASONS.includes(input.reason)) {
-    return { ok: false, error: "invalid-reason" };
-  }
-
-  const message = await getPublicMessageById(input.messageId);
-  if (!message) {
-    return { ok: false, error: "not-found" };
-  }
-
-  const details = input.details?.trim().slice(0, MAX_DETAILS_LENGTH) || null;
-
-  const report = await reportRepository.create({
-    messageId: input.messageId,
-    reporterId,
-    anonymousReporterId,
-    reason: input.reason,
-    details,
-  });
-
-  if (!report) {
-    return { ok: false, error: "already-reported" };
-  }
-
-  revalidatePath("/admin/reports");
-  return { ok: true };
+  return result;
 }
 
 export type ReportReviewError = "unauthorized" | "not-found" | "already-reviewed";
