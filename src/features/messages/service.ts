@@ -210,3 +210,40 @@ export async function submitMessageForAuthor(
 
   return { ok: true, message };
 }
+
+export interface LikeResult {
+  ok: boolean;
+  likeCount: number;
+  alreadyLiked: boolean;
+}
+
+export interface LikeMessageDeps {
+  messages: Pick<MessageRepository, "like">;
+}
+
+const defaultLikeDeps: LikeMessageDeps = {
+  messages: messageRepository,
+};
+
+/**
+ * EPIC: Message Like System. Who is liking, decided by the caller: a
+ * signed-in account's `userId` always wins — the `anonymousId` is then
+ * never even passed on, so a signed-in user can't end up split across two
+ * identities. `anonymousId` (from src/lib/anonymousId.ts) is the fallback
+ * for a visitor with no session at all. The real state boundary is
+ * `messageRepository.like()`'s atomic insert against message_likes' unique
+ * index — this function is identity resolution, not the guarantee itself,
+ * and passes the repository's result (or error) through unchanged.
+ */
+export async function likeMessageAsVisitor(
+  params: { messageId: string; userId: string | null; anonymousId?: string },
+  deps: LikeMessageDeps = defaultLikeDeps
+): Promise<LikeResult> {
+  const { messageId, userId, anonymousId } = params;
+
+  if (!userId && !anonymousId) {
+    return { ok: false, likeCount: 0, alreadyLiked: false };
+  }
+
+  return deps.messages.like(messageId, userId ? { userId } : { anonymousId });
+}

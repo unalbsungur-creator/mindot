@@ -5,7 +5,14 @@ import type { ModerationResult } from "@/features/moderation/types";
 import { getNoteTemplate, isTemplateAvailable } from "@/features/notes/config/templates";
 import type { User } from "@/features/users/types";
 import { CONTENT_CONSENT_VERSION } from "./consent";
-import { submitMessageForAuthor, type SubmitMessageDeps, type SubmitMessageParams } from "./service";
+import {
+  likeMessageAsVisitor,
+  submitMessageForAuthor,
+  type LikeMessageDeps,
+  type LikeResult,
+  type SubmitMessageDeps,
+  type SubmitMessageParams,
+} from "./service";
 import type { Message, NewMessageInput } from "./types";
 
 // Real registry entries: a 150-character card and a stricter 100-character one.
@@ -318,5 +325,75 @@ describe("submitMessageForAuthor — accepted submissions", () => {
     await submitMessageForAuthor(params(), counting);
     await submitMessageForAuthor(params(), counting);
     assert.equal(resolutions, 2);
+  });
+});
+
+describe("likeMessageAsVisitor", () => {
+  type Identity = { userId?: string; anonymousId?: string };
+
+  function fakeLike(outcome: LikeResult | Error = { ok: true, likeCount: 4, alreadyLiked: false }) {
+    const calls: { messageId: string; identity: Identity }[] = [];
+    const deps: LikeMessageDeps = {
+      messages: {
+        async like(messageId, identity) {
+          calls.push({ messageId, identity });
+          if (outcome instanceof Error) throw outcome;
+          return outcome;
+        },
+      },
+    };
+    return { deps, calls };
+  }
+
+  it("returns the zero result without calling the repository when there is no identity", async () => {
+    const { deps, calls } = fakeLike();
+    const result = await likeMessageAsVisitor({ messageId: "m1", userId: null }, deps);
+    assert.deepEqual(result, { ok: false, likeCount: 0, alreadyLiked: false });
+    assert.equal(calls.length, 0);
+  });
+
+  it("treats an empty anonymousId as no identity", async () => {
+    const { deps, calls } = fakeLike();
+    const result = await likeMessageAsVisitor({ messageId: "m1", userId: null, anonymousId: "" }, deps);
+    assert.deepEqual(result, { ok: false, likeCount: 0, alreadyLiked: false });
+    assert.equal(calls.length, 0);
+  });
+
+  it("sends only the userId when signed in, never the anonymousId", async () => {
+    const { deps, calls } = fakeLike();
+    await likeMessageAsVisitor({ messageId: "m1", userId: "user-1", anonymousId: "anon-1" }, deps);
+    assert.deepEqual(calls[0].identity, { userId: "user-1" });
+    assert.ok(!("anonymousId" in calls[0].identity));
+  });
+
+  it("sends only the anonymousId for a visitor without a session", async () => {
+    const { deps, calls } = fakeLike();
+    await likeMessageAsVisitor({ messageId: "m1", userId: null, anonymousId: "anon-1" }, deps);
+    assert.deepEqual(calls[0].identity, { anonymousId: "anon-1" });
+    assert.ok(!("userId" in calls[0].identity));
+  });
+
+  it("passes the messageId through unchanged", async () => {
+    const { deps, calls } = fakeLike();
+    await likeMessageAsVisitor({ messageId: "  msg-42 ", userId: "user-1" }, deps);
+    assert.equal(calls[0].messageId, "  msg-42 ");
+  });
+
+  const outcomes: LikeResult[] = [
+    { ok: true, likeCount: 8, alreadyLiked: false },
+    { ok: true, likeCount: 7, alreadyLiked: true },
+    { ok: false, likeCount: 3, alreadyLiked: false },
+  ];
+  for (const outcome of outcomes) {
+    it(`returns the repository result unchanged (ok=${outcome.ok}, alreadyLiked=${outcome.alreadyLiked})`, async () => {
+      const { deps } = fakeLike(outcome);
+      const result = await likeMessageAsVisitor({ messageId: "m1", userId: "user-1" }, deps);
+      assert.equal(result, outcome);
+    });
+  }
+
+  it("lets a repository error through", async () => {
+    const { deps } = fakeLike(new Error("db down"));
+    await assert.rejects(likeMessageAsVisitor({ messageId: "m1", userId: "user-1" }, deps), /db down/);
   });
 });
