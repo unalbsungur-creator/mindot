@@ -7,6 +7,8 @@ import { useLocale } from "@/i18n/LocaleProvider";
 import type { Dictionary } from "@/i18n/translations";
 import { cn } from "@/lib/cn";
 import { unlockMemoryPdf, type UnlockMemoryPdfError } from "../actions";
+import { DEFAULT_PDF_BACKGROUND_ID } from "../config/pdfBackgrounds";
+import { PdfBackgroundPicker } from "./PdfBackgroundPicker";
 import { PdfDownloadButton } from "./PdfDownloadButton";
 
 interface PersonalPdfAccessProps {
@@ -47,6 +49,10 @@ const unlockErrorMessage = (dictionary: Dictionary): Record<UnlockMemoryPdfError
  * button or download link. A source note that's no longer public (e.g.
  * archived) overrides all three: no download, no Token action. The UI only reflects state — the server decides
  * ownership, eligibility, and whether a token is actually spent.
+ *
+ * The background design picker shows in both the locked and unlocked
+ * states, so a design can be chosen (free) before the unlock; the choice
+ * only travels to the download route as `?background=`.
  */
 export function PersonalPdfAccess({
   projectId,
@@ -62,6 +68,8 @@ export function PersonalPdfAccess({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<UnlockMemoryPdfError | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [backgroundId, setBackgroundId] = useState(DEFAULT_PDF_BACKGROUND_ID);
+  const picker = <PdfBackgroundPicker value={backgroundId} onChange={setBackgroundId} />;
 
   const balanceLabel = t.pdfTokenBalance.replace("{count}", String(balance));
 
@@ -91,10 +99,11 @@ export function PersonalPdfAccess({
     return (
       <div className={cn("flex flex-col gap-2", className)}>
         <p className="text-sm text-navy">{t.pdfReady}</p>
+        {picker}
         <div className="flex flex-wrap items-start gap-2">
           {/* nativeLink: plain <a>, so Next never prefetches or client-fetches the PDF route. */}
           <Button
-            href={`/api/memories/${projectId}/download?disposition=inline`}
+            href={`/api/memories/${projectId}/download?disposition=inline&background=${encodeURIComponent(backgroundId)}`}
             nativeLink
             target="_blank"
             rel="noopener noreferrer"
@@ -103,7 +112,8 @@ export function PersonalPdfAccess({
           >
             {dictionary.adminOrders.viewPdfButton}
           </Button>
-          <PdfDownloadButton projectId={projectId} />
+          {/* Keyed by design: a file already prepared (iPhone's "Save PDF" step) belongs to the previous design. */}
+          <PdfDownloadButton key={backgroundId} projectId={projectId} backgroundId={backgroundId} />
         </div>
         <p className="text-xs text-ink-soft">{balanceLabel}</p>
       </div>
@@ -112,6 +122,7 @@ export function PersonalPdfAccess({
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
+      {picker}
       <p className="text-xs font-medium text-ink-soft">{t.pdfPriceNote}</p>
       {balance >= 1 ? (
         <Button size="sm" onClick={() => setConfirmOpen(true)} disabled={isPending}>

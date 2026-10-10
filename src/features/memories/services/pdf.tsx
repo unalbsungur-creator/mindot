@@ -7,6 +7,7 @@ import { getShareFormat } from "@/features/sharing/config/shareFormats";
 import { sloganForLanguage, toShareCardNote } from "@/features/sharing/lib/shareCardData";
 import { renderShareCard, type ShareCardNote } from "@/features/sharing/services/shareCardRenderer";
 import { getFrameTemplate, type FrameTemplate } from "../config/frameTemplates";
+import { getPdfBackground, type PdfBackground } from "../config/pdfBackgrounds";
 import { resolveCaptureRegion } from "../lib/captureRegion";
 import { formatPdfDownloadDate } from "../lib/pdfDownloadDate";
 import type { MemoryProject } from "../types";
@@ -42,19 +43,21 @@ const PDF_RENDER_HEIGHT = 1800;
  * - Unframed (personal PDF, physical gift) — PDF Download V2: the card,
  *   rendered by the share image's own card component (`renderPdfCardImage`,
  *   pdfCardImage.tsx), inside the designer's background artwork
- *   (`loadPdfBackground`), with the PDF slogan, the generation date and the
- *   domain as text (`PdfDownloadDocument`, renderer.tsx). It deliberately no
- *   longer matches the share image; the share image itself is untouched by
- *   this path.
+ *   (`loadPdfBackground`) of the chosen design (`options.backgroundId`, see
+ *   config/pdfBackgrounds.ts — the default design when none is given), with
+ *   the PDF slogan, the generation date and the domain as text
+ *   (`PdfDownloadDocument`, renderer.tsx). It deliberately no longer matches
+ *   the share image; the share image itself is untouched by this path.
  * - Framed (digital frame): the chosen frame is a paid design, so its PDF
  *   stays the exact composition `renderShareCard` produces for the "print"
  *   format, rendered at PDF_RENDER_WIDTH x PDF_RENDER_HEIGHT (see above)
- *   and wrapped by `MemoryPdfDocument` in a one-page PDF.
+ *   and wrapped by `MemoryPdfDocument` in a one-page PDF. A background
+ *   choice never applies here.
  *
  * Both use the same `toShareCardNote` mapping as the share routes, so the
  * card content and author visibility agree.
  */
-export async function generateMemoryPdf(project: MemoryProject): Promise<Buffer> {
+export async function generateMemoryPdf(project: MemoryProject, options: { backgroundId?: string | null } = {}): Promise<Buffer> {
   const message = await getPublicMessageById(project.messageId);
   if (!message) {
     throw new MemoryPdfSourceUnavailableError("Source message is no longer public.");
@@ -79,7 +82,7 @@ export async function generateMemoryPdf(project: MemoryProject): Promise<Buffer>
   const surrounding = region.surrounding.map(toShareCardNote);
   return frame
     ? renderFramedMemoryPdf(primary, surrounding, frame, message.language)
-    : renderUnframedMemoryPdf(primary, surrounding, message.language, new Date());
+    : renderUnframedMemoryPdf(primary, surrounding, message.language, new Date(), getPdfBackground(options.backgroundId));
 }
 
 /** The PDF footer's brand slogan — the same fixed phrase in every language, never a card/template name. */
@@ -90,14 +93,21 @@ const PDF_DOWNLOAD_SLOGAN = "AKLINDA KALMASIN.";
  * card inside the background artwork (renderer.tsx's PdfDownloadDocument).
  * The share image is not involved. The slogan is fixed; the date follows
  * the note's own language. `now` is when the printed date is taken from —
- * the real current time from `generateMemoryPdf`. Expects its font/Yoga
- * setup to have run.
+ * the real current time from `generateMemoryPdf`. `design` is the chosen
+ * background. Expects its font/Yoga setup to have run.
  */
-export async function renderUnframedMemoryPdf(primary: ShareCardNote, surrounding: ShareCardNote[], language: string, now: Date): Promise<Buffer> {
+export async function renderUnframedMemoryPdf(
+  primary: ShareCardNote,
+  surrounding: ShareCardNote[],
+  language: string,
+  now: Date,
+  design: PdfBackground = getPdfBackground()
+): Promise<Buffer> {
   const locale = matchBrowserLocale(language);
-  const [background, card] = await Promise.all([loadPdfBackground(), renderPdfCardImage(primary, surrounding)]);
+  const [background, card] = await Promise.all([loadPdfBackground(design), renderPdfCardImage(primary, surrounding)]);
   return renderToBuffer(
     <PdfDownloadDocument
+      design={design}
       background={background}
       card={card}
       slogan={PDF_DOWNLOAD_SLOGAN}

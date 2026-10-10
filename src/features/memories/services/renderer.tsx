@@ -1,6 +1,7 @@
 import { Circle, Document, Image, Page, Rect, Svg, Text, View } from "@react-pdf/renderer";
+import type { PdfBackground, PdfBackgroundPalette } from "../config/pdfBackgrounds";
+import { layoutPdfDownload, V2_PAGE_HEIGHT_PT, V2_PAGE_WIDTH_PT } from "../lib/pdfDownloadLayout";
 import { PDF_FONT_FAMILY } from "./fonts";
-import { PDF_COLORS } from "./pdfPalette";
 
 /**
  * The Memory Print PDF's real page size: 9.6in x 12in, a 4:5 portrait —
@@ -69,50 +70,25 @@ export function MemoryPdfDocument({ imagePngBuffer }: MemoryPdfProps) {
 //
 // Three layers, bottom to top, each absolutely placed inside the page:
 //
-// 1. The designer's background, `public/images/pdf/mindot-pdf-background-v2-clean.png`
-//    (pdfBackground.ts) — night-navy field, the D mark + MINDOT wordmark,
-//    the orange/blue particle arcs, the hairline rings, and the glowing
-//    orange card frame with its dashed inner border. It is language-free
-//    and carries no slogan, date or domain, so none of those can ever be
-//    stale or in the wrong language. Nothing it contains is redrawn here.
+// 1. The chosen design's background (config/pdfBackgrounds.ts, loaded by
+//    pdfBackground.ts) — the D mark + MINDOT wordmark, the design's own
+//    ornaments and its card frame. It is language-free and carries no
+//    slogan, date or domain, so none of those can ever be stale or in the
+//    wrong language. Nothing it contains is redrawn here.
 // 2. The real card (`renderPdfCardImage`, pdfCardImage.tsx — the share
-//    image's own `MemoryNoteCard`), centred inside the frame's dashed border.
+//    image's own `MemoryNoteCard`), centred inside the design's `cardWindow`.
+//    All placement comes from `layoutPdfDownload` (lib/pdfDownloadLayout.ts).
 // 3. Text the background deliberately leaves out: the fixed slogan
-//    ("AKLINDA KALMASIN."), the generation date, and the canonical domain.
-//    The card's template name is never printed.
+//    ("AKLINDA KALMASIN."), the generation date, and the canonical domain,
+//    in the design's palette. The card's template name is never printed.
 //
 // Nothing here is shared with the share image.
 // ---------------------------------------------------------------------------
 
-/**
- * The background's pixel geometry, measured on the asset itself (1024×1536,
- * opaque RGB): the orange frame's outer edge runs x 204–820, y 402–1062,
- * and its dashed inner border x 218–805, y 416–1048. `CARD_WINDOW` is the
- * area just inside that dashed border. Re-measure these if the asset changes.
- */
-export const PDF_BACKGROUND_SIZE = { width: 1024, height: 1536 };
-const CARD_WINDOW = { x: 219, y: 417, width: 586, height: 631 };
-/** Breathing room between the card and the dashed border, in background pixels. */
-const CARD_WINDOW_PADDING = 26;
-
-/**
- * 8 × 12 in (576 × 864 pt) — the background's own 2:3 shape, so it fills the
- * page edge to edge with no crop or letterbox. Derived from the asset's size
- * rather than written down twice.
- */
-const V2_PAGE_WIDTH_PT = 576;
-const V2_PAGE_HEIGHT_PT = (V2_PAGE_WIDTH_PT * PDF_BACKGROUND_SIZE.height) / PDF_BACKGROUND_SIZE.width;
-/** Points per background pixel. */
-const V2_SCALE = V2_PAGE_WIDTH_PT / PDF_BACKGROUND_SIZE.width;
-
-const V2 = {
-  orange: PDF_COLORS.orange,
-  ink: "#f7f3ea",
-  mist: "#cfe1e8",
-};
-
 export interface PdfDownloadDocumentProps {
-  /** The background PNG's bytes (pdfBackground.ts) — embedded once, never re-encoded. */
+  /** The chosen design — geometry and palette (config/pdfBackgrounds.ts). */
+  design: PdfBackground;
+  /** That design's background bytes (pdfBackground.ts) — embedded once, never re-encoded. */
   background: Buffer;
   /** The rendered card block (pdfCardImage.tsx). */
   card: { png: Buffer; width: number; height: number };
@@ -130,76 +106,104 @@ function splitSlogan(slogan: string): [string, string] {
   return index === -1 ? ["", slogan] : [slogan.slice(0, index + 1), slogan.slice(index + 1)];
 }
 
-export function PdfDownloadDocument({ background, card, slogan, date, domain }: PdfDownloadDocumentProps) {
-  // Fit the card block inside the frame's dashed border (never past it, never
-  // upscaled beyond 0.5pt per px ≈ 144 DPI), centred on the window.
-  const windowX = (CARD_WINDOW.x + CARD_WINDOW_PADDING) * V2_SCALE;
-  const windowY = (CARD_WINDOW.y + CARD_WINDOW_PADDING) * V2_SCALE;
-  const windowWidth = (CARD_WINDOW.width - CARD_WINDOW_PADDING * 2) * V2_SCALE;
-  const windowHeight = (CARD_WINDOW.height - CARD_WINDOW_PADDING * 2) * V2_SCALE;
-  const scale = Math.min(0.5, windowWidth / card.width, windowHeight / card.height);
-  const cardWidth = card.width * scale;
-  const cardHeight = card.height * scale;
-  const cardX = windowX + (windowWidth - cardWidth) / 2;
-  const cardY = windowY + (windowHeight - cardHeight) / 2;
-  const [sloganHead, sloganTail] = splitSlogan(slogan);
-  const frameBottom = 1062 * V2_SCALE;
+export function PdfDownloadDocument({ design, background, card, slogan, date, domain }: PdfDownloadDocumentProps) {
+  const { palette } = design;
+  const layout = layoutPdfDownload(design, card);
 
   return (
     <Document title="MINDOT" author="MINDOT">
       {/* Every layer is absolutely placed inside the page bounds: a layer reaching past the edge makes
           react-pdf flow content onto extra pages, and wrap={false} renders blank. */}
-      <Page size={{ width: V2_PAGE_WIDTH_PT, height: V2_PAGE_HEIGHT_PT }} style={{ padding: 0, backgroundColor: "#001e3c" }}>
-        {/* 1. Background — embedded from its raw bytes, so pdfkit stores the PNG's own compressed data once. */}
+      <Page size={{ width: V2_PAGE_WIDTH_PT, height: V2_PAGE_HEIGHT_PT }} style={{ padding: 0, backgroundColor: palette.page }}>
+        {/* 1. Background — embedded from its raw bytes, so pdfkit stores the PNG's compressed data / the JPEG once. */}
         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt prop; this is a PDF render target, not DOM */}
         <Image
-          src={{ data: background, format: "png" }}
+          src={{ data: background, format: design.assetFormat }}
           style={{ position: "absolute", left: 0, top: 0, width: V2_PAGE_WIDTH_PT, height: V2_PAGE_HEIGHT_PT }}
         />
 
         {/* 2. The real card — the page's hero, inside the background's frame. */}
         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt prop; this is a PDF render target, not DOM */}
-        <Image src={{ data: card.png, format: "png" }} style={{ position: "absolute", left: cardX, top: cardY, width: cardWidth, height: cardHeight }} />
+        <Image src={{ data: card.png, format: "png" }} style={{ position: "absolute", ...layout.card }} />
 
-        {/* 3. Text the background leaves out: orange rule, slogan, rule-dot-rule, date. */}
-        <View
-          style={{ position: "absolute", left: 0, top: frameBottom + 30, width: V2_PAGE_WIDTH_PT, display: "flex", flexDirection: "column", alignItems: "center" }}
-        >
-          <Svg width={34} height={2} viewBox="0 0 34 2">
-            <Rect x={0} y={0} width={34} height={1.6} fill={V2.orange} />
-          </Svg>
-          <Text style={{ marginTop: 16, fontFamily: PDF_FONT_FAMILY, fontWeight: "bold", fontSize: 17, letterSpacing: 4.2, color: V2.ink }}>
-            {sloganHead}
-            <Text style={{ color: V2.orange }}>{sloganTail}</Text>
-          </Text>
-          <Svg width={150} height={6} viewBox="0 0 150 6" style={{ marginTop: 16 }}>
-            <Rect x={0} y={2.7} width={66} height={0.6} fill={V2.mist} fillOpacity={0.35} />
-            <Circle cx={75} cy={3} r={3} fill={V2.orange} />
-            <Rect x={84} y={2.7} width={66} height={0.6} fill={V2.mist} fillOpacity={0.35} />
-          </Svg>
-          <Text style={{ marginTop: 14, fontFamily: PDF_FONT_FAMILY, fontSize: 7.5, letterSpacing: 2.2, color: V2.mist, opacity: 0.8 }}>
-            {date}
-          </Text>
-        </View>
-
-        {/* The canonical domain, quietly at the foot of the page. */}
-        <Text
-          style={{
-            position: "absolute",
-            left: 0,
-            top: V2_PAGE_HEIGHT_PT - 46,
-            width: V2_PAGE_WIDTH_PT,
-            textAlign: "center",
-            fontFamily: PDF_FONT_FAMILY,
-            fontSize: 6.5,
-            letterSpacing: 2.6,
-            color: V2.mist,
-            opacity: 0.55,
-          }}
-        >
-          {domain}
-        </Text>
+        {/* 3. Text the background leaves out: rule, slogan, rule-dot-rule, date — and the domain. */}
+        {layout.footer.placement === "inside" ? (
+          <FooterText
+            palette={palette}
+            slogan={slogan}
+            date={date}
+            domain={domain}
+            style={layout.footer.box}
+          />
+        ) : (
+          <>
+            <FooterText
+              palette={palette}
+              slogan={slogan}
+              date={date}
+              style={{ left: layout.footer.left, top: layout.footer.top, width: layout.footer.width }}
+            />
+            {/* The canonical domain, quietly at the foot of the page. */}
+            <Text
+              style={{
+                position: "absolute",
+                left: 0,
+                top: layout.footer.domainTop,
+                width: V2_PAGE_WIDTH_PT,
+                textAlign: "center",
+                fontFamily: PDF_FONT_FAMILY,
+                fontSize: 6.5,
+                letterSpacing: 2.6,
+                color: palette.mist,
+                opacity: 0.55,
+              }}
+            >
+              {domain}
+            </Text>
+          </>
+        )}
       </Page>
     </Document>
+  );
+}
+
+/**
+ * The slogan block; given `domain`, the domain closes it (the inside-the-frame
+ * placement, whose box is `INSIDE_FOOTER_HEIGHT_PT` tall — keep this spacing
+ * in step with lib/pdfDownloadLayout.ts).
+ */
+function FooterText({
+  palette,
+  slogan,
+  date,
+  domain,
+  style,
+}: {
+  palette: PdfBackgroundPalette;
+  slogan: string;
+  date: string;
+  domain?: string;
+  style: { left: number; top: number; width: number; height?: number };
+}) {
+  const [sloganHead, sloganTail] = splitSlogan(slogan);
+  return (
+    <View style={{ position: "absolute", ...style, display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <Svg width={34} height={2} viewBox="0 0 34 2">
+        <Rect x={0} y={0} width={34} height={1.6} fill={palette.ornament} />
+      </Svg>
+      <Text style={{ marginTop: 16, fontFamily: PDF_FONT_FAMILY, fontWeight: "bold", fontSize: 17, letterSpacing: 4.2, color: palette.ink }}>
+        {sloganHead}
+        <Text style={{ color: palette.accent }}>{sloganTail}</Text>
+      </Text>
+      <Svg width={150} height={6} viewBox="0 0 150 6" style={{ marginTop: 16 }}>
+        <Rect x={0} y={2.7} width={66} height={0.6} fill={palette.mist} fillOpacity={0.35} />
+        <Circle cx={75} cy={3} r={3} fill={palette.ornament} />
+        <Rect x={84} y={2.7} width={66} height={0.6} fill={palette.mist} fillOpacity={0.35} />
+      </Svg>
+      <Text style={{ marginTop: 14, fontFamily: PDF_FONT_FAMILY, fontSize: 7.5, letterSpacing: 2.2, color: palette.mist, opacity: 0.8 }}>{date}</Text>
+      {domain && (
+        <Text style={{ marginTop: 12, fontFamily: PDF_FONT_FAMILY, fontSize: 6.5, letterSpacing: 2.6, color: palette.mist, opacity: 0.7 }}>{domain}</Text>
+      )}
+    </View>
   );
 }

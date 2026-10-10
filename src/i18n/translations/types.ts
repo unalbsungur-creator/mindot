@@ -496,6 +496,9 @@ export interface Dictionary {
     pdfUnlocking: string;
     pdfInsufficientTokens: string;
     pdfUnlockError: string;
+    /** PdfBackgroundPicker: choosing the personal PDF's background design — free, never spends a Token. */
+    pdfBackgroundHeading: string;
+    pdfBackgroundHint: string;
     /**
      * i18n audit: display names for each frame template
      * (`features/memories/config/frameTemplates.ts`), keyed by frame id —

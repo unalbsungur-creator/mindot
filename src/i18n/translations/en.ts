@@ -479,6 +479,8 @@ export const en: Dictionary = {
     pdfUnlocking: "Unlocking…",
     pdfInsufficientTokens: "You don't have enough Tokens to unlock this PDF.",
     pdfUnlockError: "The PDF couldn't be unlocked. Please try again.",
+    pdfBackgroundHeading: "PDF design",
+    pdfBackgroundHint: "Choosing a design is free — your PDF downloads in the design you pick.",
     frameNames: {
       "minimal-navy": "Minimal Navy",
       "classic-paper": "Classic Paper",

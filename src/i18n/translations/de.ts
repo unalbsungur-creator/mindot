@@ -477,6 +477,8 @@ export const de: Dictionary = {
     pdfUnlocking: "Wird freigeschaltet…",
     pdfInsufficientTokens: "Du hast nicht genug Tokens, um dieses PDF freizuschalten.",
     pdfUnlockError: "Das PDF konnte nicht freigeschaltet werden. Bitte versuche es erneut.",
+    pdfBackgroundHeading: "PDF-Design",
+    pdfBackgroundHint: "Die Wahl des Designs ist kostenlos – dein PDF wird im gewählten Design heruntergeladen.",
     frameNames: {
       "minimal-navy": "Minimalistisches Marineblau",
       "classic-paper": "Klassisches Papier",

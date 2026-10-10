@@ -479,6 +479,8 @@ export const tr: Dictionary = {
     pdfUnlocking: "Açılıyor…",
     pdfInsufficientTokens: "Bu PDF'i açmak için yeterli Token'ın yok.",
     pdfUnlockError: "PDF açılamadı. Lütfen tekrar dene.",
+    pdfBackgroundHeading: "PDF tasarımı",
+    pdfBackgroundHint: "Tasarım seçmek ücretsiz; PDF'in seçtiğin tasarımla iner.",
     frameNames: {
       "minimal-navy": "Minimal Lacivert",
       "classic-paper": "Klasik Kağıt",

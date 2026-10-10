@@ -477,6 +477,8 @@ export const es: Dictionary = {
     pdfUnlocking: "Desbloqueando…",
     pdfInsufficientTokens: "No tienes suficientes Tokens para desbloquear este PDF.",
     pdfUnlockError: "No se pudo desbloquear el PDF. Inténtalo de nuevo.",
+    pdfBackgroundHeading: "Diseño del PDF",
+    pdfBackgroundHint: "Elegir un diseño es gratis: tu PDF se descarga con el diseño que elijas.",
     frameNames: {
       "minimal-navy": "Azul marino minimalista",
       "classic-paper": "Papel clásico",
