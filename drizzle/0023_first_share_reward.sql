@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "token_ledger_first_share_reward_idx" ON "token_ledger" USING btree ("user_id") WHERE "token_ledger"."reference_type" = 'first_share_reward';

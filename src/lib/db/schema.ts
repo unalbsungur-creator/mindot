@@ -582,6 +582,13 @@ export const tokenLedger = pgTable(
     uniqueIndex("token_ledger_external_ref_idx")
       .on(table.externalProvider, table.externalReference)
       .where(sql`${table.externalProvider} is not null and ${table.externalReference} is not null`),
+    // The first-share reward is credited at most once per account. The
+    // repository's wallet lock already serializes the claim; this is the
+    // backstop. A deleted account's entry moves to its own fresh tombstone,
+    // so re-pointing never collides here.
+    uniqueIndex("token_ledger_first_share_reward_idx")
+      .on(table.userId)
+      .where(sql`${table.referenceType} = 'first_share_reward'`),
   ]
 );
 
