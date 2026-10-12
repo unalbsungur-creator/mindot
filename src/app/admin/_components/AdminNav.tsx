@@ -29,6 +29,7 @@ export function AdminNav({ pendingModerationCount, openReportCount }: AdminNavPr
     { label: dictionary.moderation.title, href: "/admin/moderation", count: pendingModerationCount },
     { label: dictionary.reportsAdmin.title, href: "/admin/reports", count: openReportCount },
     { label: dictionary.usersAdmin.title, href: "/admin/users" },
+    { label: dictionary.tokenHistoryAdmin.title, href: "/admin/tokens" },
     { label: dictionary.invitationsAdmin.title, href: "/admin/invitations" },
     { label: dictionary.adminAccessCodes.title, href: "/admin/access-codes" },
     { label: dictionary.adminOrders.title, href: "/admin/orders" },

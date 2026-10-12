@@ -1,8 +1,9 @@
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { memoryPdfUnlocks, tokenLedger, tokenWallets } from "@/lib/db/schema";
 import { memoryPdfUnlockRepository, toMemoryPdfUnlock } from "@/features/memories/repository";
 import type { MemoryPdfUnlock } from "@/features/memories/types";
+import type { LedgerCursor } from "./lib/ledgerCursor";
 import type { TokenLedgerEntry, TokenWallet } from "./types";
 
 /** Tokens one PDF unlock costs — 1 Memory Project = 1 Token, never charged per download. */
@@ -71,6 +72,19 @@ export interface TokenRepository {
    * verified ownership and eligibility; this only guarantees the money side.
    */
   consumeForMemoryPdfUnlock(input: { userId: string; memoryProjectId: string }): Promise<ConsumeForMemoryPdfUnlockResult>;
+  /**
+   * Read-only: one page of the whole ledger, newest first by (created_at,
+   * id), for the admin history. `limit` is clamped to MAX_LEDGER_PAGE_SIZE;
+   * `nextCursor` is null on the last page.
+   */
+  listLedger(input: { limit: number; before?: LedgerCursor | null }): Promise<LedgerPage>;
+}
+
+export const MAX_LEDGER_PAGE_SIZE = 100;
+
+export interface LedgerPage {
+  entries: TokenLedgerEntry[];
+  nextCursor: LedgerCursor | null;
 }
 
 function toTokenWallet(row: typeof tokenWallets.$inferSelect): TokenWallet {
@@ -253,6 +267,26 @@ class DrizzleTokenRepository implements TokenRepository {
       if (!unlock) return { status: "conflict" };
       return { status: "already_unlocked", unlock, balance: await this.getBalance(userId) };
     }
+  }
+
+  async listLedger({ limit, before }: { limit: number; before?: LedgerCursor | null }): Promise<LedgerPage> {
+    const pageSize = Math.min(Math.max(Math.trunc(limit) || 1, 1), MAX_LEDGER_PAGE_SIZE);
+    // Exact microseconds (extract(epoch) is numeric since Postgres 14), so the
+    // cursor compares on the stored value, not a millisecond-rounded Date.
+    const createdAtMicros = sql<string>`(extract(epoch from ${tokenLedger.createdAt}) * 1000000)::bigint`;
+    const db = getDb();
+    const rows = await db
+      .select({ entry: tokenLedger, cursorMicros: sql<string>`${createdAtMicros}::text` })
+      .from(tokenLedger)
+      .where(before ? sql`(${createdAtMicros}, ${tokenLedger.id}) < (${before.createdAtMicros}::bigint, ${before.id})` : undefined)
+      .orderBy(desc(tokenLedger.createdAt), desc(tokenLedger.id))
+      .limit(pageSize + 1);
+    const page = rows.slice(0, pageSize);
+    const last = page.at(-1);
+    return {
+      entries: page.map((row) => toTokenLedgerEntry(row.entry)),
+      nextCursor: rows.length > pageSize && last ? { createdAtMicros: last.cursorMicros, id: last.entry.id } : null,
+    };
   }
 }
 

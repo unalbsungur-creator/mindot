@@ -5,7 +5,9 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { userRepository } from "@/features/users/repository";
-import { adminGrantIdempotencyKey, tokenRepository } from "./repository";
+import { loadTokenHistory, type TokenHistoryDeps, type TokenHistoryResult, type TokenHistoryRow } from "./history";
+import type { LedgerCursor } from "./lib/ledgerCursor";
+import { MAX_LEDGER_PAGE_SIZE, adminGrantIdempotencyKey, tokenRepository, type LedgerPage } from "./repository";
 
 // Real PostgreSQL behaviour of tokenRepository: row locks, conditional
 // decrement, unique-violation fallbacks. Run through `npm run test:db:tokens`,
@@ -409,6 +411,186 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
       assert.match(row.user_id, /^deleted_/);
       return row.user_id;
     }
+  });
+});
+
+describe("token ledger history on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST_DATABASE_URL is not set" }, () => {
+  let sql: ReturnType<typeof postgres>;
+  let adminId: string;
+
+  before(async () => {
+    delete process.env.APP_ENV;
+    process.env.DATABASE_URL = TEST_URL!;
+    sql = postgres(TEST_URL!, { max: 2, onnotice: () => {} });
+    await migrate(drizzle(sql), { migrationsFolder: "drizzle" });
+    adminId = `test-${crypto.randomUUID()}`;
+    await sql`insert into users (id, email, name, role) values (${adminId}, ${`${adminId}@example.test`}, 'Test Admin', 'admin')`;
+  });
+
+  after(async () => {
+    await sql?.end({ timeout: 5 });
+  });
+
+  async function createUser(): Promise<string> {
+    const id = `test-${crypto.randomUUID()}`;
+    await sql`insert into users (id, email) values (${id}, ${`${id}@example.test`})`;
+    return id;
+  }
+
+  async function walk(limit: number): Promise<string[]> {
+    const ids: string[] = [];
+    let before: LedgerCursor | null = null;
+    for (let page = 0; page < 1000; page++) {
+      const result: LedgerPage = await tokenRepository.listLedger({ limit, before });
+      ids.push(...result.entries.map((entry) => entry.id));
+      if (!result.nextCursor) return ids;
+      before = result.nextCursor;
+    }
+    throw new Error("pagination did not terminate");
+  }
+
+  async function snapshot(): Promise<string> {
+    const [row] = await sql<{ ledger: string | null; wallets: string | null }[]>`
+      select
+        (select md5(string_agg(t::text, '|' order by t.id)) from token_ledger t) as ledger,
+        (select md5(string_agg(w::text, '|' order by w.user_id)) from token_wallets w) as wallets`;
+    return `${row.ledger}/${row.wallets}`;
+  }
+
+  async function allPages(deps: TokenHistoryDeps): Promise<TokenHistoryRow[]> {
+    const rows: TokenHistoryRow[] = [];
+    let cursor: string | null = null;
+    do {
+      const result: TokenHistoryResult = await loadTokenHistory({ cursor }, deps);
+      if (result.status !== "ok") throw new Error("unauthorized");
+      rows.push(...result.rows);
+      cursor = result.nextCursor;
+    } while (cursor);
+    return rows;
+  }
+
+  const realDeps = (): TokenHistoryDeps => ({
+    requireAdmin: async () => ({ id: adminId }),
+    listLedger: (input) => tokenRepository.listLedger(input),
+    getActiveUsersByIds: (ids) => userRepository.getActiveByIds(ids),
+  });
+
+  it("getActiveByIds leaves out a deleted account's tombstone", async () => {
+    const live = await createUser();
+    const doomed = await createUser();
+    assert.deepEqual(await userRepository.deleteAccount(doomed), { status: "deleted" });
+    const [{ id: tombstoneId }] = await sql<{ id: string }[]>`
+      select id from users where deleted_at is not null order by created_at desc limit 1`;
+
+    const found = await userRepository.getActiveByIds([live, tombstoneId, doomed]);
+    assert.deepEqual(found.map((user) => user.id), [live]);
+    assert.deepEqual(await userRepository.getActiveByIds([]), []);
+  });
+
+  it("pages newest first by exact microseconds, breaking timestamp ties by id", async () => {
+    const owner = await createUser();
+    const rows = [
+      { id: "hist-e", at: "2099-01-01 00:00:00+00" },
+      { id: "hist-d", at: "2099-01-01 00:00:00.000001+00" },
+      { id: "hist-b", at: "2099-01-01 00:00:00.000002+00" },
+      { id: "hist-c", at: "2099-01-01 00:00:00.000002+00" },
+      { id: "hist-a", at: "2099-01-01 00:00:00.000003+00" },
+    ];
+    for (const [index, row] of rows.entries()) {
+      await sql`
+        insert into token_ledger (id, user_id, amount, type, balance_after, idempotency_key, created_at)
+        values (${`${row.id}-${owner}`}, ${owner}, 1, 'grant', ${index + 1}, ${`hist:${row.id}:${owner}`}, ${row.at}::timestamptz)`;
+    }
+    await sql`insert into token_wallets (user_id, balance) values (${owner}, ${rows.length})`;
+
+    // Five rows inside 3 microseconds — a millisecond-rounded cursor would skip some.
+    const firstPages = (await walk(2)).slice(0, 5);
+    assert.deepEqual(
+      firstPages,
+      ["hist-a", "hist-c", "hist-b", "hist-d", "hist-e"].map((id) => `${id}-${owner}`)
+    );
+  });
+
+  it("walks the whole ledger page by page with no gaps or duplicates", async () => {
+    const [{ n }] = await sql<{ n: number }[]>`select count(*)::int as n from token_ledger`;
+    assert.ok(n > 20, `expected a populated ledger, got ${n}`);
+    const expected = (await sql<{ id: string }[]>`select id from token_ledger order by created_at desc, id desc`).map((row) => row.id);
+
+    for (const limit of [1, 7, 100]) {
+      const ids = await walk(limit);
+      assert.equal(new Set(ids).size, ids.length, `duplicates at limit ${limit}`);
+      assert.deepEqual(ids, expected, `order at limit ${limit}`);
+    }
+  });
+
+  it("clamps the page size to 1..100", async () => {
+    await sql`
+      insert into token_ledger (id, user_id, amount, type, balance_after, idempotency_key)
+      select 'bulk-' || g || '-' || ${adminId}, ${adminId}, 1, 'grant', g, 'bulk:' || g || ':' || ${adminId}
+      from generate_series(1, 120) as g`;
+    await sql`insert into token_wallets (user_id, balance) values (${adminId}, 120)`;
+
+    assert.equal((await tokenRepository.listLedger({ limit: 1000 })).entries.length, MAX_LEDGER_PAGE_SIZE);
+    assert.equal((await tokenRepository.listLedger({ limit: 0 })).entries.length, 1);
+    assert.equal((await tokenRepository.listLedger({ limit: -5 })).entries.length, 1);
+  });
+
+  it("reading the history changes no balance and no ledger entry", async () => {
+    const userId = await createUser();
+    await tokenRepository.grantByAdmin({
+      userId,
+      amount: 3,
+      adminId,
+      idempotencyKey: adminGrantIdempotencyKey(adminId, crypto.randomUUID()),
+      note: null,
+    });
+    const before = await snapshot();
+
+    await walk(7);
+    await allPages(realDeps());
+
+    assert.equal(await snapshot(), before);
+  });
+
+  it("an unauthorized request never reaches the ledger", async () => {
+    let queried = false;
+    const result = await loadTokenHistory(
+      { cursor: null },
+      {
+        ...realDeps(),
+        requireAdmin: async () => null,
+        listLedger: async () => {
+          queried = true;
+          return { entries: [], nextCursor: null };
+        },
+      }
+    );
+    assert.deepEqual(result, { status: "unauthorized" });
+    assert.equal(queried, false);
+  });
+
+  it("shows deleted accounts without tombstone ids or emails, and live accounts by name", async () => {
+    const userId = await createUser();
+    const granted = await tokenRepository.grantByAdmin({
+      userId,
+      amount: 2,
+      adminId,
+      idempotencyKey: adminGrantIdempotencyKey(adminId, crypto.randomUUID()),
+      note: "before deletion",
+    });
+    if (granted.status !== "granted") throw new Error(`grant failed: ${granted.status}`);
+    assert.deepEqual(await userRepository.deleteAccount(userId), { status: "deleted" });
+
+    const rows = await allPages(realDeps());
+    const row = rows.find((candidate) => candidate.id === granted.entry.id);
+    assert.ok(row, "the deleted account's entry is still listed");
+    assert.deepEqual(row.user, { kind: "deleted" });
+    assert.deepEqual(row.createdBy, { kind: "active", name: "Test Admin", email: `${adminId}@example.test` });
+    assert.equal(row.note, "before deletion");
+
+    const payload = JSON.stringify(rows);
+    assert.ok(!payload.includes("deleted_"), "a tombstone id leaked");
+    assert.ok(!payload.includes("@deleted.invalid"), "a tombstone email leaked");
   });
 });
 

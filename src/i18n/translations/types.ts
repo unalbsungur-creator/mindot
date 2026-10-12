@@ -382,6 +382,34 @@ export interface Dictionary {
     grantErrorConflict: string;
     grantErrorUnauthorized: string;
   };
+  /** Admin Token history (/admin/tokens) — read-only view of the ledger. */
+  tokenHistoryAdmin: {
+    title: string;
+    subtitle: string;
+    orderingNote: string;
+    emptyTitle: string;
+    emptyBody: string;
+    endTitle: string;
+    unauthorizedTitle: string;
+    unauthorizedBody: string;
+    paginationLabel: string;
+    olderPage: string;
+    newestPage: string;
+    userLabel: string;
+    createdByLabel: string;
+    balanceAfterLabel: string;
+    noteLabel: string;
+    externalLabel: string;
+    deletedAccount: string;
+    creditLabel: string;
+    debitLabel: string;
+    typeGrant: string;
+    typePurchase: string;
+    typeSubscription: string;
+    typeConsume: string;
+    typeRefund: string;
+    typeAdjustment: string;
+  };
   invitationsAdmin: {
     title: string;
     subtitle: string;
