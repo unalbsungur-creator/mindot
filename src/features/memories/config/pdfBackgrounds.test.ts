@@ -4,7 +4,14 @@ import path from "node:path";
 import { test } from "node:test";
 import { readImageSize } from "../lib/imageSize";
 import { INSIDE_FOOTER_HEIGHT_PT, layoutPdfDownload, V2_PAGE_HEIGHT_PT, V2_PAGE_WIDTH_PT, type PdfRect } from "../lib/pdfDownloadLayout";
-import { DEFAULT_PDF_BACKGROUND_ID, getPdfBackground, isPdfBackgroundId, PDF_BACKGROUND_SIZE, pdfBackgrounds } from "./pdfBackgrounds";
+import {
+  DEFAULT_PDF_BACKGROUND_ID,
+  getPdfBackground,
+  isPdfBackgroundId,
+  parsePdfBackgroundParam,
+  PDF_BACKGROUND_SIZE,
+  pdfBackgrounds,
+} from "./pdfBackgrounds";
 
 const publicFile = (pathname: string) => path.join(process.cwd(), "public", pathname);
 
@@ -134,4 +141,46 @@ test("a design keeps the card readable — the window never shrinks a lone card 
     const layout = layoutPdfDownload(background, { width: 720, height: 720 });
     assert.ok(layout.card.width >= 250, `${background.id}: card only ${layout.card.width.toFixed(0)}pt wide`);
   }
+});
+
+test("the six designs, by id and picker name, each with its own artwork", () => {
+  assert.deepEqual(
+    pdfBackgrounds.map((background) => [background.id, background.name]),
+    [
+      ["classic", "MINDOT Classic"],
+      ["neon", "MINDOT Neon"],
+      ["ivory-gold", "Ivory Gold"],
+      ["noir-silver", "Noir Silver"],
+      ["botanical", "Botanical"],
+      ["soft-gradient", "Soft Gradient"],
+    ]
+  );
+  assert.equal(new Set(pdfBackgrounds.map((background) => background.asset)).size, 6);
+  for (const background of pdfBackgrounds) assert.equal(getPdfBackground(background.id), background);
+});
+
+test("?background=: absent → default design, each catalog id → itself, anything else → rejected", () => {
+  assert.deepEqual(parsePdfBackgroundParam(null), { ok: true, backgroundId: null });
+  assert.equal(getPdfBackground(null).id, DEFAULT_PDF_BACKGROUND_ID);
+  for (const background of pdfBackgrounds) {
+    assert.deepEqual(parsePdfBackgroundParam(background.id), { ok: true, backgroundId: background.id });
+  }
+  for (const bad of ["", "Classic", "NEON", " neon", "neon ", "ivory_gold", "__proto__", "constructor", "../classic", "classic,neon", "%6Eeon"]) {
+    assert.deepEqual(parsePdfBackgroundParam(bad), { ok: false }, JSON.stringify(bad));
+  }
+});
+
+test("the download route rejects a bad ?background= with 400 before auth or any lookup, and renders only the parsed id", () => {
+  // The route imports next-auth and the PDF renderer, which this runner can't load,
+  // so this reads its source: the parse, its 400, and the order of the checks.
+  const source = readFileSync(path.join(process.cwd(), "src/app/api/memories/[projectId]/download/route.ts"), "utf-8");
+  const parse = source.indexOf('parsePdfBackgroundParam(searchParams.get("background"))');
+  const reject = source.indexOf('{ error: "invalid-background" }, { status: 400 }');
+  const authCall = source.indexOf("await auth()");
+  const lookup = source.indexOf("memoryRepository.getById(");
+  const access = source.indexOf("checkMemoryOutputAccess(");
+  const render = source.indexOf("generateMemoryPdf(project, { backgroundId })");
+  for (const [name, index] of Object.entries({ parse, reject, authCall, lookup, access, render })) assert.ok(index > 0, `${name} not found`);
+  assert.ok(parse < reject && reject < authCall && authCall < lookup && lookup < access && access < render);
+  assert.doesNotMatch(source, /searchParams\.get\("background"\)(?![)])/, "the raw query value is never used directly");
 });

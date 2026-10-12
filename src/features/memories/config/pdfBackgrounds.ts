@@ -145,6 +145,17 @@ export function isPdfBackgroundId(value: unknown): value is string {
   return typeof value === "string" && pdfBackgrounds.some((background) => background.id === value);
 }
 
+/**
+ * The download route's `?background=` rule: absent → `null` (the default
+ * design), a catalog id → that id, anything else (empty, wrong case,
+ * padded, unknown) → invalid, which the route answers with 400 — never a
+ * silent fallback.
+ */
+export function parsePdfBackgroundParam(value: string | null): { ok: true; backgroundId: string | null } | { ok: false } {
+  if (value === null) return { ok: true, backgroundId: null };
+  return isPdfBackgroundId(value) ? { ok: true, backgroundId: value } : { ok: false };
+}
+
 /** The design for `id`, or the default one for anything unknown. Callers that must reject bad input check `isPdfBackgroundId` first. */
 export function getPdfBackground(id?: string | null): PdfBackground {
   return pdfBackgrounds.find((background) => background.id === id) ?? pdfBackgrounds.find((background) => background.id === DEFAULT_PDF_BACKGROUND_ID)!;

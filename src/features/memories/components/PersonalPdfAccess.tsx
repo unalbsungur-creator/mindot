@@ -8,6 +8,7 @@ import type { Dictionary } from "@/i18n/translations";
 import { cn } from "@/lib/cn";
 import { unlockMemoryPdf, type UnlockMemoryPdfError } from "../actions";
 import { DEFAULT_PDF_BACKGROUND_ID } from "../config/pdfBackgrounds";
+import { memoryPdfUrl } from "../lib/memoryPdfUrl";
 import { PdfBackgroundPicker } from "./PdfBackgroundPicker";
 import { PdfDownloadButton } from "./PdfDownloadButton";
 
@@ -103,7 +104,7 @@ export function PersonalPdfAccess({
         <div className="flex flex-wrap items-start gap-2">
           {/* nativeLink: plain <a>, so Next never prefetches or client-fetches the PDF route. */}
           <Button
-            href={`/api/memories/${projectId}/download?disposition=inline&background=${encodeURIComponent(backgroundId)}`}
+            href={memoryPdfUrl(projectId, { backgroundId, inline: true })}
             nativeLink
             target="_blank"
             rel="noopener noreferrer"

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/features/auth/auth";
-import { isPdfBackgroundId } from "@/features/memories/config/pdfBackgrounds";
+import { parsePdfBackgroundParam } from "@/features/memories/config/pdfBackgrounds";
 import { memoryRepository } from "@/features/memories/repository";
 import { checkMemoryOutputAccess } from "@/features/memories/services/outputAccess";
 import { generateMemoryPdf, MemoryPdfSourceUnavailableError } from "@/features/memories/services/pdf";
@@ -48,10 +48,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
   const { projectId } = await context.params;
   const searchParams = new URL(request.url).searchParams;
   const inline = searchParams.get("disposition") === "inline";
-  const backgroundId = searchParams.get("background");
-  if (backgroundId !== null && !isPdfBackgroundId(backgroundId)) {
+  const background = parsePdfBackgroundParam(searchParams.get("background"));
+  if (!background.ok) {
     return NextResponse.json({ error: "invalid-background" }, { status: 400 });
   }
+  const { backgroundId } = background;
 
   const session = await auth();
   if (!session?.user?.id) {

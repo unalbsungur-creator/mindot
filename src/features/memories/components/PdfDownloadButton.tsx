@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { downloadFile, shareFile } from "@/features/sharing/lib/nativeFileShare";
+import { memoryPdfUrl } from "../lib/memoryPdfUrl";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { cn } from "@/lib/cn";
 
@@ -74,8 +75,7 @@ export function PdfDownloadButton({ projectId, backgroundId, className }: { proj
     busyRef.current = true;
     setPhase("preparing");
     try {
-      const query = backgroundId ? `?background=${encodeURIComponent(backgroundId)}` : "";
-      const response = await fetch(`/api/memories/${projectId}/download${query}`, { cache: "no-store", credentials: "same-origin" });
+      const response = await fetch(memoryPdfUrl(projectId, { backgroundId }), { cache: "no-store", credentials: "same-origin" });
       if (!response.ok || !(response.headers.get("content-type") ?? "").startsWith("application/pdf")) {
         setError(true);
         setPhase("idle");
