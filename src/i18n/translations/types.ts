@@ -661,8 +661,18 @@ export interface Dictionary {
     socialTiktok: string;
     socialInstagramHint: string;
     socialTiktokHint: string;
+    /** A share sheet that ended without a share (dismissed, or failed inside the browser): neutral, offers the download below. */
+    shareNotCompleted: string;
+    /** The download offered with `shareNotCompleted` — the same image, never counted as a share. */
+    downloadImage: string;
     /** EPIC 016: shown persistently under the Facebook/Instagram/TikTok row whenever this device supports native file sharing — sets expectation that pressing any of the three opens the phone's own share menu, not that platform's homepage. */
     socialNativeShareHint: string;
+    /** /share/[messageId]'s main button while the first-share reward is on offer — {count} is the Token amount. */
+    shareAndEarnButton: string;
+    /** Under that button: the share menu opens, and the reward needs a completed share. Never promises publishing. */
+    firstShareRewardHint: string;
+    /** First-share reward notice, shown only when the server credited it — {count} is the Token amount. Never claims anything was published. */
+    firstShareReward: string;
     premiumHeading: string;
     premiumBody: string;
     premiumDownloadButton: string;

@@ -4,8 +4,11 @@ import { describe, it } from "node:test";
 import { getTableConfig, type PgTable } from "drizzle-orm/pg-core";
 import { memoryPdfUnlocks, tokenLedger, tokenWallets } from "@/lib/db/schema";
 import {
+  FIRST_SHARE_REWARD_AMOUNT,
+  FIRST_SHARE_REWARD_REFERENCE_TYPE,
   MEMORY_PDF_UNLOCK_COST,
   adminGrantIdempotencyKey,
+  firstShareRewardIdempotencyKey,
   memoryPdfUnlockIdempotencyKey,
   tokenRepository,
 } from "./repository";
@@ -18,6 +21,7 @@ import { MAX_ADMIN_GRANT_AMOUNT } from "./types";
 
 const MIGRATION = readFileSync("drizzle/0016_graceful_king_cobra.sql", "utf-8");
 const GUARD_MIGRATION = readFileSync("drizzle/0022_token_ledger_append_only.sql", "utf-8");
+const FIRST_SHARE_REWARD_MIGRATION = readFileSync("drizzle/0023_first_share_reward.sql", "utf-8");
 
 function constraintNames(table: PgTable) {
   const config = getTableConfig(table);
@@ -41,6 +45,14 @@ describe("token idempotency keys", () => {
     assert.notEqual(adminGrantIdempotencyKey("admin-a", requestId), adminGrantIdempotencyKey("admin-b", requestId));
   });
 
+  it("gives every first-share reward a fresh random key that names no account", () => {
+    const keys = Array.from({ length: 50 }, () => firstShareRewardIdempotencyKey());
+    assert.equal(new Set(keys).size, keys.length);
+    for (const key of keys) {
+      assert.match(key, /^first_share_reward:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    }
+  });
+
   it("keeps grant and consume keys in separate namespaces", () => {
     assert.ok(!adminGrantIdempotencyKey("a", "b").startsWith("memory_pdf_unlock:"));
     assert.ok(!memoryPdfUnlockIdempotencyKey("a").startsWith("admin_grant:"));
@@ -50,6 +62,11 @@ describe("token idempotency keys", () => {
 describe("token limits", () => {
   it("charges exactly one token per PDF unlock", () => {
     assert.equal(MEMORY_PDF_UNLOCK_COST, 1);
+  });
+
+  it("rewards a first share with exactly two tokens", () => {
+    assert.equal(FIRST_SHARE_REWARD_AMOUNT, 2);
+    assert.equal(FIRST_SHARE_REWARD_REFERENCE_TYPE, "first_share_reward");
   });
 
   it("caps a single admin grant at 1000", () => {
@@ -65,6 +82,10 @@ describe("token limits", () => {
       );
     }
   });
+
+  it("reports no first-share reward for an empty account id without opening a database connection", async () => {
+    assert.equal(await tokenRepository.hasFirstShareReward(""), false);
+  });
 });
 
 describe("token schema backstops", () => {
@@ -79,6 +100,18 @@ describe("token schema backstops", () => {
     assert.deepEqual(
       ledger.indexes.find((index) => index.name === "token_ledger_external_ref_idx"),
       { name: "token_ledger_external_ref_idx", unique: true, where: true }
+    );
+  });
+
+  it("allows at most one first-share reward entry per account, in the schema and in migration 0023", () => {
+    assert.deepEqual(
+      constraintNames(tokenLedger).indexes.find((index) => index.name === "token_ledger_first_share_reward_idx"),
+      { name: "token_ledger_first_share_reward_idx", unique: true, where: true }
+    );
+    // Index only: no table, column, enum or trigger change, and 0022 is left as it was.
+    assert.equal(
+      FIRST_SHARE_REWARD_MIGRATION.trim(),
+      `CREATE UNIQUE INDEX "token_ledger_first_share_reward_idx" ON "token_ledger" USING btree ("user_id") WHERE "token_ledger"."reference_type" = 'first_share_reward';`
     );
   });
 

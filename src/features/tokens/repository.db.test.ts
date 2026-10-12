@@ -250,6 +250,30 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
       assert.equal(result.entry.referenceType, "admin_grant");
     });
 
+    it("never writes the recipient's user id into reference_id, so nothing outlives an account deletion", async () => {
+      const recipient = await createUser();
+      const result = await tokenRepository.grantByAdmin({
+        userId: recipient,
+        amount: 2,
+        adminId,
+        idempotencyKey: adminGrantIdempotencyKey(adminId, crypto.randomUUID()),
+        note: null,
+      });
+      assert.equal(result.status, "granted");
+      if (result.status !== "granted") return;
+      assert.equal(result.entry.referenceId, null);
+
+      assert.deepEqual(await userRepository.deleteAccount(recipient), { status: "deleted" });
+      const [row] = await sql<{ user_id: string; reference_id: string | null; idempotency_key: string }[]>`
+        select user_id, reference_id, idempotency_key from token_ledger where id = ${result.entry.id}`;
+      assert.match(row.user_id, /^deleted_/);
+      assert.equal(row.reference_id, null);
+      const [leftover] = await sql<{ n: number }[]>`
+        select count(*)::int as n from token_ledger
+        where reference_id = ${recipient} or idempotency_key like ${`%${recipient}%`} or note like ${`%${recipient}%`}`;
+      assert.equal(leftover.n, 0, "the deleted account's id is still in the ledger");
+    });
+
     it("returns conflict, crediting nothing, when a key is reused with a different amount", async () => {
       const key = adminGrantIdempotencyKey(adminId, crypto.randomUUID());
       await tokenRepository.grantByAdmin({ userId, amount: 5, adminId, idempotencyKey: key, note: null });
@@ -270,6 +294,194 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
       assert.deepEqual(result, { status: "conflict" });
       await assertConsistent(userId, 5);
       await assertConsistent(other, 0);
+    });
+  });
+
+  describe("first-share reward", () => {
+    const REWARD_KEY = /^first_share_reward:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+    async function rewardRows(id: string) {
+      return sql<
+        {
+          id: string;
+          amount: number;
+          type: string;
+          balance_after: number;
+          reference_id: string | null;
+          created_by: string | null;
+          note: string | null;
+          idempotency_key: string;
+        }[]
+      >`
+        select id, amount, type::text as type, balance_after, reference_id, created_by, note, idempotency_key
+        from token_ledger where user_id = ${id} and reference_type = 'first_share_reward'`;
+    }
+
+    async function walletExists(id: string): Promise<boolean> {
+      const [row] = await sql<{ n: number }[]>`select count(*)::int as n from token_wallets where user_id = ${id}`;
+      return row.n === 1;
+    }
+
+    /** Ledger rows still naming an account in any column — none may remain once it's deleted. */
+    async function leftoverMentions(id: string): Promise<number> {
+      const [row] = await sql<{ n: number }[]>`
+        select count(*)::int as n from token_ledger
+        where user_id = ${id} or created_by = ${id} or reference_id = ${id}
+          or idempotency_key like ${`%${id}%`} or note like ${`%${id}%`}`;
+      return row.n;
+    }
+
+    it("credits two tokens once, with an entry that carries nothing but the account", async () => {
+      const result = await tokenRepository.grantFirstShareReward(userId);
+
+      assert.equal(result.status, "granted");
+      if (result.status !== "granted") return;
+      assert.equal(result.balance, 2);
+      assert.equal(result.entry.amount, 2);
+      assert.equal(result.entry.balanceAfter, 2);
+      const [row] = await rewardRows(userId);
+      assert.deepEqual(
+        { type: row.type, reference_id: row.reference_id, created_by: row.created_by, note: row.note },
+        { type: "grant", reference_id: null, created_by: null, note: null }
+      );
+      assert.match(row.idempotency_key, REWARD_KEY);
+      assert.ok(!row.idempotency_key.includes(userId), "the key names the account");
+      await assertConsistent(userId, 2);
+    });
+
+    it("reports the reward as present only after this account's own reward entry", async () => {
+      assert.equal(await tokenRepository.hasFirstShareReward(userId), false);
+      await grant(userId, 1);
+      assert.equal(await tokenRepository.hasFirstShareReward(userId), false, "an admin grant isn't the reward");
+
+      assert.equal((await tokenRepository.grantFirstShareReward(userId)).status, "granted");
+
+      assert.equal(await tokenRepository.hasFirstShareReward(userId), true);
+      assert.equal(await tokenRepository.hasFirstShareReward(`${userId}-other`), false);
+    });
+
+    it("credits nothing on a second claim", async () => {
+      assert.equal((await tokenRepository.grantFirstShareReward(userId)).status, "granted");
+
+      assert.deepEqual(await tokenRepository.grantFirstShareReward(userId), { status: "already_rewarded" });
+
+      assert.equal((await rewardRows(userId)).length, 1);
+      assert.equal((await ledgerRows(userId)).length, 1);
+      await assertConsistent(userId, 2);
+    });
+
+    it("credits 10 concurrent claims only once", async () => {
+      const results = await Promise.all(Array.from({ length: 10 }, () => tokenRepository.grantFirstShareReward(userId)));
+
+      const statuses = results.map((result) => result.status);
+      assert.equal(statuses.filter((status) => status === "granted").length, 1, statuses.join(","));
+      assert.equal(statuses.filter((status) => status === "already_rewarded").length, 9, statuses.join(","));
+      assert.equal((await rewardRows(userId)).length, 1);
+      await assertConsistent(userId, 2);
+    });
+
+    it("adds two tokens on top of an existing balance", async () => {
+      await grant(userId, 3);
+
+      const result = await tokenRepository.grantFirstShareReward(userId);
+
+      assert.equal(result.status === "granted" && result.balance, 5);
+      assert.equal((await rewardRows(userId))[0].balance_after, 5);
+      await assertConsistent(userId, 5);
+    });
+
+    it("refuses a suspended account, a tombstone and an unknown id, writing nothing — not even a wallet", async () => {
+      const suspended = await createUser();
+      await sql`update users set status = 'suspended' where id = ${suspended}`;
+      const tombstone = `deleted_${crypto.randomUUID()}`;
+      await sql`insert into users (id, email, role, deleted_at) values (${tombstone}, ${`${tombstone}@deleted.invalid`}, 'user', now())`;
+      const unknown = `missing-${crypto.randomUUID()}`;
+
+      for (const id of [suspended, tombstone, unknown]) {
+        assert.deepEqual(await tokenRepository.grantFirstShareReward(id), { status: "ineligible" }, id);
+        assert.equal(await walletExists(id), false, `wallet for ${id}`);
+        assert.equal((await ledgerRows(id)).length, 0, `ledger for ${id}`);
+      }
+
+      // Lifting the suspension makes the account eligible again.
+      await sql`update users set status = 'active' where id = ${suspended}`;
+      assert.equal((await tokenRepository.grantFirstShareReward(suspended)).status, "granted");
+    });
+
+    it("moves the entry to the deleted account's tombstone, leaving no trace of the account id", async () => {
+      const result = await tokenRepository.grantFirstShareReward(userId);
+      assert.equal(result.status, "granted");
+      if (result.status !== "granted") return;
+
+      assert.deepEqual(await userRepository.deleteAccount(userId), { status: "deleted" });
+
+      const [row] = await sql<{ user_id: string; idempotency_key: string }[]>`
+        select user_id, idempotency_key from token_ledger where id = ${result.entry.id}`;
+      assert.match(row.user_id, /^deleted_/);
+      assert.equal(row.idempotency_key, result.entry.idempotencyKey, "the entry itself is unchanged");
+      assert.equal(await leftoverMentions(userId), 0, "the deleted account's id is still in the ledger");
+      await assertConsistent(row.user_id, 2);
+      // Neither the gone account nor its tombstone can claim again.
+      assert.deepEqual(await tokenRepository.grantFirstShareReward(userId), { status: "ineligible" });
+      assert.deepEqual(await tokenRepository.grantFirstShareReward(row.user_id), { status: "ineligible" });
+      await assertConsistent(row.user_id, 2);
+    });
+
+    it("is once per account: a new account under the same id is eligible again", async () => {
+      assert.equal((await tokenRepository.grantFirstShareReward(userId)).status, "granted");
+      assert.deepEqual(await userRepository.deleteAccount(userId), { status: "deleted" });
+      // The same Google sub signing in again creates a fresh row with no history.
+      await sql`insert into users (id, email, role) values (${userId}, ${`${userId}@example.test`}, 'user')`;
+
+      const again = await tokenRepository.grantFirstShareReward(userId);
+
+      assert.equal(again.status, "granted");
+      assert.equal((await rewardRows(userId)).length, 1);
+      await assertConsistent(userId, 2);
+    });
+
+    it("stays consistent when a claim races the account's deletion", async () => {
+      const [claim, deletion] = await Promise.all([
+        tokenRepository.grantFirstShareReward(userId),
+        userRepository.deleteAccount(userId),
+      ]);
+
+      assert.deepEqual(deletion, { status: "deleted" });
+      assert.ok(claim.status === "granted" || claim.status === "ineligible", claim.status);
+      assert.equal(await leftoverMentions(userId), 0);
+      if (claim.status === "granted") {
+        const [row] = await sql<{ user_id: string }[]>`select user_id from token_ledger where id = ${claim.entry.id}`;
+        assert.match(row.user_id, /^deleted_/);
+        await assertConsistent(row.user_id, 2);
+      }
+    });
+
+    it("has the partial unique index reject a direct second reward entry, but no other entry type", async () => {
+      assert.equal((await tokenRepository.grantFirstShareReward(userId)).status, "granted");
+
+      await assert.rejects(
+        sql`
+          insert into token_ledger (id, user_id, amount, type, balance_after, reference_type, idempotency_key)
+          values (${crypto.randomUUID()}, ${userId}, 2, 'grant', 4, 'first_share_reward', ${`first_share_reward:${crypto.randomUUID()}`})`,
+        /token_ledger_first_share_reward_idx/
+      );
+      await grant(userId, 1);
+      await grant(userId, 1);
+      assert.equal((await rewardRows(userId)).length, 1);
+      await assertConsistent(userId, 4);
+    });
+
+    it("keeps the reward entry append-only (migration 0022)", async () => {
+      const result = await tokenRepository.grantFirstShareReward(userId);
+      assert.equal(result.status, "granted");
+      if (result.status !== "granted") return;
+      const id = result.entry.id;
+
+      await assert.rejects(sql`update token_ledger set amount = 200 where id = ${id}`, /token_ledger is append-only/);
+      await assert.rejects(sql`update token_ledger set reference_type = 'admin_grant' where id = ${id}`, /token_ledger is append-only/);
+      await assert.rejects(sql`update token_ledger set reference_id = ${userId} where id = ${id}`, /token_ledger is append-only/);
+      await assert.rejects(sql`delete from token_ledger where id = ${id}`, /token_ledger is append-only/);
+      await assertConsistent(userId, 2);
     });
   });
 
@@ -401,6 +613,35 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
       const max = await grantTokens({ userId, amount: 1000, requestId: crypto.randomUUID() });
       assert.equal(max.ok, true);
       await assertConsistent(userId, 1000);
+    });
+
+    // Same session stub as grantTokens; the reward action takes no arguments at all.
+    describe("claimFirstShareReward action", () => {
+      let claimFirstShareReward: typeof import("./reward-actions").claimFirstShareReward;
+      before(async () => {
+        ({ claimFirstShareReward } = await import("./reward-actions"));
+      });
+
+      it("requires a session and writes nothing without one", async () => {
+        sessionUser = null;
+        const ledgerBefore = await ledgerCount();
+        assert.deepEqual(await claimFirstShareReward(), { status: "auth-required" });
+        assert.equal(await ledgerCount(), ledgerBefore);
+      });
+
+      it("credits the session's own account once", async () => {
+        sessionUser = { id: userId, role: "user" };
+        assert.deepEqual(await claimFirstShareReward(), { status: "granted", amount: 2, balance: 2 });
+        assert.deepEqual(await claimFirstShareReward(), { status: "already-rewarded" });
+        await assertConsistent(userId, 2);
+      });
+
+      it("refuses a suspended session account", async () => {
+        await sql`update users set status = 'suspended' where id = ${userId}`;
+        sessionUser = { id: userId, role: "user" };
+        assert.deepEqual(await claimFirstShareReward(), { status: "ineligible" });
+        await assertConsistent(userId, 0);
+      });
     });
 
     async function deleteAndFindTombstoneForAction(id: string): Promise<string> {
