@@ -509,7 +509,11 @@ export const physicalOrders = pgTable("physical_orders", {
 // `token_wallets.balance` is its projection and the row an atomic
 // conditional `UPDATE ... WHERE balance >= n` locks, so the invariant is
 // balance == SUM(ledger.amount) per user. Ledger rows are never updated or
-// deleted — corrections are new `adjustment`/`refund` rows. Every
+// deleted — corrections are new `adjustment`/`refund` rows. Migration 0022's
+// triggers enforce that (the one exception: account deletion re-pointing
+// user_id/created_by to its own tombstone, re-checked at COMMIT; the same
+// migration makes tombstone rows immutable and lets deleted_at be set only
+// by INSERT). Every
 // constraint below is the database-level backstop, not a substitute for
 // the repository's atomic write path.
 

@@ -506,6 +506,9 @@ class DrizzleUserRepository implements UserRepository {
       await tx.update(digitalAccessCodes).set({ redeemedBy: tombstoneId }).where(eq(digitalAccessCodes.redeemedBy, userId));
       await tx.update(memoryPdfUnlocks).set({ userId: tombstoneId }).where(eq(memoryPdfUnlocks.userId, userId));
       await tx.update(tokenWallets).set({ userId: tombstoneId, updatedAt: now }).where(eq(tokenWallets.userId, userId));
+      // token_ledger's guard triggers (migration 0022) accept only this re-pointing, only to a
+      // tombstone inserted by this same top-level transaction (above, never in a savepoint), and —
+      // checked at COMMIT — only if the user row is gone by then (the DELETE at the end).
       await tx.update(tokenLedger).set({ userId: tombstoneId }).where(eq(tokenLedger.userId, userId));
       await tx.update(messageReports).set({ reporterId: tombstoneId }).where(eq(messageReports.reporterId, userId));
 
