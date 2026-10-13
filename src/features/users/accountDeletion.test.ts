@@ -3,9 +3,12 @@ import { afterEach, beforeEach, describe, it, mock } from "node:test";
 import type { AppleRevokeOutcome } from "@/features/auth/lib/appleRevoke";
 import {
   deleteOwnAccountForUser,
+  deleteOwnAccountWithSession,
   deleteUserAccount,
   type AccountDeletionOutcome,
   type DeleteOwnAccountDeps,
+  type DeleteOwnAccountServiceResult,
+  type DeleteOwnAccountSessionDeps,
 } from "./accountDeletion";
 import type { DeleteAccountResult } from "./repository";
 import type { User, UserRole } from "./types";
@@ -108,6 +111,108 @@ describe("deleteOwnAccountForUser", () => {
     const args = errorLog.mock.calls[0].arguments;
     assert.deepEqual(args, ["[account-deletion] transaction failed", "TypeError"]);
     assert.ok(!JSON.stringify(args).includes("person@example.com"));
+  });
+});
+
+describe("deleteOwnAccountWithSession (the deleteOwnAccount server action's flow)", () => {
+  let errorLog: ReturnType<typeof mock.method>;
+  beforeEach(() => {
+    errorLog = mock.method(console, "error", () => {});
+  });
+  afterEach(() => {
+    mock.restoreAll();
+  });
+
+  type Session = Awaited<ReturnType<DeleteOwnAccountSessionDeps["auth"]>>;
+
+  function sessionDeps(options: { session?: Session; result?: DeleteOwnAccountServiceResult; signOutError?: Error } = {}) {
+    const deletions: { userId: string; confirmationEmail: string }[] = [];
+    const signOuts: unknown[] = [];
+    const deps: DeleteOwnAccountSessionDeps = {
+      async auth() {
+        return options.session === undefined ? { user: { id: USER_ID, role: "user" } } : options.session;
+      },
+      async signOut(signOutOptions) {
+        signOuts.push(signOutOptions);
+        if (options.signOutError) throw options.signOutError;
+      },
+      async deleteOwnAccount(params) {
+        deletions.push(params);
+        return options.result ?? { ok: true };
+      },
+    };
+    return { deps, deletions, signOuts };
+  }
+
+  for (const session of [null, {}, { user: null }, { user: { id: "" } }, { user: { id: null, role: "user" } }] as Session[]) {
+    it(`returns auth-required without deleting or signing out for session ${JSON.stringify(session)}`, async () => {
+      const { deps, deletions, signOuts } = sessionDeps({ session });
+      assert.deepEqual(await deleteOwnAccountWithSession(EMAIL, deps), { ok: false, error: "auth-required" });
+      assert.deepEqual(deletions, []);
+      assert.deepEqual(signOuts, []);
+    });
+  }
+
+  it("refuses an admin session without deleting or signing out", async () => {
+    const { deps, deletions, signOuts } = sessionDeps({ session: { user: { id: USER_ID, role: "admin" } } });
+    assert.deepEqual(await deleteOwnAccountWithSession(EMAIL, deps), { ok: false, error: "admin-account" });
+    assert.deepEqual(deletions, []);
+    assert.deepEqual(signOuts, []);
+  });
+
+  it("deletes the session's own account with the typed confirmation, then signs out once", async () => {
+    const { deps, deletions, signOuts } = sessionDeps({ session: { user: { id: "session-user", role: "user" } } });
+    assert.deepEqual(await deleteOwnAccountWithSession(" typed@example.com ", deps), { ok: true });
+    assert.deepEqual(deletions, [{ userId: "session-user", confirmationEmail: " typed@example.com " }]);
+    assert.deepEqual(signOuts, [{ redirect: false }]);
+    assert.equal(errorLog.mock.callCount(), 0);
+  });
+
+  const failures: [DeleteOwnAccountServiceResult, Awaited<ReturnType<typeof deleteOwnAccountWithSession>>][] = [
+    [{ ok: false, error: "confirmation-mismatch" }, { ok: false, error: "confirmation-mismatch" }],
+    [{ ok: false, error: "account-not-found" }, { ok: false, error: "auth-required" }],
+    [{ ok: false, error: "admin-account" }, { ok: false, error: "admin-account" }],
+    [{ ok: false, error: "apple-revoke-failed" }, { ok: false, error: "apple-revoke-failed" }],
+    [{ ok: false, error: "failed" }, { ok: false, error: "failed" }],
+  ];
+  for (const [result, expected] of failures) {
+    it(`maps ${result.ok ? "ok" : result.error} to ${JSON.stringify(expected)} and doesn't sign out`, async () => {
+      const { deps, deletions, signOuts } = sessionDeps({ result });
+      assert.deepEqual(await deleteOwnAccountWithSession(EMAIL, deps), expected);
+      assert.equal(deletions.length, 1);
+      assert.deepEqual(signOuts, []);
+    });
+  }
+
+  it("doesn't sign out when the deletion throws", async () => {
+    const { deps, signOuts } = sessionDeps();
+    deps.deleteOwnAccount = async () => {
+      throw new Error("unexpected");
+    };
+    await assert.rejects(deleteOwnAccountWithSession(EMAIL, deps), /unexpected/);
+    assert.deepEqual(signOuts, []);
+  });
+
+  it("still reports the committed deletion as ok when sign-out fails, logging only the error's name", async () => {
+    const signOutError = new TypeError(`Invalid URL for ${EMAIL} token=secret-session-token`);
+    const { deps, deletions, signOuts } = sessionDeps({ signOutError });
+    assert.deepEqual(await deleteOwnAccountWithSession(EMAIL, deps), { ok: true });
+    assert.equal(deletions.length, 1);
+    assert.deepEqual(signOuts, [{ redirect: false }]);
+    assert.equal(errorLog.mock.callCount(), 1);
+    const args = errorLog.mock.calls[0].arguments;
+    assert.deepEqual(args, ["[account-deletion] sign-out after deletion failed", "TypeError"]);
+    const logged = JSON.stringify(args);
+    for (const secret of [EMAIL, USER_ID, "secret-session-token", "Invalid URL"]) assert.ok(!logged.includes(secret), secret);
+  });
+
+  it("logs a non-Error sign-out failure as unknown", async () => {
+    const { deps } = sessionDeps();
+    deps.signOut = async () => {
+      throw "a string";
+    };
+    assert.deepEqual(await deleteOwnAccountWithSession(EMAIL, deps), { ok: true });
+    assert.deepEqual(errorLog.mock.calls[0].arguments, ["[account-deletion] sign-out after deletion failed", "unknown"]);
   });
 });
 

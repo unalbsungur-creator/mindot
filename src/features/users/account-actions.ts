@@ -1,14 +1,11 @@
 "use server";
 
 import { auth, signOut } from "@/features/auth/auth";
-import { deleteOwnAccountForUser } from "./accountDeletion";
+import { deleteOwnAccountWithSession, type DeleteOwnAccountActionError, type DeleteOwnAccountActionResult } from "./accountDeletion";
 
-export type DeleteAccountError = "auth-required" | "admin-account" | "confirmation-mismatch" | "apple-revoke-failed" | "failed";
+export type DeleteAccountError = DeleteOwnAccountActionError;
 
-export interface DeleteAccountActionResult {
-  ok: boolean;
-  error?: DeleteAccountError;
-}
+export type DeleteAccountActionResult = DeleteOwnAccountActionResult;
 
 /**
  * Deletes the signed-in user's own account (see
@@ -17,7 +14,9 @@ export interface DeleteAccountActionResult {
  * all, so it can never target someone else's. The caller must retype the
  * account's email as the second confirmation step; deleteOwnAccountForUser
  * (./accountDeletion) checks it server-side against the database row,
- * never trusted from the client.
+ * never trusted from the client. The flow itself is
+ * deleteOwnAccountWithSession (./accountDeletion); this action only
+ * supplies Auth.js's `auth` and `signOut`.
  *
  * Replay-safe: after a successful deletion the session no longer resolves
  * (the jwt callback's account check), so a repeated call is simply
@@ -26,17 +25,8 @@ export interface DeleteAccountActionResult {
  * same-origin check, so this can't be triggered cross-site.
  */
 export async function deleteOwnAccount(confirmationEmail: string): Promise<DeleteAccountActionResult> {
-  const session = await auth();
-  if (!session?.user?.id) return { ok: false, error: "auth-required" };
-  if (session.user.role === "admin") return { ok: false, error: "admin-account" };
-
-  const result = await deleteOwnAccountForUser({ userId: session.user.id, confirmationEmail });
-  if (!result.ok) {
-    return { ok: false, error: result.error === "account-not-found" ? "auth-required" : result.error };
-  }
-
-  // Clear this browser's cookie now; every other copy of the session is
-  // already dead via the jwt callback's account check.
-  await signOut({ redirect: false });
-  return { ok: true };
+  return deleteOwnAccountWithSession(confirmationEmail, {
+    auth: () => auth(),
+    signOut: (options) => signOut(options),
+  });
 }

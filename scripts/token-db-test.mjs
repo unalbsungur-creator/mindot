@@ -25,7 +25,13 @@ import postgres from "postgres";
 
 const IMAGE = "postgres:16-alpine";
 const DATABASE = "mindot_token_test";
-const TEST_FILE = "src/features/tokens/repository.db.test.ts";
+// Defaults to the token tests; `node scripts/token-db-test.mjs <file.db.test.ts>…` runs other
+// database test files against the same kind of throwaway container (see package.json's test:db:*).
+const TEST_FILES = process.argv.length > 2 ? process.argv.slice(2) : ["src/features/tokens/repository.db.test.ts"];
+if (!TEST_FILES.every((file) => /^src\/[\w/.-]+\.db\.test\.ts$/.test(file))) {
+  console.error("Only src/**/*.db.test.ts files can be run here.");
+  process.exit(2);
+}
 const APP_ROLE = "mindot_app";
 const name = `mindot-token-test-${randomBytes(4).toString("hex")}`;
 // Hex only, so both are safe to inline in CREATE ROLE below.
@@ -101,7 +107,7 @@ try {
         for (const key of ["DATABASE_URL", "STAGING_DATABASE_URL", "APP_ENV", "PGHOST", "PGDATABASE", "PGUSER", "PGPASSWORD"]) {
           delete env[key];
         }
-        const tests = spawnSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", "--experimental-test-module-mocks", "--test", TEST_FILE], {
+        const tests = spawnSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", "--experimental-test-module-mocks", "--test", ...TEST_FILES], {
           env,
           stdio: "inherit",
         });
