@@ -8,7 +8,7 @@
         // provides — Workers has no filesystem/node_modules at runtime, so this
         // flag (not a bundler setting) is what makes those imports resolve at all.
         "name": "mindot",
-        "preview_urls": true,
+        "preview_urls": false,
         "compatibility_date": "2026-08-31",
         "compatibility_flags": [
                 "nodejs_compat"
