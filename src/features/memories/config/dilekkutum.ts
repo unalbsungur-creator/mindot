@@ -1,3 +1,5 @@
+import { publicPurchaseUrl } from "../lib/publicPurchaseUrl";
+
 /**
  * The physical fulfilment partner's storefront. Centralized so it's never
  * hardcoded into a component — override via DILEKKUTUM_URL if the
@@ -8,10 +10,16 @@
  * flow" in CLAUDE.md.
  *
  * EPIC 053: defaults to `null` (same fail-safe shape as
- * `shoppier.ts`'s `SHOPPIER_PRODUCT_URL`) rather than the real live
+ * `shoppier.ts`'s `getShoppierProductUrl`) rather than the real live
  * storefront — the pre-launch commercial phase isn't active yet, so an
  * unset env var must never silently hand a real user a live external
  * purchase link. Set DILEKKUTUM_URL once the physical-gift flow is
  * actually ready to go live.
+ *
+ * Server-only, read per call — see shoppier.ts. Server code (the
+ * createMemoryProject check, the /memory page) calls this; the client
+ * component gets the URL as a prop.
  */
-export const DILEKKUTUM_URL = process.env.DILEKKUTUM_URL || null;
+export function getDilekkutumUrl(): string | null {
+  return publicPurchaseUrl(process.env.DILEKKUTUM_URL);
+}

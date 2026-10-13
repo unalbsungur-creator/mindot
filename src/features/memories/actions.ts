@@ -4,7 +4,7 @@ import { auth } from "@/features/auth/auth";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getPublicMessageById } from "@/features/board/repository";
 import { tokenRepository } from "@/features/tokens/repository";
-import { DILEKKUTUM_URL } from "./config/dilekkutum";
+import { getDilekkutumUrl } from "./config/dilekkutum";
 import { validateNewMemoryProject } from "./lib/outputPolicy";
 import { manualDigitalPurchaseProvider } from "./providers/manualProvider";
 import {
@@ -68,7 +68,7 @@ export async function createMemoryProject(input: CreateMemoryProjectInput): Prom
   // Before any lookup: the input is client-controlled whatever its
   // TypeScript type says, and an unknown enum value must be a clean error,
   // not a database 500.
-  const invalid = validateNewMemoryProject(input, { physicalGiftAvailable: DILEKKUTUM_URL !== null });
+  const invalid = validateNewMemoryProject(input, { physicalGiftAvailable: getDilekkutumUrl() !== null });
   if (invalid) return { ok: false, error: invalid };
 
   const message = await getPublicMessageById(input.messageId);

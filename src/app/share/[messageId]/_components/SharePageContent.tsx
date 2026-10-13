@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { PageContainer } from "@/components/layout/PageContainer";
 import type { PublicMessageDetail } from "@/features/board/types";
-import { SHOPPIER_PRODUCT_URL } from "@/features/memories/config/shoppier";
 import { Note } from "@/features/notes/components/Note";
 import type { NoteData } from "@/features/notes/types";
 import { ShareCardPicker } from "@/features/sharing/components/ShareCardPicker";
@@ -24,6 +23,8 @@ interface SharePageContentProps {
   firstShareRewardAmount: number;
   /** Whether to offer the reward — false once this account has it. Display only, like the amount. */
   firstShareRewardAvailable: boolean;
+  /** The Shoppier product link, read by the server page — never env in this client component. null = not available yet. */
+  shoppierProductUrl: string | null;
 }
 
 export function SharePageContent({
@@ -33,6 +34,7 @@ export function SharePageContent({
   signedIn,
   firstShareRewardAmount,
   firstShareRewardAvailable,
+  shoppierProductUrl,
 }: SharePageContentProps) {
   const { dictionary } = useLocale();
   // EPIC 017: lifted out of ShareCardPicker (which otherwise owns this
@@ -168,9 +170,9 @@ export function SharePageContent({
             already-working /memory/[messageId] flow, never re-implemented
             here. */}
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-canvas p-5 text-center">
-          {SHOPPIER_PRODUCT_URL ? (
+          {shoppierProductUrl ? (
             <a
-              href={SHOPPIER_PRODUCT_URL}
+              href={shoppierProductUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs font-medium text-orange-ink hover:underline"

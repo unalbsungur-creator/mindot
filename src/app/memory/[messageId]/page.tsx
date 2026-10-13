@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { auth } from "@/features/auth/auth";
 import { getPublicMessageById, isMessageAuthorBlockedBy } from "@/features/board/repository";
 import { BlockedNoteNotice } from "@/features/blocks/components/BlockedNoteNotice";
+import { getDilekkutumUrl } from "@/features/memories/config/dilekkutum";
+import { getShoppierProductUrl } from "@/features/memories/config/shoppier";
 import {
   digitalAccessCodeRepository,
   memoryPdfUnlockRepository,
@@ -82,6 +84,8 @@ export default async function MemoryPage({ params }: PageProps<"/memory/[message
       isSignedIn={!!session?.user?.id}
       existingProjects={existingProjects}
       tokenBalance={tokenBalance}
+      // Only the two public storefront links, read on the server per request.
+      purchaseLinks={{ shoppierProductUrl: getShoppierProductUrl(), dilekkutumUrl: getDilekkutumUrl() }}
     />
   );
 }
