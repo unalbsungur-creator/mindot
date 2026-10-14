@@ -169,6 +169,20 @@
       "when": 1791809597974,
       "tag": "0023_first_share_reward",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791975595810,
+      "tag": "0024_note_text_align",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791989814430,
+      "tag": "0025_public_wall_consent",
+      "breakpoints": true
     }
   ]
 }
