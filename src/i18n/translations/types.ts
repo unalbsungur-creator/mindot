@@ -382,6 +382,34 @@ export interface Dictionary {
     grantErrorConflict: string;
     grantErrorUnauthorized: string;
   };
+  /** Admin Token history (/admin/tokens) — read-only view of the ledger. */
+  tokenHistoryAdmin: {
+    title: string;
+    subtitle: string;
+    orderingNote: string;
+    emptyTitle: string;
+    emptyBody: string;
+    endTitle: string;
+    unauthorizedTitle: string;
+    unauthorizedBody: string;
+    paginationLabel: string;
+    olderPage: string;
+    newestPage: string;
+    userLabel: string;
+    createdByLabel: string;
+    balanceAfterLabel: string;
+    noteLabel: string;
+    externalLabel: string;
+    deletedAccount: string;
+    creditLabel: string;
+    debitLabel: string;
+    typeGrant: string;
+    typePurchase: string;
+    typeSubscription: string;
+    typeConsume: string;
+    typeRefund: string;
+    typeAdjustment: string;
+  };
   invitationsAdmin: {
     title: string;
     subtitle: string;
@@ -496,6 +524,9 @@ export interface Dictionary {
     pdfUnlocking: string;
     pdfInsufficientTokens: string;
     pdfUnlockError: string;
+    /** PdfBackgroundPicker: choosing the personal PDF's background design — free, never spends a Token. */
+    pdfBackgroundHeading: string;
+    pdfBackgroundHint: string;
     /**
      * i18n audit: display names for each frame template
      * (`features/memories/config/frameTemplates.ts`), keyed by frame id —
@@ -630,8 +661,18 @@ export interface Dictionary {
     socialTiktok: string;
     socialInstagramHint: string;
     socialTiktokHint: string;
+    /** A share sheet that ended without a share (dismissed, or failed inside the browser): neutral, offers the download below. */
+    shareNotCompleted: string;
+    /** The download offered with `shareNotCompleted` — the same image, never counted as a share. */
+    downloadImage: string;
     /** EPIC 016: shown persistently under the Facebook/Instagram/TikTok row whenever this device supports native file sharing — sets expectation that pressing any of the three opens the phone's own share menu, not that platform's homepage. */
     socialNativeShareHint: string;
+    /** /share/[messageId]'s main button while the first-share reward is on offer — {count} is the Token amount. */
+    shareAndEarnButton: string;
+    /** Under that button: the share menu opens, and the reward needs a completed share. Never promises publishing. */
+    firstShareRewardHint: string;
+    /** First-share reward notice, shown only when the server credited it — {count} is the Token amount. Never claims anything was published. */
+    firstShareReward: string;
     premiumHeading: string;
     premiumBody: string;
     premiumDownloadButton: string;

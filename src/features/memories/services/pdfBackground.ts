@@ -1,38 +1,37 @@
 import { readPublicAsset } from "@/features/sharing/services/publicAsset";
-import { PDF_BACKGROUND_SIZE } from "./renderer";
+import { PDF_BACKGROUND_SIZE, type PdfBackground } from "../config/pdfBackgrounds";
+import { readImageSize } from "../lib/imageSize";
 
-/** PDF Download V2's background (see renderer.tsx's PdfDownloadDocument) — the designer's language-free artwork. */
-export const PDF_BACKGROUND_PATH = "/images/pdf/mindot-pdf-background-v2-clean.png";
-
-let backgroundPromise: Promise<Buffer> | null = null;
+const backgroundPromises = new Map<string, Promise<Buffer>>();
 
 /**
- * The background PNG's raw bytes, read once per isolate (the same
- * `readPublicAsset` path the fonts and card artwork use — the Worker's
- * `ASSETS` binding in production) and handed to react-pdf as a Buffer, not
- * a base64 data URI: pdfkit embeds an opaque RGB PNG's compressed image data
- * as-is, so the page costs no decode/re-encode of the background.
+ * A PDF Download V2 background's raw bytes (config/pdfBackgrounds.ts), read
+ * once per design per isolate (the same `readPublicAsset` path the fonts and
+ * card artwork use — the Worker's `ASSETS` binding in production) and handed
+ * to react-pdf as a Buffer, not a base64 data URI: pdfkit embeds an opaque
+ * RGB PNG's compressed data, or a JPEG's bytes, as-is, so the page costs no
+ * decode/re-encode of the background.
  *
- * The card's placement is measured against this asset's pixel geometry, so
+ * The card's placement is measured against the asset's pixel geometry, so
  * a replacement with different dimensions fails loudly here instead of
  * silently misplacing the card.
  */
-export function loadPdfBackground(): Promise<Buffer> {
-  if (!backgroundPromise) {
-    backgroundPromise = readPublicAsset(PDF_BACKGROUND_PATH)
-      .then((arrayBuffer) => {
-        const buffer = Buffer.from(arrayBuffer);
-        const width = buffer.readUInt32BE(16);
-        const height = buffer.readUInt32BE(20);
-        if (width !== PDF_BACKGROUND_SIZE.width || height !== PDF_BACKGROUND_SIZE.height) {
-          throw new Error(`${PDF_BACKGROUND_PATH} is ${width}x${height}; renderer.tsx is measured against ${PDF_BACKGROUND_SIZE.width}x${PDF_BACKGROUND_SIZE.height}.`);
-        }
-        return buffer;
-      })
-      .catch((error) => {
-        backgroundPromise = null;
-        throw error;
-      });
+export function loadPdfBackground(background: PdfBackground): Promise<Buffer> {
+  let promise = backgroundPromises.get(background.id);
+  if (!promise) {
+    promise = readPublicAsset(background.asset).then((arrayBuffer) => {
+      const buffer = Buffer.from(arrayBuffer);
+      const size = readImageSize(buffer);
+      if (size?.format !== background.assetFormat || size.width !== PDF_BACKGROUND_SIZE.width || size.height !== PDF_BACKGROUND_SIZE.height) {
+        const actual = size ? `${size.format} ${size.width}x${size.height}` : "unreadable";
+        throw new Error(
+          `${background.asset} is ${actual}; config/pdfBackgrounds.ts expects ${background.assetFormat} ${PDF_BACKGROUND_SIZE.width}x${PDF_BACKGROUND_SIZE.height}.`
+        );
+      }
+      return buffer;
+    });
+    promise.catch(() => backgroundPromises.delete(background.id));
+    backgroundPromises.set(background.id, promise);
   }
-  return backgroundPromise;
+  return promise;
 }

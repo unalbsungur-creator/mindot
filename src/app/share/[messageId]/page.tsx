@@ -1,6 +1,8 @@
 import { auth } from "@/features/auth/auth";
 import { getPublicMessageById, isMessageAuthorBlockedBy } from "@/features/board/repository";
 import { BlockedNoteNotice } from "@/features/blocks/components/BlockedNoteNotice";
+import { getShoppierProductUrl } from "@/features/memories/config/shoppier";
+import { FIRST_SHARE_REWARD_AMOUNT, tokenRepository } from "@/features/tokens/repository";
 import { getAppUrl, getRequestOrigin } from "@/lib/env";
 import { SharePageContent } from "./_components/SharePageContent";
 
@@ -28,5 +30,32 @@ export default async function SharePage({ params }: PageProps<"/share/[messageId
   const origin = (await getRequestOrigin()) ?? getAppUrl();
   const pageUrl = new URL(`/share/${messageId}`, origin).toString();
 
-  return <SharePageContent messageId={messageId} message={message} pageUrl={pageUrl} />;
+  // Only whether someone is signed in — the first-share reward's account
+  // is re-read from the session by its Server Action, never sent from here.
+  // The amount is display-only here (the offer's label); what is actually
+  // credited is decided again by the reward action itself.
+  // Whether to offer the reward at all is display-only too: an account that
+  // already has it isn't offered it again. If the lookup fails the offer
+  // stays (the earlier behaviour) — the claim is still bounded server-side.
+  let firstShareRewardAvailable = false;
+  if (session?.user?.id) {
+    try {
+      firstShareRewardAvailable = !(await tokenRepository.hasFirstShareReward(session.user.id));
+    } catch (error) {
+      console.error("[share] first-share reward lookup failed", error instanceof Error ? error.name : "unknown");
+      firstShareRewardAvailable = true;
+    }
+  }
+  return (
+    <SharePageContent
+      messageId={messageId}
+      message={message}
+      pageUrl={pageUrl}
+      signedIn={!!session?.user?.id}
+      firstShareRewardAmount={FIRST_SHARE_REWARD_AMOUNT}
+      firstShareRewardAvailable={firstShareRewardAvailable}
+      // Only the public product link, read on the server per request.
+      shoppierProductUrl={getShoppierProductUrl()}
+    />
+  );
 }

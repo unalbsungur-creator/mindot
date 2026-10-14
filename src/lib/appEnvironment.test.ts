@@ -115,6 +115,7 @@ describe("wrangler.jsonc", () => {
 
   it("leaves production as the unchanged top-level Worker", () => {
     assert.equal(config.name, "mindot");
+    assert.equal(config.preview_urls, false, "production must never serve preview URLs");
     assert.ok(productionHyperdriveId, "production HYPERDRIVE binding must stay configured");
     assert.equal(config.vars?.APP_ENV, undefined);
     assert.ok(!(config.routes ?? []).some((route) => route.pattern.includes("staging")));

@@ -509,7 +509,11 @@ export const physicalOrders = pgTable("physical_orders", {
 // `token_wallets.balance` is its projection and the row an atomic
 // conditional `UPDATE ... WHERE balance >= n` locks, so the invariant is
 // balance == SUM(ledger.amount) per user. Ledger rows are never updated or
-// deleted — corrections are new `adjustment`/`refund` rows. Every
+// deleted — corrections are new `adjustment`/`refund` rows. Migration 0022's
+// triggers enforce that (the one exception: account deletion re-pointing
+// user_id/created_by to its own tombstone, re-checked at COMMIT; the same
+// migration makes tombstone rows immutable and lets deleted_at be set only
+// by INSERT). Every
 // constraint below is the database-level backstop, not a substitute for
 // the repository's atomic write path.
 
@@ -578,6 +582,13 @@ export const tokenLedger = pgTable(
     uniqueIndex("token_ledger_external_ref_idx")
       .on(table.externalProvider, table.externalReference)
       .where(sql`${table.externalProvider} is not null and ${table.externalReference} is not null`),
+    // The first-share reward is credited at most once per account. The
+    // repository's wallet lock already serializes the claim; this is the
+    // backstop. A deleted account's entry moves to its own fresh tombstone,
+    // so re-pointing never collides here.
+    uniqueIndex("token_ledger_first_share_reward_idx")
+      .on(table.userId)
+      .where(sql`${table.referenceType} = 'first_share_reward'`),
   ]
 );
 

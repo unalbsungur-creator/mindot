@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { downloadFile, shareFile } from "@/features/sharing/lib/nativeFileShare";
+import { memoryPdfUrl } from "../lib/memoryPdfUrl";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { cn } from "@/lib/cn";
 
@@ -35,9 +36,10 @@ function filenameFrom(response: Response, fallback: string): string {
  * iPhone/iPad. The PDF is rendered on demand, so the click may wait long
  * enough for iOS to drop the tap's user activation; the prepared file is
  * then kept and a second tap on "Save PDF" opens the sheet with a fresh one.
- * Never prefetched: the render is memory-heavy.
+ * Never prefetched: the render is memory-heavy. `backgroundId` (personal PDF
+ * only) picks the design, passed through as `?background=`.
  */
-export function PdfDownloadButton({ projectId, className }: { projectId: string; className?: string }) {
+export function PdfDownloadButton({ projectId, backgroundId, className }: { projectId: string; backgroundId?: string; className?: string }) {
   const { dictionary } = useLocale();
   const t = dictionary.memory;
   const [phase, setPhase] = useState<Phase>("idle");
@@ -73,7 +75,7 @@ export function PdfDownloadButton({ projectId, className }: { projectId: string;
     busyRef.current = true;
     setPhase("preparing");
     try {
-      const response = await fetch(`/api/memories/${projectId}/download`, { cache: "no-store", credentials: "same-origin" });
+      const response = await fetch(memoryPdfUrl(projectId, { backgroundId }), { cache: "no-store", credentials: "same-origin" });
       if (!response.ok || !(response.headers.get("content-type") ?? "").startsWith("application/pdf")) {
         setError(true);
         setPhase("idle");

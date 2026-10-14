@@ -34,6 +34,8 @@ export interface UserRepository {
   getById(id: string): Promise<User | null>;
   /** Batched lookup — used by the board's tile query to resolve avatars for a page of messages in one round trip instead of N. */
   getByIds(ids: string[]): Promise<User[]>;
+  /** Like getByIds, but never returns a deleted account's tombstone row (same `deleted_at IS NULL` rule as isActiveAccount). */
+  getActiveByIds(ids: string[]): Promise<User[]>;
   /**
    * Creates the user on first sign-in, or refreshes name/image on every
    * later sign-in. Deliberately never overwrites `role` on an existing
@@ -147,6 +149,16 @@ class DrizzleUserRepository implements UserRepository {
     if (ids.length === 0) return [];
     const db = getDb();
     const rows = await db.select().from(users).where(inArray(users.id, ids));
+    return rows.map(toUser);
+  }
+
+  async getActiveByIds(ids: string[]): Promise<User[]> {
+    if (ids.length === 0) return [];
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(users)
+      .where(and(inArray(users.id, ids), isNull(users.deletedAt)));
     return rows.map(toUser);
   }
 
@@ -506,6 +518,9 @@ class DrizzleUserRepository implements UserRepository {
       await tx.update(digitalAccessCodes).set({ redeemedBy: tombstoneId }).where(eq(digitalAccessCodes.redeemedBy, userId));
       await tx.update(memoryPdfUnlocks).set({ userId: tombstoneId }).where(eq(memoryPdfUnlocks.userId, userId));
       await tx.update(tokenWallets).set({ userId: tombstoneId, updatedAt: now }).where(eq(tokenWallets.userId, userId));
+      // token_ledger's guard triggers (migration 0022) accept only this re-pointing, only to a
+      // tombstone inserted by this same top-level transaction (above, never in a savepoint), and —
+      // checked at COMMIT — only if the user row is gone by then (the DELETE at the end).
       await tx.update(tokenLedger).set({ userId: tombstoneId }).where(eq(tokenLedger.userId, userId));
       await tx.update(messageReports).set({ reporterId: tombstoneId }).where(eq(messageReports.reporterId, userId));
 

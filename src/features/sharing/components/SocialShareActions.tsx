@@ -3,7 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { cn } from "@/lib/cn";
-import { downloadFile, fetchImageAsFile, shareFile, supportsFileShare } from "../lib/nativeFileShare";
+import {
+  downloadFile,
+  fetchImageAsFile,
+  hasUserActivation,
+  isCompletedShare,
+  offersDownloadAfterShare,
+  shareFile,
+  supportsFileShare,
+} from "../lib/nativeFileShare";
+import {
+  FACEBOOK_DIALOG_FEATURES,
+  facebookShareUrl,
+  isTouchPrimaryDevice,
+  socialShareRoute,
+  type SocialPlatform,
+} from "../lib/socialShare";
 
 interface SocialShareActionsProps {
   /** The absolute, real page URL for this thought — what Facebook's share dialog actually reads Open Graph tags from. */
@@ -13,47 +28,44 @@ interface SocialShareActionsProps {
   fileNamePrefix: string;
   /** EPIC 017: the format `imageUrl()` currently resolves to — used only to name the shared/downloaded file distinctly (e.g. `mindot-note-story.png`), matching `ShareCardPicker`'s own filename shape so a visitor sharing both formats never gets two files silently sharing one name. */
   formatId: string;
+  /** Called only after the OS share sheet completed ("shared") — never for a platform fallback (Facebook dialog, download), cancel or failure. */
+  onShared?: () => void;
 }
 
 /**
- * EPIC 016: real, honest platform hand-off — not a fake "posted for you"
- * action, and (as of this EPIC) no longer a button that just opens a
- * platform's homepage either.
+ * EPIC 016: real, honest platform hand-off — never a fake "posted for you"
+ * action. Which route each button takes is decided in `lib/socialShare.ts`:
  *
- * On a device that can actually accept a file into the OS share sheet
- * (`supportsFileShare()` — real feature detection, never a device/UA
- * guess), all three buttons hand the real generated PNG to
- * `navigator.share()`. Which app the visitor picks from that sheet
- * (Facebook, Instagram, TikTok, Messages, anything else installed) is the
- * OS's decision, not this component's — there is no web API that lets a
- * site target one specific app, so the three buttons converge on the same
- * call once native sharing is available. The persistent hint text below
- * the row exists specifically so this isn't a surprise: it tells the
- * visitor up front that pressing any of the three opens their phone's own
- * share menu.
+ * - Phones/tablets that can share a file (`supportsFileShare()` plus a
+ *   touch-primary device, `isTouchPrimaryDevice()`): all three buttons hand
+ *   the real generated PNG to `navigator.share()`. Which app the visitor
+ *   picks from that sheet is the OS's decision — no web API targets one
+ *   specific app — hence the persistent hint below the row.
+ * - Everywhere else, desktop browsers with file sharing included (their
+ *   share sheet rarely offers these apps), and as the fallback when the
+ *   sheet turns out unsupported at click time:
+ *   - Facebook: `sharer.php?u=<page>` — Facebook's web share dialog, no
+ *     app or app ID needed; it reads this page's own Open Graph tags.
+ *     Opened inside the click (no await before it), so it isn't blocked
+ *     as a popup.
+ *   - Instagram/TikTok: no upload endpoint a third-party site can use, so
+ *     the honest fallback is downloading the real file and saying plainly
+ *     that the visitor can upload it in the app or on the website — no app
+ *     or site is opened for them, and nothing claims it was posted.
  *
- * On a device without file-share support (most desktop browsers today),
- * each button falls back to the best *real* thing that platform supports:
- *   - Facebook: `sharer.php?u=<page>` — a genuine, no-app-ID-required share
- *     dialog that reads this page's own Open Graph tags. Still the
- *     officially-functional legacy endpoint (Meta's newer `dialog/share`
- *     requires an app ID this project doesn't have registered).
- *   - Instagram: there is no web upload endpoint for a third-party site at
- *     all (personal accounts have no public upload API, and Meta's Graph
- *     API publishing path requires a Business/Creator account + app
- *     review — irrelevant here). The only honest fallback is: download the
- *     real file, tell the visitor plainly, and stop — never open
- *     instagram.com and imply that helped.
- *   - TikTok: `tiktok.com/upload` is a real, existing desktop web upload
- *     page (requires the visitor's own TikTok login) that accepts a local
- *     file picker — download the file, then open that real page.
+ * Only a completed share sheet (`isCompletedShare`) calls `onShared` —
+ * opening Facebook's dialog or downloading never does.
  */
-export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix, formatId }: SocialShareActionsProps) {
+export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix, formatId, onShared }: SocialShareActionsProps) {
   const { dictionary } = useLocale();
-  const [nativeAvailable, setNativeAvailable] = useState(false);
+  // Share sheet for the platform buttons: file sharing AND touch-primary.
+  const [nativeSheet, setNativeSheet] = useState(false);
   const [hint, setHint] = useState<"instagram" | "tiktok" | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState(false);
+  // Same as ShareCardPicker: a share sheet that ended without a share gets a
+  // neutral note plus the same file as a download, keyed on the image URL.
+  const [notCompleted, setNotCompleted] = useState<{ file: File; imageUrl: string } | null>(null);
   // EPIC 017: same real re-entrancy guard as ShareCardPicker — `isBusy`
   // state drives the disabled UI, but a synchronous ref is what actually
   // blocks a rapid double/triple-click from firing multiple concurrent
@@ -65,7 +77,7 @@ export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix, formatId
     // Browser-only capability check — see LocaleProvider/onboarding for the
     // same "detect after mount, SSR-safe default" shape.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNativeAvailable(supportsFileShare());
+    setNativeSheet(supportsFileShare() && isTouchPrimaryDevice());
   }, []);
 
   // BUG FIX (EPIC 030): same root cause and fix as ShareCardPicker's own
@@ -91,11 +103,10 @@ export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix, formatId
   }, [resolvedImageUrl, fileNamePrefix, formatId]);
 
   function openFacebookDialog() {
-    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}`;
-    window.open(url, "_blank", "noopener,noreferrer,width=600,height=520");
+    window.open(facebookShareUrl(pageUrl), "_blank", FACEBOOK_DIALOG_FEATURES);
   }
 
-  async function handlePlatformClick(platform: "facebook" | "instagram" | "tiktok") {
+  async function handlePlatformClick(platform: SocialPlatform) {
     // Single guard held for the whole click — native attempt AND a possible
     // fallback — rather than two separate busy windows with a gap between
     // them; see the `busyRef` comment above for why this needs to be a ref,
@@ -104,16 +115,28 @@ export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix, formatId
     busyRef.current = true;
     setError(false);
     setHint(null);
+    setNotCompleted(null);
     setIsBusy(true);
     try {
-      if (nativeAvailable) {
+      if (socialShareRoute(platform, { nativeSheet }) === "native-sheet") {
         const file = fileRef.current ?? (await fetchImageAsFile(imageUrl(), `${fileNamePrefix}-${formatId}.png`));
         if (!file) {
           setError(true);
           return;
         }
-        const outcome = await shareFile(file, { title: "MINDOT", text: dictionary.share.shareText });
-        if (outcome === "shared" || outcome === "cancelled") return;
+        // Same as ShareCardPicker: no share attempt once the click's user
+        // activation is gone — this platform's own fallback below instead.
+        const outcome = hasUserActivation()
+          ? await shareFile(file, { title: "MINDOT", text: dictionary.share.shareText })
+          : "unsupported";
+        if (isCompletedShare(outcome)) {
+          onShared?.();
+          return;
+        }
+        if (offersDownloadAfterShare(outcome)) {
+          setNotCompleted({ file, imageUrl: resolvedImageUrl });
+          return;
+        }
         if (outcome === "failed") {
           setError(true);
           return;
@@ -123,28 +146,28 @@ export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix, formatId
         // than leaving the visitor stuck.
       }
 
+      // The non-sheet routes (socialShareRoute): Facebook's web dialog, else a download.
       if (platform === "facebook") {
         openFacebookDialog();
         return;
       }
 
-      const file = await fetchImageAsFile(imageUrl(), `${fileNamePrefix}-${formatId}.png`);
+      // Instagram/TikTok: download only — no app or site is opened for the
+      // visitor (see the component doc comment above).
+      const file = fileRef.current ?? (await fetchImageAsFile(imageUrl(), `${fileNamePrefix}-${formatId}.png`));
       if (!file) {
         setError(true);
         return;
       }
       downloadFile(file);
       setHint(platform);
-      if (platform === "tiktok") {
-        window.open("https://www.tiktok.com/upload", "_blank", "noopener,noreferrer");
-      }
-      // Instagram: deliberately no window.open — see the component doc
-      // comment above for why opening instagram.com isn't a real fallback.
     } finally {
       busyRef.current = false;
       setIsBusy(false);
     }
   }
+
+  const showNotCompleted = notCompleted !== null && notCompleted.imageUrl === resolvedImageUrl;
 
   const buttonClasses =
     // No `flex-1`: three fixed-content buttons (icon + label, deliberately
@@ -158,7 +181,9 @@ export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix, formatId
     // `flex-wrap` on the row is what actually fixes it: on a screen too
     // narrow for three, the third button wraps to its own line instead of
     // pushing the page wider.
-    "flex items-center justify-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-xs font-medium text-ink-soft shadow-card transition-colors hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange disabled:cursor-default disabled:opacity-60";
+    // Secondary to ShareCardPicker's main button: no fill or shadow, a
+    // lighter border — same size and focus ring, so still easy to tap.
+    "flex items-center justify-center gap-2 rounded-md border border-border/70 bg-transparent px-3 py-2 text-xs font-medium text-ink-soft transition-colors hover:border-border hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange disabled:cursor-default disabled:opacity-60";
 
   return (
     <div className="flex flex-col gap-2">
@@ -179,12 +204,12 @@ export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix, formatId
 
       {/* `hint` is only ever set by the fallback branch actually running
           (see handlePlatformClick) — checking that directly, rather than
-          the mount-time `nativeAvailable` flag, is deliberate: a click can
+          the mount-time `nativeSheet` flag, is deliberate: a click can
           still fall through to the fallback path even when
-          `nativeAvailable` was true at mount, since `shareFile()` re-checks
+          `nativeSheet` was true at mount, since `shareFile()` re-checks
           `navigator.canShare` fresh at click time (the real, current
           capability) rather than trusting a stale snapshot. */}
-      {nativeAvailable && !hint && !error && (
+      {nativeSheet && !hint && !error && !showNotCompleted && (
         <p role="status" className="text-xs text-ink-soft">
           {dictionary.share.socialNativeShareHint}
         </p>
@@ -198,6 +223,19 @@ export function SocialShareActions({ pageUrl, imageUrl, fileNamePrefix, formatId
         <p role="alert" className="text-xs text-red-600">
           {dictionary.share.error}
         </p>
+      )}
+      {showNotCompleted && (
+        <div role="status" className="flex flex-col items-start gap-1 text-xs text-ink-soft">
+          <p>{dictionary.share.shareNotCompleted}</p>
+          {/* A plain download — never onShared: it isn't a completed share. */}
+          <button
+            type="button"
+            onClick={() => downloadFile(notCompleted.file)}
+            className="rounded-sm font-medium text-navy underline underline-offset-2 hover:text-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
+          >
+            {dictionary.share.downloadImage}
+          </button>
+        </div>
       )}
     </div>
   );

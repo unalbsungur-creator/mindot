@@ -59,11 +59,11 @@ export async function grantTokens(input: {
   }
   if (typeof userId !== "string" || !userId) return { ok: false, error: "target-user-not-found" };
 
-  const target = await userRepository.getById(userId);
-  if (!target) return { ok: false, error: "target-user-not-found" };
+  // Not getById: a deleted account's tombstone row still exists, and must never be credited.
+  if (!(await userRepository.isActiveAccount(userId))) return { ok: false, error: "target-user-not-found" };
 
   const result = await tokenRepository.grantByAdmin({
-    userId: target.id,
+    userId,
     amount,
     adminId: admin.id,
     idempotencyKey: adminGrantIdempotencyKey(admin.id, requestId.toLowerCase()),

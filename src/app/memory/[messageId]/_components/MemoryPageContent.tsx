@@ -13,8 +13,6 @@ import {
   type MemoryActionError,
 } from "@/features/memories/actions";
 import { PersonalPdfAccess } from "@/features/memories/components/PersonalPdfAccess";
-import { DILEKKUTUM_URL } from "@/features/memories/config/dilekkutum";
-import { SHOPPIER_PRODUCT_URL } from "@/features/memories/config/shoppier";
 import type { MemoryCaptureMode, MemoryOutputType, MemoryProject, PhysicalOrder } from "@/features/memories/types";
 import { Note } from "@/features/notes/components/Note";
 import type { NoteData } from "@/features/notes/types";
@@ -39,6 +37,14 @@ interface MemoryPageContentProps {
   existingProjects: ExistingProjectView[];
   /** The signed-in user's token wallet balance, read server-side (0 when signed out). */
   tokenBalance: number;
+  /** Read by the server page — never env in this client component. */
+  purchaseLinks: PurchaseLinks;
+}
+
+/** Public storefront links; null = that flow isn't available yet. */
+export interface PurchaseLinks {
+  shoppierProductUrl: string | null;
+  dilekkutumUrl: string | null;
 }
 
 /** Page-wide PDF unlock state, so every personal_pdf panel shares one balance. */
@@ -66,7 +72,7 @@ const errorMessage = (dictionary: Dictionary): Record<MemoryActionError, string>
   "invalid-code": dictionary.memory.redeemError,
 });
 
-export function MemoryPageContent({ messageId, message, isSignedIn, existingProjects, tokenBalance }: MemoryPageContentProps) {
+export function MemoryPageContent({ messageId, message, isSignedIn, existingProjects, tokenBalance, purchaseLinks }: MemoryPageContentProps) {
   const { dictionary } = useLocale();
 
   const [balance, setBalance] = useState(tokenBalance);
@@ -139,8 +145,8 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
       // EPIC 053: never mint a real order number (or send anyone toward the
       // real DilekKutum storefront) while the pre-launch commercial phase
       // isn't active — same "unset env var means not live yet" fail-safe
-      // `SHOPPIER_PRODUCT_URL` already uses for the digital path below.
-      if (outputType === "physical_gift" && DILEKKUTUM_URL) {
+      // the Shoppier link already uses for the digital path below.
+      if (outputType === "physical_gift" && purchaseLinks.dilekkutumUrl) {
         const orderResult = await createPhysicalOrder(result.data.id);
         if (orderResult.ok && orderResult.data) physicalOrder = orderResult.data;
       }
@@ -177,7 +183,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
         <section className="flex flex-col gap-4">
           <h2 className="font-display text-xl font-medium text-navy">{dictionary.memory.existingProjectsHeading}</h2>
           {existingProjects.map((view) => (
-            <OutcomePanel key={view.project.id} view={view} pdfAccess={pdfAccess} />
+            <OutcomePanel key={view.project.id} view={view} pdfAccess={pdfAccess} purchaseLinks={purchaseLinks} />
           ))}
           {!showWizard && (
             <Button variant="ghost" onClick={() => setShowWizard(true)}>
@@ -228,7 +234,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
 
           {step === "result" && newProject && (
             <section className="rounded-lg border border-border bg-surface p-8">
-              <OutcomePanel view={newProject} pdfAccess={pdfAccess} />
+              <OutcomePanel view={newProject} pdfAccess={pdfAccess} purchaseLinks={purchaseLinks} />
             </section>
           )}
         </>
@@ -237,16 +243,24 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
   );
 }
 
-function OutcomePanel({ view, pdfAccess }: { view: ExistingProjectView; pdfAccess: PdfAccessState }) {
+function OutcomePanel({
+  view,
+  pdfAccess,
+  purchaseLinks,
+}: {
+  view: ExistingProjectView;
+  pdfAccess: PdfAccessState;
+  purchaseLinks: PurchaseLinks;
+}) {
   const { dictionary } = useLocale();
   const { project } = view;
   return (
     <div className="flex flex-col items-center gap-4">
       {project.outputType === "personal_pdf" && <PersonalPdfPanel project={project} pdfAccess={pdfAccess} />}
       {project.outputType === "digital_frame" && (
-        <DigitalAccessPanel project={project} initiallyGranted={view.accessGranted} />
+        <DigitalAccessPanel project={project} initiallyGranted={view.accessGranted} shoppierProductUrl={purchaseLinks.shoppierProductUrl} />
       )}
-      {project.outputType === "physical_gift" && <PhysicalOrderPanel order={view.physicalOrder} />}
+      {project.outputType === "physical_gift" && <PhysicalOrderPanel order={view.physicalOrder} dilekkutumUrl={purchaseLinks.dilekkutumUrl} />}
       <Link href="/me/memories" className="text-sm font-medium text-ink-soft hover:text-navy">
         {dictionary.profile.memoriesLinkLabel}
       </Link>
@@ -283,7 +297,15 @@ function MemoryShareSection({ projectId }: { projectId: string }) {
   );
 }
 
-function DigitalAccessPanel({ project, initiallyGranted }: { project: MemoryProject; initiallyGranted: boolean }) {
+function DigitalAccessPanel({
+  project,
+  initiallyGranted,
+  shoppierProductUrl,
+}: {
+  project: MemoryProject;
+  initiallyGranted: boolean;
+  shoppierProductUrl: string | null;
+}) {
   const { dictionary } = useLocale();
   const [granted, setGranted] = useState(initiallyGranted);
   const [accessCode, setAccessCode] = useState("");
@@ -314,8 +336,8 @@ function DigitalAccessPanel({ project, initiallyGranted }: { project: MemoryProj
       ) : (
         <>
           <p className="text-sm text-ink-soft">{dictionary.memory.accessNotPurchased}</p>
-          {SHOPPIER_PRODUCT_URL ? (
-            <Button href={SHOPPIER_PRODUCT_URL} target="_blank" rel="noopener noreferrer" variant="ghost">
+          {shoppierProductUrl ? (
+            <Button href={shoppierProductUrl} target="_blank" rel="noopener noreferrer" variant="ghost">
               {dictionary.memory.shoppierButton}
             </Button>
           ) : (
@@ -345,12 +367,12 @@ function DigitalAccessPanel({ project, initiallyGranted }: { project: MemoryProj
   );
 }
 
-function PhysicalOrderPanel({ order }: { order: PhysicalOrder | null }) {
+function PhysicalOrderPanel({ order, dilekkutumUrl }: { order: PhysicalOrder | null; dilekkutumUrl: string | null }) {
   const { dictionary } = useLocale();
   const [copied, setCopied] = useState(false);
 
   // EPIC 053: `order` is null both when the physical-gift flow isn't live
-  // yet (DILEKKUTUM_URL unset, see handleCreate above) and — unchanged from
+  // yet (no DilekKutum link, see handleCreate above) and — unchanged from
   // before — if `createPhysicalOrder` itself ever fails; either way, an
   // honest "not available yet" message (same shape as `shoppierUnavailable`
   // below) is correct, never a silently blank panel.
@@ -391,8 +413,8 @@ function PhysicalOrderPanel({ order }: { order: PhysicalOrder | null }) {
           </li>
         ))}
       </ol>
-      {DILEKKUTUM_URL && (
-        <Button href={DILEKKUTUM_URL} target="_blank" rel="noopener noreferrer">
+      {dilekkutumUrl && (
+        <Button href={dilekkutumUrl} target="_blank" rel="noopener noreferrer">
           {dictionary.memory.dilekkutumButton}
         </Button>
       )}

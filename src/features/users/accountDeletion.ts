@@ -109,3 +109,57 @@ export async function deleteOwnAccountForUser(
   if (result.status === "not-found") return { ok: false, error: "account-not-found" };
   return { ok: true };
 }
+
+export type DeleteOwnAccountActionError = "auth-required" | "admin-account" | "confirmation-mismatch" | "apple-revoke-failed" | "failed";
+
+export interface DeleteOwnAccountActionResult {
+  ok: boolean;
+  error?: DeleteOwnAccountActionError;
+}
+
+export interface DeleteOwnAccountSessionDeps {
+  /** The request's session — the server action passes Auth.js's `auth()`. */
+  auth: () => Promise<{ user?: { id?: string | null; role?: string | null } | null } | null>;
+  /** Clears this browser's session cookie — the server action passes Auth.js's `signOut`. */
+  signOut: (options: { redirect: false }) => Promise<unknown>;
+  deleteOwnAccount?: (params: { userId: string; confirmationEmail: string }) => Promise<DeleteOwnAccountServiceResult>;
+}
+
+/**
+ * The body of the deleteOwnAccount server action (account-actions.ts),
+ * which supplies `auth`/`signOut`. Kept here, outside the "use server"
+ * module, so it can be tested without exposing a dependency-taking export
+ * to the client. The account is always the session's; the session's role
+ * refuses an admin before anything else runs.
+ *
+ * Once the deletion has committed the outcome is "deleted", whatever
+ * happens next: a failing sign-out is logged (error name only) and the
+ * result stays `{ ok: true }` — reporting a failure here would tell the
+ * user nothing was deleted when everything was. The leftover cookie no
+ * longer authenticates: the jwt callback's account check signs it out on
+ * the next request.
+ */
+export async function deleteOwnAccountWithSession(
+  confirmationEmail: string,
+  deps: DeleteOwnAccountSessionDeps
+): Promise<DeleteOwnAccountActionResult> {
+  const session = await deps.auth();
+  const userId = session?.user?.id;
+  if (!userId) return { ok: false, error: "auth-required" };
+  if (session?.user?.role === "admin") return { ok: false, error: "admin-account" };
+
+  const deleteOwnAccount = deps.deleteOwnAccount ?? ((params) => deleteOwnAccountForUser(params));
+  const result = await deleteOwnAccount({ userId, confirmationEmail });
+  if (!result.ok) {
+    return { ok: false, error: result.error === "account-not-found" ? "auth-required" : result.error };
+  }
+
+  // Clear this browser's cookie now; every other copy of the session is
+  // already dead via the jwt callback's account check.
+  try {
+    await deps.signOut({ redirect: false });
+  } catch (error) {
+    console.error("[account-deletion] sign-out after deletion failed", error instanceof Error ? error.name : "unknown");
+  }
+  return { ok: true };
+}

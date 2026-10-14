@@ -43,7 +43,31 @@ export function supportsFileShare(): boolean {
   }
 }
 
+/**
+ * Whether the current click still counts as a user gesture —
+ * `navigator.share()` rejects with NotAllowedError otherwise (e.g. after an
+ * awaited fetch). Browsers without the User Activation API report true:
+ * there is nothing to check, so the share is attempted as before. Callers
+ * use this to go straight to their fallback instead of a share that can
+ * only fail.
+ */
+export function hasUserActivation(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const activation = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
+  return activation ? activation.isActive : true;
+}
+
 export type ShareFileOutcome = "shared" | "cancelled" | "unsupported" | "failed";
+
+/**
+ * Whether a share counts as completed — only the share sheet resolving
+ * ("shared"). That means a target was picked (which may also be "Save
+ * Image" or "Copy"), not that anything was published. A download, a
+ * platform fallback, a cancel or a failure never counts.
+ */
+export function isCompletedShare(outcome: ShareFileOutcome): boolean {
+  return outcome === "shared";
+}
 
 /**
  * Hands a real file to the OS share sheet. Never throws — a user
@@ -67,9 +91,29 @@ export async function shareFile(file: File, meta: { title?: string; text?: strin
     });
     return "shared";
   } catch (error) {
+    // Development only: which rejection this was — e.g. Chrome on Windows
+    // reports a dismissal as AbortError "Share canceled" but a share sheet
+    // that never asked for the data (its 30 s timeout) as AbortError
+    // "Share failed"; both stay "cancelled" below. Name and message only,
+    // never the file.
+    if (process.env.NODE_ENV === "development" && error instanceof Error) {
+      console.warn("[share] navigator.share rejected:", error.name, error.message);
+    }
     if (error instanceof Error && error.name === "AbortError") return "cancelled";
     return "failed";
   }
+}
+
+/**
+ * Whether to tell the visitor the share didn't complete and offer the same
+ * file as a download — only for "cancelled". An AbortError can be a real
+ * dismissal or a browser-side failure, and the two can't be told apart
+ * reliably, so the note stays neutral. "failed" keeps its error message,
+ * "unsupported" already falls back on its own, and "shared" is done. The
+ * download never counts as a share (see `isCompletedShare`).
+ */
+export function offersDownloadAfterShare(outcome: ShareFileOutcome): boolean {
+  return outcome === "cancelled";
 }
 
 /**

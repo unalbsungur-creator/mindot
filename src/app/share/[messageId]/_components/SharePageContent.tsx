@@ -1,40 +1,77 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { PageContainer } from "@/components/layout/PageContainer";
 import type { PublicMessageDetail } from "@/features/board/types";
-import { SHOPPIER_PRODUCT_URL } from "@/features/memories/config/shoppier";
-import type { MemoryCaptureMode } from "@/features/memories/types";
 import { Note } from "@/features/notes/components/Note";
 import type { NoteData } from "@/features/notes/types";
 import { ShareCardPicker } from "@/features/sharing/components/ShareCardPicker";
 import { SocialShareActions } from "@/features/sharing/components/SocialShareActions";
 import { shareFormats } from "@/features/sharing/config/shareFormats";
+import { noteShareImageUrl } from "@/features/sharing/lib/shareImageUrl";
+import { claimFirstShareReward } from "@/features/tokens/reward-actions";
 import { useLocale } from "@/i18n/LocaleProvider";
-import { cn } from "@/lib/cn";
 
 interface SharePageContentProps {
   messageId: string;
   message: PublicMessageDetail | null;
   pageUrl: string;
+  /** Whether the viewer is signed in — only gates calling the reward action, which re-reads the session itself. */
+  signedIn: boolean;
+  /** For the offer's label only — the reward action decides what is credited. */
+  firstShareRewardAmount: number;
+  /** Whether to offer the reward — false once this account has it. Display only, like the amount. */
+  firstShareRewardAvailable: boolean;
+  /** The Shoppier product link, read by the server page — never env in this client component. null = not available yet. */
+  shoppierProductUrl: string | null;
 }
 
-const scopeButtonClasses = (active: boolean) =>
-  cn(
-    "rounded-pill border px-3 py-1.5 text-xs font-medium transition-colors",
-    active ? "border-orange bg-orange text-navy" : "border-border text-ink-soft hover:text-navy"
-  );
-
-export function SharePageContent({ messageId, message, pageUrl }: SharePageContentProps) {
+export function SharePageContent({
+  messageId,
+  message,
+  pageUrl,
+  signedIn,
+  firstShareRewardAmount,
+  firstShareRewardAvailable,
+  shoppierProductUrl,
+}: SharePageContentProps) {
   const { dictionary } = useLocale();
-  const [captureMode, setCaptureMode] = useState<MemoryCaptureMode>("note_only");
   // EPIC 017: lifted out of ShareCardPicker (which otherwise owns this
   // internally) specifically so SocialShareActions can share the exact
   // format the user is currently previewing — previously hardcoded to
   // "square" regardless of what was selected below, a real preview/shared
   // output mismatch.
   const [shareFormatId, setShareFormatId] = useState(shareFormats[0].id);
+  // First-share reward: claimed after a completed Web Share only (never a
+  // download or platform fallback — the share components call onShared for
+  // "shared" alone), at most once per page view; the server decides whether
+  // anything is credited. The notice shows only for a "granted" result.
+  const [rewardAmount, setRewardAmount] = useState<number | null>(null);
+  // The offer stays until the server answers: granted (notice instead), or
+  // already rewarded / not eligible (plain share button from then on). An
+  // account that already has the reward isn't offered it in the first place.
+  const [rewardOffered, setRewardOffered] = useState(signedIn && firstShareRewardAvailable);
+  const rewardClaimedRef = useRef(false);
+  function handleShared() {
+    if (!signedIn || rewardClaimedRef.current) return;
+    rewardClaimedRef.current = true;
+    claimFirstShareReward()
+      .then((result) => {
+        if (result.status === "granted") {
+          setRewardAmount(result.amount);
+          setRewardOffered(false);
+        } else if (result.status === "failed") {
+          // A transient failure may be retried by the next completed share.
+          rewardClaimedRef.current = false;
+        } else {
+          setRewardOffered(false);
+        }
+      })
+      .catch(() => {
+        rewardClaimedRef.current = false;
+      });
+  }
 
   if (!message) {
     return (
@@ -67,7 +104,7 @@ export function SharePageContent({ messageId, message, pageUrl }: SharePageConte
     language: message.language,
   };
 
-  const imageEndpoint = (formatId: string) => `/api/share/note/${messageId}/${formatId}?mode=${captureMode}`;
+  const imageEndpoint = (formatId: string) => noteShareImageUrl(messageId, formatId);
 
   return (
     <PageContainer className="flex flex-col items-center gap-8 py-16">
@@ -88,24 +125,12 @@ export function SharePageContent({ messageId, message, pageUrl }: SharePageConte
       <div className="flex w-full max-w-sm flex-col gap-6">
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium text-navy">{dictionary.share.scopeLabel}</span>
-          {/* flex-wrap: "Düşünce + çevresindeki duvar" is long enough
-              that, combined with the first button, it can exceed a narrow
-              mobile viewport's available width — without wrap, an
-              un-shrinkable row like this silently widens the *entire
-              page* horizontally rather than clipping itself (confirmed:
-              a real, reproducible ~390px-viewport regression, same
-              mechanism as the social-actions row fix below). */}
+          {/* The image share is always the note on its own (note_only) —
+              a fixed label, not a choice. */}
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setCaptureMode("note_only")} className={scopeButtonClasses(captureMode === "note_only")}>
+            <span className="rounded-pill border border-orange bg-orange px-3 py-1.5 text-xs font-medium text-navy">
               {dictionary.memory.captureNoteOnly}
-            </button>
-            <button
-              type="button"
-              onClick={() => setCaptureMode("note_with_surrounding")}
-              className={scopeButtonClasses(captureMode === "note_with_surrounding")}
-            >
-              {dictionary.memory.captureSurrounding}
-            </button>
+            </span>
           </div>
         </div>
 
@@ -117,12 +142,25 @@ export function SharePageContent({ messageId, message, pageUrl }: SharePageConte
             fileNamePrefix="mindot-note"
             formatId={shareFormatId}
             onFormatChange={setShareFormatId}
+            onShared={handleShared}
+            shareButtonLabel={
+              rewardOffered ? dictionary.share.shareAndEarnButton.replace("{count}", String(firstShareRewardAmount)) : undefined
+            }
+            shareHint={rewardOffered ? dictionary.share.firstShareRewardHint : undefined}
           />
+          <p
+            role="status"
+            aria-live="polite"
+            className="rounded-md bg-orange/10 px-3 py-2 text-center text-sm font-medium text-navy empty:hidden"
+          >
+            {rewardAmount !== null ? dictionary.share.firstShareReward.replace("{count}", String(rewardAmount)) : null}
+          </p>
           <SocialShareActions
             pageUrl={pageUrl}
             imageUrl={() => imageEndpoint(shareFormatId)}
             fileNamePrefix="mindot-note"
             formatId={shareFormatId}
+            onShared={handleShared}
           />
         </div>
 
@@ -132,9 +170,9 @@ export function SharePageContent({ messageId, message, pageUrl }: SharePageConte
             already-working /memory/[messageId] flow, never re-implemented
             here. */}
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-canvas p-5 text-center">
-          {SHOPPIER_PRODUCT_URL ? (
+          {shoppierProductUrl ? (
             <a
-              href={SHOPPIER_PRODUCT_URL}
+              href={shoppierProductUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs font-medium text-orange-ink hover:underline"
