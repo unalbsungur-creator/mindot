@@ -599,7 +599,7 @@ export const es: Dictionary = {
     noRefunds: "Todavía no hay registros de reembolso.",
     refundFooter: "Los reembolsos pendientes reservan Tokens. Al cancelar, se libera la reserva. Confirma solo después de completar el reembolso en Shopier e introduce su referencia externa real.",
     purchasesTitle: "Compras de Tokens",
-    purchasesIntro: "Esta lista muestra registros de origen para revisar posibles reembolsos; no significa que una compra sea reembolsable. Si se desconoce la hora de aprobación del pago, debe verificarse por separado. Aquí no se propone ningún importe de reembolso ni reversión de Tokens.",
+    purchasesIntro: "Esta lista muestra las compras para revisar posibles reembolsos. El administrador introduce el importe y los Tokens que se reservarán; el sistema aplica los límites del precio pagado y de los Tokens sin usar registrados. Estos datos no determinan por sí solos la elegibilidad legal del reembolso.",
     package: "Paquete",
     tokens: "Tokens",
     allocatedTokens: "Asignados",
@@ -620,7 +620,7 @@ export const es: Dictionary = {
     confirmRefund: "Confirmar reembolso de Shopier",
     externalReferenceInput: "Referencia real del reembolso de Shopier",
     tokensToReverseInput: "Tokens que reservar",
-    refundAmountInput: "Importe del reembolso (kuruş)",
+    refundAmountInput: "Importe del reembolso (TRY)",
     createRefund: "Crear registro de reembolso",
   },
   adminOrders: {
