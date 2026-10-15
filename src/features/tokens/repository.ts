@@ -12,6 +12,7 @@ import { memoryPdfUnlockRepository, toMemoryPdfUnlock } from "@/features/memorie
 import type { MemoryPdfUnlock } from "@/features/memories/types";
 import { getTokenPackage, isTokenPackageId, type TokenPackage } from "./config/tokenPackages";
 import type { LedgerCursor } from "./lib/ledgerCursor";
+import { planTokenConsumption, reconcileTokenSources } from "./lib/tokenAllocation";
 import {
   SHOPIER_PROVIDER,
   SHOPIER_PURCHASE_REFERENCE_TYPE,
@@ -487,6 +488,76 @@ class DrizzleTokenRepository implements TokenRepository {
           return { status: "already_unlocked" as const, unlock: toMemoryPdfUnlock(existing), balance: wallet.balance };
         }
 
+        // Reconcile source balances while the wallet is locked. Historical
+        // credits without purchase lots remain a non-refundable legacy pool.
+        const lots = await tx
+          .select({
+            id: tokenPurchaseLots.id,
+            creditedLedgerEntryId: tokenPurchaseLots.creditedLedgerEntryId,
+            packageTokens: tokenPurchaseLots.packageTokens,
+            createdAt: tokenPurchaseLots.createdAt,
+          })
+          .from(tokenPurchaseLots)
+          .where(and(eq(tokenPurchaseLots.userId, userId), eq(tokenPurchaseLots.provider, SHOPIER_PROVIDER)))
+          .orderBy(tokenPurchaseLots.createdAt, tokenPurchaseLots.id);
+
+        const existingAllocations = await tx
+          .select({
+            purchaseLotId: tokenPurchaseAllocations.purchaseLotId,
+            amount: tokenPurchaseAllocations.amount,
+          })
+          .from(tokenPurchaseAllocations)
+          .where(eq(tokenPurchaseAllocations.userId, userId));
+
+        const allocatedByLot = new Map<string, number>();
+        for (const allocation of existingAllocations) {
+          if (allocation.purchaseLotId) {
+            allocatedByLot.set(
+              allocation.purchaseLotId,
+              (allocatedByLot.get(allocation.purchaseLotId) ?? 0) + allocation.amount
+            );
+          }
+        }
+
+        const lotLedgerIds = new Set(lots.map((lot) => lot.creditedLedgerEntryId));
+        const positiveLedgerEntries = await tx
+          .select({ id: tokenLedger.id })
+          .from(tokenLedger)
+          .where(and(eq(tokenLedger.userId, userId), gte(tokenLedger.amount, 1)))
+          .orderBy(desc(tokenLedger.createdAt), desc(tokenLedger.id));
+        const legacyAnchor = positiveLedgerEntries.find((entry) => !lotLedgerIds.has(entry.id))?.id ?? null;
+
+        const reconciled = reconcileTokenSources({
+          walletBalance: wallet.balance,
+          legacySourceLedgerEntryId: legacyAnchor,
+          lots: lots.map((lot) => ({
+            id: lot.id,
+            creditedLedgerEntryId: lot.creditedLedgerEntryId,
+            packageTokens: lot.packageTokens,
+            allocatedTokens: allocatedByLot.get(lot.id) ?? 0,
+            orderKey: `${lot.createdAt.toISOString()}:${lot.id}`,
+          })),
+        });
+        if (reconciled.status !== "ok") {
+          // Fail closed: never charge a balance whose source totals cannot be reconciled.
+          return { status: "conflict" as const };
+        }
+
+        let plannedAllocations;
+        try {
+          plannedAllocations = planTokenConsumption(
+            MEMORY_PDF_UNLOCK_COST,
+            reconciled.sources.map((source) => ({
+              sourceType: source.sourceType,
+              purchaseLotId: source.purchaseLotId,
+              remainingTokens: source.remainingTokens,
+              orderKey: source.orderKey,
+            }))
+          );
+        } catch {
+          return { status: "conflict" as const };
+        }
+
         // Conditional decrement — the balance CHECK (>= 0) is only the backstop.
         const [debited] = await tx
           .update(tokenWallets)
@@ -508,6 +579,26 @@ class DrizzleTokenRepository implements TokenRepository {
           referenceId: memoryProjectId,
           idempotencyKey: memoryPdfUnlockIdempotencyKey(memoryProjectId),
         });
+
+        const sourceByLot = new Map(
+          reconciled.sources.map((source) => [source.purchaseLotId, source])
+        );
+        for (const allocation of plannedAllocations) {
+          const source = sourceByLot.get(allocation.purchaseLotId);
+          if (!source || source.sourceType !== allocation.sourceType) {
+            // Throwing rolls back wallet, ledger, allocations and unlock together.
+            throw new Error("Token allocation source reconciliation failed");
+          }
+          await tx.insert(tokenPurchaseAllocations).values({
+            id: crypto.randomUUID(),
+            userId,
+            consumeLedgerEntryId: ledgerEntryId,
+            sourceLedgerEntryId: source.sourceLedgerEntryId,
+            purchaseLotId: source.purchaseLotId,
+            sourceType: source.sourceType,
+            amount: allocation.amount,
+          });
+        }
 
         const [unlock] = await tx
           .insert(memoryPdfUnlocks)
