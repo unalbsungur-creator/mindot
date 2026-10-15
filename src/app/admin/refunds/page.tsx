@@ -58,7 +58,7 @@ export default async function AdminRefundsPage() {
   const allocatedByLot = new Map(
     allocationRows
       .filter((row) => row.purchaseLotId !== null)
-      .map((row) => [row.purchaseLotId as string, row.allocatedTokens])
+      .map((row) => [row.purchaseLotId as string, row.allocatedTokens] as const)
   );
 
   return (
