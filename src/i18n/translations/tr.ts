@@ -594,7 +594,7 @@ export const tr: Dictionary = {
     orderUser: "Sipariş / kullanıcı",
     status: "Durum",
     recordedAmount: "Kayıtlı tutar",
-    tokensReversed: "Token geri alma",
+    tokensReversed: "Rezerve / geri alınan Token",
     refundReference: "Shopier iade referansı",
     createdAt: "Oluşturulma",
     confirmedAt: "Doğrulanma",
