@@ -1,7 +1,7 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getDb } from "@/lib/db/client";
-import { tokenPurchaseLots, tokenRefunds, users } from "@/lib/db/schema";
+import { tokenPurchaseAllocations, tokenPurchaseLots, tokenRefunds, users } from "@/lib/db/schema";
 import { AdminRefundsContent } from "./AdminRefundsContent";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ export default async function AdminRefundsPage() {
   }
 
   const db = getDb();
-  const [refundRows, purchaseRows] = await Promise.all([
+  const [refundRows, purchaseRows, allocationRows] = await Promise.all([
     db
       .select({
         id: tokenRefunds.id,
@@ -47,7 +47,19 @@ export default async function AdminRefundsPage() {
       .innerJoin(users, eq(tokenPurchaseLots.userId, users.id))
       .orderBy(desc(tokenPurchaseLots.createdAt))
       .limit(100),
+    db
+      .select({
+        purchaseLotId: tokenPurchaseAllocations.purchaseLotId,
+        allocatedTokens: sql<number>`coalesce(sum(${tokenPurchaseAllocations.amount}), 0)::int`,
+      })
+      .from(tokenPurchaseAllocations)
+      .groupBy(tokenPurchaseAllocations.purchaseLotId),
   ]);
+  const allocatedByLot = new Map(
+    allocationRows
+      .filter((row) => row.purchaseLotId !== null)
+      .map((row) => [row.purchaseLotId as string, row.allocatedTokens])
+  );
 
   return (
     <AdminRefundsContent
@@ -59,6 +71,8 @@ export default async function AdminRefundsPage() {
       }))}
       purchases={purchaseRows.map((row) => ({
         ...row,
+        allocatedTokens: allocatedByLot.get(row.id) ?? 0,
+        remainingRecordedTokens: row.packageTokens - (allocatedByLot.get(row.id) ?? 0),
         paymentApprovedAt: row.paymentApprovedAt?.toISOString() ?? null,
         createdAt: row.createdAt.toISOString(),
       }))}
