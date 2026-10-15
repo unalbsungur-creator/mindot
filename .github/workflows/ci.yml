@@ -34,6 +34,10 @@ jobs:
 
       - run: npm test
 
+      # Download the disposable test image; token-db-test intentionally requires
+      # a pre-pulled local image and never connects to production.
+      - run: docker pull postgres:16-alpine
+
       # Exercise the real PostgreSQL migration and token transaction invariants
       # in the disposable Docker database; never points at production.
       - run: npm run test:db:tokens
