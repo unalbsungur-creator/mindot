@@ -609,7 +609,7 @@ export const es: Dictionary = {
     paymentApprovedAt: "Aprobación del pago",
     purchaseCreatedAt: "Fecha de registro",
     noPurchases: "Todavía no hay compras de Tokens.",
-    purchaseFooter: "Se muestran las 100 compras más recientes. Lista de solo lectura.",
+    purchaseFooter: "Se muestran las 100 compras más recientes. El administrador introduce el importe y los Tokens; el servidor valida los límites registrados.",
     pending: "Reembolso de Shopier pendiente",
     confirmed: "Reembolso externo confirmado",
     cancelled: "Cancelado",
