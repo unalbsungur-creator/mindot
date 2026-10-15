@@ -609,7 +609,7 @@ export const fr: Dictionary = {
     paymentApprovedAt: "Approbation du paiement",
     purchaseCreatedAt: "Date d’enregistrement",
     noPurchases: "Aucun achat de Tokens pour le moment.",
-    purchaseFooter: "Les 100 achats les plus récents sont affichés. Liste en lecture seule.",
+    purchaseFooter: "Les 100 achats les plus récents sont affichés. L’administrateur saisit le montant et les Tokens ; le serveur vérifie les limites enregistrées.",
     pending: "Remboursement Shopier en attente",
     confirmed: "Remboursement externe confirmé",
     cancelled: "Annulé",
