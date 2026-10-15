@@ -601,7 +601,7 @@ export const tr: Dictionary = {
     noRefunds: "Henüz iade kaydı yok.",
     refundFooter: "Bekleyen iade Token’ları rezerve eder. İptal edilirse rezervasyon geri alınır. Shopier’de tamamlanan iade, gerçek dış referans girilerek doğrulanmalıdır.",
     purchasesTitle: "Token satın alımları",
-    purchasesIntro: "Bu liste iade değerlendirmesi için kaynak kayıtları gösterir; satın alımın iade edilebilir olduğu anlamına gelmez. Ödeme onay zamanı bilinmiyorsa ayrıca doğrulanmalıdır. Henüz iade tutarı veya geri alınacak Token miktarı önerilmez.",
+    purchasesIntro: "Bu liste iade incelemesi için satın alım kaynak kayıtlarını gösterir. İade tutarını ve rezerve edilecek Token miktarını yönetici girer; sistem paket fiyatı ve kayıtlı kullanılmamış Token sınırlarını uygular. Bu giriş, tek başına yasal iade uygunluğu anlamına gelmez.",
     package: "Paket",
     tokens: "Token",
     allocatedTokens: "Tahsis edilen",
@@ -622,7 +622,7 @@ export const tr: Dictionary = {
     confirmRefund: "Shopier iadesini doğrula",
     externalReferenceInput: "Gerçek Shopier iade referansı",
     tokensToReverseInput: "Rezerve edilecek Token",
-    refundAmountInput: "İade tutarı (kuruş)",
+    refundAmountInput: "İade tutarı (TL)",
     createRefund: "İade kaydı oluştur",
   },
   adminOrders: {
