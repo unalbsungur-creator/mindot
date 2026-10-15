@@ -1811,6 +1811,7 @@ describe("token ledger guard on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_T
     await assert.rejects(sql`delete from token_ledger where id = ${id}`, REJECTED);
   });
   it("enforces refund external-reference consistency in PostgreSQL", async () => {
+    const userId = await createUser();
     const orderRef = `R-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
     const purchase = await tokenRepository.creditShopierPurchase({
       userId, adminId, packageId: "tokens-10", orderRef, buyerEmail: `${userId}@example.test`,
