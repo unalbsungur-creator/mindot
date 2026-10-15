@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { classifyTokenSource, planTokenConsumption } from "./tokenAllocation";
+import { classifyTokenSource, planTokenConsumption, reconcileTokenSources } from "./tokenAllocation";
 
 describe("planTokenConsumption", () => {
   it("allocates FIFO and can split one spend across sources", () => {
@@ -67,5 +67,39 @@ describe("classifyTokenSource", () => {
   it("keeps share rewards and admin grants distinct", () => {
     assert.equal(classifyTokenSource({ ledgerType: "grant", purchaseLotId: null, referenceType: "first_share_reward" }), "reward");
     assert.equal(classifyTokenSource({ ledgerType: "grant", purchaseLotId: null }), "admin_grant");
+  });
+});
+
+
+describe("reconcileTokenSources", () => {
+  it("keeps legacy balance non-refundable and spends tracked purchases first", () => {
+    const result = reconcileTokenSources({
+      walletBalance: 8,
+      legacySourceLedgerEntryId: "legacy-ledger",
+      lots: [{ id: "lot-1", creditedLedgerEntryId: "purchase-ledger", packageTokens: 5, allocatedTokens: 2, orderKey: "2026-01" }],
+    });
+    assert.equal(result.status, "ok");
+    if (result.status !== "ok") return;
+    assert.equal(result.legacyTokens, 5);
+    assert.deepEqual(result.sources, [
+      { sourceType: "purchase", purchaseLotId: "lot-1", sourceLedgerEntryId: "purchase-ledger", remainingTokens: 3, orderKey: "2026-01" },
+      { sourceType: "other", purchaseLotId: null, sourceLedgerEntryId: "legacy-ledger", remainingTokens: 5, orderKey: "0000-legacy" },
+    ]);
+  });
+
+  it("fails closed if tracked purchase balance exceeds the wallet", () => {
+    assert.deepEqual(reconcileTokenSources({
+      walletBalance: 2,
+      legacySourceLedgerEntryId: "legacy",
+      lots: [{ id: "lot", creditedLedgerEntryId: "entry", packageTokens: 5, allocatedTokens: 0, orderKey: "a" }],
+    }), { status: "inconsistent", reason: "tracked_tokens_exceed_wallet" });
+  });
+
+  it("fails closed when a legacy remainder has no ledger anchor", () => {
+    assert.deepEqual(reconcileTokenSources({
+      walletBalance: 3,
+      legacySourceLedgerEntryId: null,
+      lots: [],
+    }), { status: "inconsistent", reason: "legacy_anchor_missing" });
   });
 });
