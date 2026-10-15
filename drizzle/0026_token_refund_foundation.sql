@@ -56,6 +56,7 @@ ALTER TABLE "token_purchase_lots" ADD CONSTRAINT "token_purchase_lots_credited_l
 ALTER TABLE "token_purchase_allocations" ADD CONSTRAINT "token_purchase_allocations_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
 --> statement-breakpoint
 ALTER TABLE "token_purchase_allocations" ADD CONSTRAINT "token_purchase_allocations_consume_ledger_entry_id_token_ledger_id_fk" FOREIGN KEY ("consume_ledger_entry_id") REFERENCES "public"."token_ledger"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+--> statement-breakpointALTER TABLE "token_purchase_allocations" ADD CONSTRAINT "token_purchase_allocations_source_ledger_entry_id_token_ledger_id_fk" FOREIGN KEY ("source_ledger_entry_id") REFERENCES "public"."token_ledger"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
 --> statement-breakpoint
 ALTER TABLE "token_purchase_allocations" ADD CONSTRAINT "token_purchase_allocations_purchase_lot_id_token_purchase_lots_id_fk" FOREIGN KEY ("purchase_lot_id") REFERENCES "public"."token_purchase_lots"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
 --> statement-breakpoint
@@ -69,7 +70,11 @@ CREATE UNIQUE INDEX "token_purchase_lots_provider_order_idx" ON "token_purchase_
 --> statement-breakpoint
 CREATE INDEX "token_purchase_lots_user_created_idx" ON "token_purchase_lots" USING btree ("user_id", "created_at");
 --> statement-breakpoint
-CREATE UNIQUE INDEX "token_purchase_allocations_consume_lot_source_idx" ON "token_purchase_allocations" USING btree ("consume_ledger_entry_id", "purchase_lot_id", "source_type");
+CREATE UNIQUE INDEX "token_purchase_allocations_consume_source_ledger_idx" ON "token_purchase_allocations" USING btree ("consume_ledger_entry_id", "source_ledger_entry_id");
+--> statement-breakpoint
+CREATE INDEX "token_purchase_allocations_source_ledger_idx" ON "token_purchase_allocations" USING btree ("source_ledger_entry_id");
+--> statement-breakpoint
+CREATE INDEX "token_purchase_allocations_consume_idx" ON "token_purchase_allocations" USING btree ("consume_ledger_entry_id");
 --> statement-breakpoint
 CREATE INDEX "token_purchase_allocations_lot_created_idx" ON "token_purchase_allocations" USING btree ("purchase_lot_id", "created_at");
 --> statement-breakpoint
