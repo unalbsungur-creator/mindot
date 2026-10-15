@@ -487,6 +487,9 @@ class DrizzleTokenRepository implements TokenRepository {
         if (existing) {
           return { status: "already_unlocked" as const, unlock: toMemoryPdfUnlock(existing), balance: wallet.balance };
         }
+        if (wallet.balance < MEMORY_PDF_UNLOCK_COST) {
+          return { status: "insufficient_tokens" as const, balance: wallet.balance };
+        }
 
         // Reconcile source balances while the wallet is locked. Historical
         // credits without purchase lots remain a non-refundable legacy pool.
