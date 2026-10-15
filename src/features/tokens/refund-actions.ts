@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getDb } from "@/lib/db/client";
 import {
@@ -40,6 +40,11 @@ export async function createTokenRefund(input: {
   const db = getDb();
   try {
     await db.transaction(async (tx) => {
+      const idempotencyKey = `token_refund_reserve:${input.requestId.toLowerCase()}`;
+      const [existing] = await tx.select({ id: tokenRefunds.id }).from(tokenRefunds)
+        .where(eq(tokenRefunds.idempotencyKey, idempotencyKey)).limit(1);
+      if (existing) return;
+
       const [lot] = await tx.select().from(tokenPurchaseLots)
         .where(eq(tokenPurchaseLots.id, input.purchaseLotId)).for("update");
       if (!lot) throw new Error("purchase_not_found");
@@ -61,11 +66,6 @@ export async function createTokenRefund(input: {
       if (input.tokensReversed > unused) throw new Error("tokens_exceed_unused");
 
       const id = crypto.randomUUID();
-      const idempotencyKey = `token_refund_reserve:${input.requestId.toLowerCase()}`;
-      const [existing] = await tx.select({ id: tokenRefunds.id }).from(tokenRefunds)
-        .where(eq(tokenRefunds.idempotencyKey, idempotencyKey)).limit(1);
-      if (existing) return;
-
       const [debited] = await tx.update(tokenWallets)
         .set({ balance: sql`${tokenWallets.balance} - ${input.tokensReversed}`, updatedAt: new Date() })
         .where(and(eq(tokenWallets.userId, lot.userId), sql`${tokenWallets.balance} >= ${input.tokensReversed}`))
