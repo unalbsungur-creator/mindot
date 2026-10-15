@@ -50,7 +50,13 @@ jobs:
 
       # PageProps/LayoutProps are global types Next generates into the
       # gitignored next-env.d.ts and .next/types; a clean checkout has
-      # neither, so generate them first (no build, no env needed).
+      # neither, so generate them first.
       - run: npx next typegen
 
       - run: npx tsc --noEmit
+
+      # Build the staging Worker artifact from a clean, isolated checkout.
+      # build:cf:staging strips DATABASE_URL and refuses .env files; this is
+      # a build-only check and does not deploy or contact Cloudflare.
+      - name: Build isolated staging Worker
+        run: npm run build:cf:staging
