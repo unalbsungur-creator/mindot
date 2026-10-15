@@ -18,6 +18,7 @@ CREATE TABLE "token_purchase_allocations" (
   "id" text PRIMARY KEY NOT NULL,
   "user_id" text NOT NULL,
   "consume_ledger_entry_id" text NOT NULL,
+  "source_ledger_entry_id" text NOT NULL,
   "purchase_lot_id" text,
   "source_type" text NOT NULL,
   "amount" integer NOT NULL,
