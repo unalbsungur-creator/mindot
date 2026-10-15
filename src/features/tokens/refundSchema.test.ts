@@ -42,4 +42,17 @@ describe("token refund schema foundation", () => {
     }
     assert.doesNotMatch(MIGRATION, /UPDATE\s+"?token_ledger"?|DELETE\s+FROM\s+"?token_ledger"?/i);
   });
+  it("requires an external reference exactly when a refund is confirmed", () => {
+    const config = getTableConfig(tokenRefunds);
+    assert.ok(config.checks.some((item) => item.name === "token_refunds_external_reference_pair"));
+
+    const guardMigration = readFileSync("drizzle/0027_token_refund_reference_guard.sql", "utf8");
+    assert.match(guardMigration, /token_refunds_external_reference_pair/);
+    assert.match(
+      guardMigration,
+      /external_refund_confirmed[\s\S]*external_refund_reference[\s\S]*is not null/i
+    );
+    assert.doesNotMatch(guardMigration, /UPDATE\s+"?token_ledger"?|DELETE\s+FROM\s+"?token_ledger"?/i);
+  });
+
 });
