@@ -46,7 +46,7 @@ describe("createTokenRefund on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TE
     });
     ({ createTokenRefund } = await import("./refund-actions"));
 
-    const orderRef = `RF-${crypto.randomUUID()}`;
+    const orderRef = `RF-${crypto.randomUUID().toUpperCase()}`;
     const purchase = await tokenRepository.creditShopierPurchase({
       userId,
       adminId,
