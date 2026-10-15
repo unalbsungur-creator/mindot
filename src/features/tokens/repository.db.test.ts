@@ -127,6 +127,9 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
         [["grant", 2, 2], ["consume", -1, 1]]
       );
       assert.equal(await unlockCount(projectId), 1);
+      const allocations = await sql<{ source_type: string; amount: number; purchase_lot_id: string | null }[]>
+        `select source_type, amount, purchase_lot_id from token_purchase_allocations where user_id = ${userId}`;
+      assert.deepEqual(allocations, [{ source_type: "other", amount: 1, purchase_lot_id: null }]);
       await assertConsistent(userId, 1);
     });
 
