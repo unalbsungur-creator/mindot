@@ -53,3 +53,22 @@ describe("planTokenConsumption", () => {
     ]), RangeError);
   });
 });
+
+ 
+describe("classifyTokenSource", () => {
+  it("does not treat historical purchases without a purchase lot as refundable lots", async () => {
+    const { classifyTokenSource } = await import("./tokenAllocation");
+    assert.equal(classifyTokenSource({ ledgerType: "purchase", purchaseLotId: null, referenceType: "shopier_order" }), "other");
+  });
+
+  it("classifies only purchases with a linked lot as purchase sources", async () => {
+    const { classifyTokenSource } = await import("./tokenAllocation");
+    assert.equal(classifyTokenSource({ ledgerType: "purchase", purchaseLotId: "lot-1" }), "purchase");
+  });
+
+  it("keeps share rewards and admin grants distinct", async () => {
+    const { classifyTokenSource } = await import("./tokenAllocation");
+    assert.equal(classifyTokenSource({ ledgerType: "grant", purchaseLotId: null, referenceType: "first_share_reward" }), "reward");
+    assert.equal(classifyTokenSource({ ledgerType: "grant", purchaseLotId: null }), "admin_grant");
+  });
+});
