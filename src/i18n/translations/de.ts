@@ -609,7 +609,7 @@ export const de: Dictionary = {
     paymentApprovedAt: "Zahlungsfreigabe",
     purchaseCreatedAt: "Erfassungsdatum",
     noPurchases: "Noch keine Token-Käufe vorhanden.",
-    purchaseFooter: "Die letzten 100 Käufe werden angezeigt. Nur lesbar.",
+    purchaseFooter: "Die letzten 100 Käufe werden angezeigt. Betrag und Token-Anzahl werden vom Administrator eingegeben; aufgezeichnete Grenzen werden serverseitig geprüft.",
     pending: "Shopier-Erstattung ausstehend",
     confirmed: "Externe Erstattung bestätigt",
     cancelled: "Storniert",
