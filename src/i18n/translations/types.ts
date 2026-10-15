@@ -627,7 +627,33 @@ export interface Dictionary {
     revokeButton: string;
     revoking: string;
   };
-  adminRefunds: { title: string };
+  adminRefunds: {
+    title: string;
+    unauthorized: string;
+    intro: string;
+    orderUser: string;
+    status: string;
+    recordedAmount: string;
+    tokensReversed: string;
+    refundReference: string;
+    createdAt: string;
+    confirmedAt: string;
+    noRefunds: string;
+    refundFooter: string;
+    purchasesTitle: string;
+    purchasesIntro: string;
+    package: string;
+    tokens: string;
+    paidAmount: string;
+    paymentApprovedAt: string;
+    purchaseCreatedAt: string;
+    noPurchases: string;
+    purchaseFooter: string;
+    pending: string;
+    confirmed: string;
+    cancelled: string;
+    unknown: string;
+  };
   adminOrders: {
     title: string;
     subtitle: string;
