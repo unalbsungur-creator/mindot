@@ -627,6 +627,7 @@ export interface Dictionary {
     revokeButton: string;
     revoking: string;
   };
+  adminRefunds: { title: string };
   adminOrders: {
     title: string;
     subtitle: string;
