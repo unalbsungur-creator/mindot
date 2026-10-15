@@ -606,6 +606,7 @@ export const en: Dictionary = {
     tokens: "Tokens",
     allocatedTokens: "Allocated",
     remainingRecordedTokens: "Recorded remaining",
+    allocationInconsistent: "Inconsistent records — review required",
     paidAmount: "Amount paid",
     paymentApprovedAt: "Payment approval",
     purchaseCreatedAt: "Record date",
