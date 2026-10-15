@@ -592,7 +592,7 @@ export const es: Dictionary = {
     orderUser: "Pedido / usuario",
     status: "Estado",
     recordedAmount: "Importe registrado",
-    tokensReversed: "Tokens revertidos",
+    tokensReversed: "Tokens reservados / revertidos",
     refundReference: "Referencia de reembolso de Shopier",
     createdAt: "Creado",
     confirmedAt: "Confirmado",
