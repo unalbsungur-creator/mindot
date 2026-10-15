@@ -656,6 +656,14 @@ export interface Dictionary {
     confirmed: string;
     cancelled: string;
     unknown: string;
+    createRefund: string;
+    refundAmountInput: string;
+    tokensToReverseInput: string;
+    externalReferenceInput: string;
+    confirmRefund: string;
+    cancelRefund: string;
+    actionSuccess: string;
+    actionError: string;
   };
   adminOrders: {
     title: string;
