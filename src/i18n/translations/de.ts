@@ -602,6 +602,8 @@ export const de: Dictionary = {
     purchasesIntro: "Diese Liste zeigt Quelldatensätze zur Prüfung einer möglichen Erstattung; sie bedeutet nicht, dass ein Kauf erstattungsfähig ist. Ist der Zahlungsfreigabezeitpunkt unbekannt, muss er separat geprüft werden. Es wird kein Erstattungsbetrag und keine Token-Rückbuchung vorgeschlagen.",
     package: "Paket",
     tokens: "Token",
+    allocatedTokens: "Zugeordnet",
+    remainingRecordedTokens: "Laut Aufzeichnung verbleibend",
     paidAmount: "Bezahlter Betrag",
     paymentApprovedAt: "Zahlungsfreigabe",
     purchaseCreatedAt: "Erfassungsdatum",
