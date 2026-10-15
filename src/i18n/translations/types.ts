@@ -644,6 +644,8 @@ export interface Dictionary {
     purchasesIntro: string;
     package: string;
     tokens: string;
+    allocatedTokens: string;
+    remainingRecordedTokens: string;
     paidAmount: string;
     paymentApprovedAt: string;
     purchaseCreatedAt: string;
