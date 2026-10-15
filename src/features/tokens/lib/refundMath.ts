@@ -27,8 +27,7 @@ export function calculateUnusedTokenRefundKurus({
     throw new RangeError("unusedTokens must be an integer between zero and packageTokens");
   }
 
-  // Round down to the nearest kuruş. This is deterministic and can never
-  // exceed the original package price; any policy-specific adjustment must
-  // be decided separately before this helper is called.
-  return Math.floor((packagePriceKurus * unusedTokens) / packageTokens);
+  // BigInt keeps intermediate arithmetic exact even for large safe integers.
+  // Round down to the nearest kuruş; never exceed the package price.
+  return Number((BigInt(packagePriceKurus) * BigInt(unusedTokens)) / BigInt(packageTokens));
 }
