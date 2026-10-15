@@ -604,6 +604,8 @@ export const en: Dictionary = {
     purchasesIntro: "This list shows source records for refund review; it does not mean a purchase is eligible for a refund. If the payment approval time is unknown, it must be verified separately. No refund amount or Token reversal is proposed here.",
     package: "Package",
     tokens: "Tokens",
+    allocatedTokens: "Allocated",
+    remainingRecordedTokens: "Recorded remaining",
     paidAmount: "Amount paid",
     paymentApprovedAt: "Payment approval",
     purchaseCreatedAt: "Record date",
