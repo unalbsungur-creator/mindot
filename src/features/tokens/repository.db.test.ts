@@ -136,7 +136,7 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
     it("allocates a PDF unlock to its exact Shopier purchase lot", async () => {
       const orderRef = `T-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
       const purchase = await tokenRepository.creditShopierPurchase({
-        userId, adminId, packageId: "tokens-10", orderRef, buyerEmail: emailOf(userId),
+        userId, adminId, packageId: "tokens-10", orderRef, buyerEmail: `${userId}@example.test`,
       });
       assert.equal(purchase.status, "credited");
       const projectId = await createProject(userId);
