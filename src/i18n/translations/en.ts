@@ -601,7 +601,7 @@ export const en: Dictionary = {
     noRefunds: "No refund records yet.",
     refundFooter: "Pending refunds reserve Tokens. Cancelling restores the reservation. Confirm only after the Shopier refund is complete and enter its real external reference.",
     purchasesTitle: "Token purchases",
-    purchasesIntro: "This list shows source records for refund review; it does not mean a purchase is eligible for a refund. If the payment approval time is unknown, it must be verified separately. No refund amount or Token reversal is proposed here.",
+    purchasesIntro: "This list shows purchase source records for refund review. The admin enters the refund amount and Tokens to reserve; the system enforces the package-price and recorded-unused-Token limits. These entries do not by themselves establish legal refund eligibility.",
     package: "Package",
     tokens: "Tokens",
     allocatedTokens: "Allocated",
@@ -622,7 +622,7 @@ export const en: Dictionary = {
     confirmRefund: "Confirm Shopier refund",
     externalReferenceInput: "Actual Shopier refund reference",
     tokensToReverseInput: "Tokens to reserve",
-    refundAmountInput: "Refund amount (kuruş)",
+    refundAmountInput: "Refund amount (TRY)",
     createRefund: "Create refund record",
   },
   adminOrders: {
