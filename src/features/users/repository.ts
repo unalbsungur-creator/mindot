@@ -13,6 +13,9 @@ import {
   notifications,
   physicalOrders,
   tokenLedger,
+  tokenPurchaseAllocations,
+  tokenPurchaseLots,
+  tokenRefunds,
   tokenWallets,
   userBlocks,
   users,
@@ -539,6 +542,11 @@ class DrizzleUserRepository implements UserRepository {
       await tx.update(physicalOrders).set({ createdBy: tombstoneId }).where(eq(physicalOrders.createdBy, userId));
       await tx.update(digitalAccessCodes).set({ redeemedBy: tombstoneId }).where(eq(digitalAccessCodes.redeemedBy, userId));
       await tx.update(memoryPdfUnlocks).set({ userId: tombstoneId }).where(eq(memoryPdfUnlocks.userId, userId));
+      // Refund accounting rows retain their audit trail but must not block account deletion.
+      await tx.update(tokenPurchaseLots).set({ userId: tombstoneId }).where(eq(tokenPurchaseLots.userId, userId));
+      await tx.update(tokenPurchaseAllocations).set({ userId: tombstoneId }).where(eq(tokenPurchaseAllocations.userId, userId));
+      await tx.update(tokenRefunds).set({ userId: tombstoneId }).where(eq(tokenRefunds.userId, userId));
+      await tx.update(tokenRefunds).set({ createdBy: tombstoneId }).where(eq(tokenRefunds.createdBy, userId));
       await tx.update(tokenWallets).set({ userId: tombstoneId, updatedAt: now }).where(eq(tokenWallets.userId, userId));
       // token_ledger's guard triggers (migration 0022) accept only this re-pointing, only to a
       // tombstone inserted by this same top-level transaction (above, never in a savepoint), and —
