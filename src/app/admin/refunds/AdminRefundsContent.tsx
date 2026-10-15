@@ -9,7 +9,7 @@ type RefundRow = {
   orderReference: string; packageId: string; userEmail: string | null;
 };
 type PurchaseRow = {
-  id: string; orderReference: string; packageId: string; packageTokens: number; allocatedTokens: number; remainingRecordedTokens: number;
+  id: string; orderReference: string; packageId: string; packageTokens: number; allocatedTokens: number; remainingRecordedTokens: number | null;
   paidAmountKurus: number; paymentApprovedAt: string | null; createdAt: string; userEmail: string | null;
 };
 
@@ -70,7 +70,7 @@ export function AdminRefundsContent({ refunds, purchases, authorized }: { refund
                 <td className="px-4 py-3">{purchase.packageId}</td>
                 <td className="px-4 py-3 tabular-nums">{purchase.packageTokens}</td>
                 <td className="px-4 py-3 tabular-nums">{purchase.allocatedTokens}</td>
-                <td className="px-4 py-3 tabular-nums">{purchase.remainingRecordedTokens}</td>
+                <td className="px-4 py-3 tabular-nums">{purchase.remainingRecordedTokens === null ? labels.allocationInconsistent : purchase.remainingRecordedTokens}</td>
                 <td className="px-4 py-3 tabular-nums">{money(purchase.paidAmountKurus, locale)}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{date(purchase.paymentApprovedAt, locale)}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{date(purchase.createdAt, locale)}</td>
