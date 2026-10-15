@@ -611,7 +611,7 @@ export const tr: Dictionary = {
     paymentApprovedAt: "Ödeme onayı",
     purchaseCreatedAt: "Kayıt tarihi",
     noPurchases: "Henüz Token satın alımı kaydı yok.",
-    purchaseFooter: "En son 100 satın alım gösterilir. Bu liste salt okunurdur.",
+    purchaseFooter: "Son 100 satın alım gösterilir. İade tutarı ve Token miktarı yönetici tarafından girilir; kayıtlı sınırlar sunucu tarafında doğrulanır.",
     pending: "Shopier iadesi bekleniyor",
     confirmed: "Harici iade doğrulandı",
     cancelled: "İptal edildi",
