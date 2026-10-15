@@ -1831,9 +1831,9 @@ describe("token ledger guard on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_T
            ${status === "external_refund_confirmed" ? new Date() : null})`;
 
     await assert.rejects(insertRefund("external_refund_confirmed", null), /token_refunds_external_reference_pair|check constraint/i);
-    await assert.rejects(insertRefund("pending_external_refund", "SHOPIER-REFUND-123"), /token_refunds_external_reference_pair|check constraint/i);
+    await assert.rejects(insertRefund("pending_external_refund", `SHOPIER-REFUND-${crypto.randomUUID()}`), /token_refunds_external_reference_pair|check constraint/i);
     await insertRefund("pending_external_refund", null);
-    await insertRefund("external_refund_confirmed", "SHOPIER-REFUND-456");
+    await insertRefund("external_refund_confirmed", `SHOPIER-REFUND-${crypto.randomUUID()}`);
     await insertRefund("cancelled", null);
   });
 });
