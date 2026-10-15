@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getDb } from "@/lib/db/client";
 import { tokenPurchaseAllocations, tokenPurchaseLots, tokenRefunds, users } from "@/lib/db/schema";
