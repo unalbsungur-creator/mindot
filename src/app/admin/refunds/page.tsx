@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getDb } from "@/lib/db/client";
 import { tokenPurchaseAllocations, tokenPurchaseLots, tokenRefunds, users } from "@/lib/db/schema";
@@ -13,7 +13,7 @@ export default async function AdminRefundsPage() {
   }
 
   const db = getDb();
-  const [refundRows, purchaseRows, allocationRows] = await Promise.all([
+  const [refundRows, purchaseRows, allocationRows, reservedRefundRows] = await Promise.all([
     db
       .select({
         id: tokenRefunds.id,
@@ -54,12 +54,21 @@ export default async function AdminRefundsPage() {
       })
       .from(tokenPurchaseAllocations)
       .groupBy(tokenPurchaseAllocations.purchaseLotId),
+    db
+      .select({
+        purchaseLotId: tokenRefunds.purchaseLotId,
+        reservedTokens: sql<number>`coalesce(sum(${tokenRefunds.tokensReversed}), 0)::int`,
+      })
+      .from(tokenRefunds)
+      .where(inArray(tokenRefunds.status, ["pending_external_refund", "external_refund_confirmed"]))
+      .groupBy(tokenRefunds.purchaseLotId),
   ]);
   const allocatedByLot = new Map(
     allocationRows
       .filter((row) => row.purchaseLotId !== null)
       .map((row) => [row.purchaseLotId as string, row.allocatedTokens] as const)
   );
+  const reservedByLot = new Map(reservedRefundRows.map((row) => [row.purchaseLotId, row.reservedTokens] as const));
 
   return (
     <AdminRefundsContent
@@ -72,7 +81,10 @@ export default async function AdminRefundsPage() {
       purchases={purchaseRows.map((row) => ({
         ...row,
         allocatedTokens: allocatedByLot.get(row.id) ?? 0,
-        remainingRecordedTokens: row.packageTokens >= (allocatedByLot.get(row.id) ?? 0) ? row.packageTokens - (allocatedByLot.get(row.id) ?? 0) : null,
+        remainingRecordedTokens:
+          row.packageTokens >= (allocatedByLot.get(row.id) ?? 0) + (reservedByLot.get(row.id) ?? 0)
+            ? row.packageTokens - (allocatedByLot.get(row.id) ?? 0) - (reservedByLot.get(row.id) ?? 0)
+            : null,
         paymentApprovedAt: row.paymentApprovedAt?.toISOString() ?? null,
         createdAt: row.createdAt.toISOString(),
       }))}
