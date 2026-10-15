@@ -41,7 +41,7 @@ export function AdminRefundsContent({ refunds, purchases, authorized }: { refund
     try {
       const result = await createTokenRefund({
         purchaseLotId,
-        refundAmountKurus: Number(form.get("refundAmountKurus")),
+        refundAmountKurus: Math.round(Number(form.get("refundAmountTry")) * 100),
         tokensReversed: Number(form.get("tokensReversed")),
         requestId: crypto.randomUUID(),
       });
@@ -144,7 +144,7 @@ export function AdminRefundsContent({ refunds, purchases, authorized }: { refund
                 <td className="px-4 py-3">
                   <form onSubmit={(event) => createRefund(event, purchase.id)} className="min-w-56 space-y-2">
                     <label className="block text-xs">{labels.refundAmountInput}
-                      <input name="refundAmountKurus" type="number" min="1" max={purchase.paidAmountKurus} step="1" required className="mt-1 w-full rounded border border-border bg-canvas px-2 py-1" />
+                      <input name="refundAmountTry" type="number" min="0.01" max={purchase.paidAmountKurus / 100} step="0.01" required className="mt-1 w-full rounded border border-border bg-canvas px-2 py-1" />
                     </label>
                     <label className="block text-xs">{labels.tokensToReverseInput}
                       <input name="tokensReversed" type="number" min="1" max={purchase.remainingRecordedTokens ?? 0} step="1" required disabled={purchase.remainingRecordedTokens === null || purchase.remainingRecordedTokens <= 0} className="mt-1 w-full rounded border border-border bg-canvas px-2 py-1" />
