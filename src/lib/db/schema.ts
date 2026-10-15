@@ -760,3 +760,96 @@ export const mobileSessions = pgTable(
   },
   (table) => [index("mobile_sessions_user_idx").on(table.userId)]
 );
+
+
+// Token purchase lots and refunds (additive refund foundation).
+// Existing token_ledger rows remain untouched. Historical purchases are not
+// assigned to lots automatically because the old ledger does not preserve
+// per-purchase consumption attribution.
+export const tokenPurchaseLots = pgTable(
+  "token_purchase_lots",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    provider: text("provider").notNull().default("shopier"),
+    externalOrderReference: text("external_order_reference").notNull(),
+    packageId: text("package_id").notNull(),
+    packageTokens: integer("package_tokens").notNull(),
+    paidAmountKurus: integer("paid_amount_kurus").notNull(),
+    creditedLedgerEntryId: text("credited_ledger_entry_id").notNull().unique().references(() => tokenLedger.id),
+    paymentApprovedAt: timestamp("payment_approved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("token_purchase_lots_provider_order_idx").on(table.provider, table.externalOrderReference),
+    index("token_purchase_lots_user_created_idx").on(table.userId, table.createdAt),
+    check("token_purchase_lots_tokens_positive", sql`${table.packageTokens} > 0`),
+    check("token_purchase_lots_amount_non_negative", sql`${table.paidAmountKurus} >= 0`),
+  ]
+);
+
+export const tokenPurchaseAllocations = pgTable(
+  "token_purchase_allocations",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    consumeLedgerEntryId: text("consume_ledger_entry_id").notNull().references(() => tokenLedger.id),
+    purchaseLotId: text("purchase_lot_id").references(() => tokenPurchaseLots.id),
+    sourceType: text("source_type").notNull(),
+    amount: integer("amount").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("token_purchase_allocations_consume_lot_source_idx")
+      .on(table.consumeLedgerEntryId, table.purchaseLotId, table.sourceType),
+    index("token_purchase_allocations_lot_created_idx").on(table.purchaseLotId, table.createdAt),
+    check("token_purchase_allocations_amount_positive", sql`${table.amount} > 0`),
+    check(
+      "token_purchase_allocations_source_valid",
+      sql`${table.sourceType} in ('purchase', 'reward', 'admin_grant', 'other')`
+    ),
+    check(
+      "token_purchase_allocations_purchase_has_lot",
+      sql`${table.sourceType} <> 'purchase' or ${table.purchaseLotId} is not null`
+    ),
+    check(
+      "token_purchase_allocations_nonpurchase_has_no_lot",
+      sql`${table.sourceType} = 'purchase' or ${table.purchaseLotId} is null`
+    ),
+  ]
+);
+
+export const tokenRefundStatusEnum = pgEnum("token_refund_status", [
+  "pending_external_refund",
+  "external_refund_confirmed",
+  "cancelled",
+]);
+
+export const tokenRefunds = pgTable(
+  "token_refunds",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    purchaseLotId: text("purchase_lot_id").notNull().references(() => tokenPurchaseLots.id),
+    status: tokenRefundStatusEnum("status").notNull().default("pending_external_refund"),
+    refundAmountKurus: integer("refund_amount_kurus").notNull(),
+    tokensReversed: integer("tokens_reversed").notNull(),
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    externalRefundReference: text("external_refund_reference"),
+    createdBy: text("created_by").notNull().references(() => users.id),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("token_refunds_lot_created_idx").on(table.purchaseLotId, table.createdAt),
+    uniqueIndex("token_refunds_external_ref_idx")
+      .on(table.externalRefundReference)
+      .where(sql`${table.externalRefundReference} is not null`),
+    check("token_refunds_amount_non_negative", sql`${table.refundAmountKurus} >= 0`),
+    check("token_refunds_tokens_non_negative", sql`${table.tokensReversed} >= 0`),
+    check(
+      "token_refunds_confirmation_pair",
+      sql`(${table.status} = 'external_refund_confirmed') = (${table.confirmedAt} is not null)`
+    ),
+  ]
+);
