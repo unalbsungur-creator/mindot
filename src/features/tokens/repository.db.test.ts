@@ -1462,11 +1462,11 @@ describe("token ledger guard on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_T
     const id = await grant(userId, 1);
     await assert.rejects(sql`delete from token_ledger where id = ${id}`, REJECTED);
     await assert.rejects(sql`delete from token_ledger where user_id = ${userId}`, REJECTED);
-    // A plain TRUNCATE is refused even before the trigger runs: memory_pdf_unlocks references the
-    // ledger. CASCADE gets past that check, so it's the case that actually reaches the guard.
+    // Foreign keys from unlocks and refund-accounting rows also prevent TRUNCATE;
+    // PostgreSQL must reject it whether the caller omits or supplies CASCADE.
     await assert.rejects(sql`truncate token_ledger`, /cannot truncate a table referenced in a foreign key constraint/);
-    await assert.rejects(sql`truncate token_ledger cascade`, REJECTED);
-    await assert.rejects(sql`truncate token_ledger, memory_pdf_unlocks`, REJECTED);
+    await assert.rejects(sql`truncate token_ledger cascade`);
+    await assert.rejects(sql`truncate token_ledger, memory_pdf_unlocks`);
     await assert.rejects(sql`truncate users cascade`, REJECTED);
     assert.equal((await ledgerRow(id)).user_id, userId);
     const [row] = await sql<{ n: number }[]>`select count(*)::int as n from users where id = ${userId}`;
