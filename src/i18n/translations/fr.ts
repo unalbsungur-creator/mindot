@@ -585,6 +585,7 @@ export const fr: Dictionary = {
     revokeButton: "Révoquer",
     revoking: "Révocation…",
   },
+  adminRefunds: { title: "Remboursements" },
   adminOrders: {
     title: "Commandes physiques",
     subtitle: "Suivez l'exécution, du tirage MINDOT au cadeau expédié.",
