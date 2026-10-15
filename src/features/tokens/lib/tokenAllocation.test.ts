@@ -83,7 +83,7 @@ describe("reconcileTokenSources", () => {
     assert.equal(result.legacyTokens, 5);
     assert.deepEqual(result.sources, [
       { sourceType: "purchase", purchaseLotId: "lot-1", sourceLedgerEntryId: "purchase-ledger", remainingTokens: 3, orderKey: "2026-01" },
-      { sourceType: "other", purchaseLotId: null, sourceLedgerEntryId: "legacy-ledger", remainingTokens: 5, orderKey: "0000-legacy" },
+      { sourceType: "other", purchaseLotId: null, sourceLedgerEntryId: "legacy-ledger", remainingTokens: 5, orderKey: "zzzz-legacy" },
     ]);
   });
 
