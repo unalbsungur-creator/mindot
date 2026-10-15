@@ -40,7 +40,7 @@ describe("token refund schema foundation", () => {
     for (const table of ["token_purchase_lots", "token_purchase_allocations", "token_refunds"]) {
       assert.match(MIGRATION, new RegExp(`CREATE TABLE "${table}"`));
     }
-    assert.doesNotMatch(MIGRATION, /UPDATE\\s+"?token_ledger"?|DELETE\\s+FROM\\s+"?token_ledger"?/i);
+    assert.doesNotMatch(MIGRATION, /UPDATE\s+"?token_ledger"?|DELETE\s+FROM\s+"?token_ledger"?/i);
   });
   it("requires an external reference exactly when a refund is confirmed", () => {
     const config = getTableConfig(tokenRefunds);
@@ -50,8 +50,8 @@ describe("token refund schema foundation", () => {
     assert.match(guardMigration, /token_refunds_external_reference_pair/);
     assert.match(
       guardMigration,
-      /external_refund_confirmed[\\s\\S]*external_refund_reference[\\s\\S]*is not null/i
+      /external_refund_confirmed[\s\S]*external_refund_reference[\s\S]*is not null/i
     );
-    assert.doesNotMatch(guardMigration, /UPDATE\\s+"?token_ledger"?|DELETE\\s+FROM\\s+"?token_ledger"?/i);
+    assert.doesNotMatch(guardMigration, /UPDATE\s+"?token_ledger"?|DELETE\s+FROM\s+"?token_ledger"?/i);
   });
 });
