@@ -150,7 +150,7 @@ export function reconcileTokenSources(input: {
       purchaseLotId: null,
       sourceLedgerEntryId: input.legacySourceLedgerEntryId,
       remainingTokens: legacyTokens,
-      orderKey: "0000-legacy",
+      orderKey: "zzzz-legacy",
     });
   }
 
