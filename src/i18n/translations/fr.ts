@@ -599,7 +599,7 @@ export const fr: Dictionary = {
     noRefunds: "Aucun remboursement pour le moment.",
     refundFooter: "Les remboursements en attente réservent les Tokens. L’annulation libère la réservation. Confirmez uniquement après le remboursement Shopier et saisissez sa véritable référence externe.",
     purchasesTitle: "Achats de Tokens",
-    purchasesIntro: "Cette liste présente les enregistrements sources pour examiner une éventuelle demande de remboursement ; elle ne signifie pas que l’achat est éligible. Si l’heure d’approbation du paiement est inconnue, elle doit être vérifiée séparément. Aucun montant de remboursement ni retrait de Tokens n’est proposé ici.",
+    purchasesIntro: "Cette liste présente les achats à examiner. L’administrateur saisit le montant et les Tokens à réserver ; le système applique les limites du prix payé et des Tokens inutilisés enregistrés. Ces saisies ne déterminent pas à elles seules l’éligibilité légale au remboursement.",
     package: "Forfait",
     tokens: "Tokens",
     allocatedTokens: "Affectés",
@@ -620,7 +620,7 @@ export const fr: Dictionary = {
     confirmRefund: "Confirmer le remboursement Shopier",
     externalReferenceInput: "Référence réelle du remboursement Shopier",
     tokensToReverseInput: "Tokens à réserver",
-    refundAmountInput: "Montant du remboursement (kuruş)",
+    refundAmountInput: "Montant du remboursement (TRY)",
     createRefund: "Créer le dossier",
   },
   adminOrders: {
