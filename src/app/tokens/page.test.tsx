@@ -117,11 +117,14 @@ describe("/tokens", () => {
     assert.ok(!html.includes(escapeHtml(t.signInPrompt)));
   });
 
-  it("explains the manual process without promising a time", async () => {
+  it("explains the manual process and the 24-hour crediting commitment from Shopier payment confirmation", async () => {
     const html = await render();
     assert.ok(html.includes(escapeHtml(t.howItWorksTitle)));
     for (const step of t.howItWorksSteps) assert.ok(html.includes(escapeHtml(step)), step);
     assert.ok(html.includes(escapeHtml(t.manualNotice)));
+    for (const locale of ["tr", "en", "de", "fr", "es"] as const) {
+      assert.match(getDictionary(locale).tokenPurchase.manualNotice, /\b24\b/, `${locale}: the notice names the 24 hours`);
+    }
   });
 
   // The support line: the dictionary text with its {email} placeholder rendered as a mailto link, after the
