@@ -372,6 +372,15 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
         }
       );
       assert.equal(result.entry.id, rows[0].id);
+      const lots = await sql<{ id: string; user_id: string; external_order_reference: string; package_id: string; package_tokens: number; paid_amount_kurus: number; credited_ledger_entry_id: string }[]>
+        `select id, user_id, external_order_reference, package_id, package_tokens, paid_amount_kurus, credited_ledger_entry_id
+        from token_purchase_lots where provider = 'shopier' and external_order_reference = ${orderRef}`;
+      assert.equal(lots.length, 1);
+      assert.deepEqual({ ...lots[0], id: undefined }, {
+        id: undefined, user_id: userId, external_order_reference: orderRef,
+        package_id: "tokens-50", package_tokens: 50, paid_amount_kurus: 5000,
+        credited_ledger_entry_id: rows[0].id,
+      });
       await assertConsistent(userId, 50);
     });
 
@@ -396,6 +405,10 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
       assert.equal(second.status === "already_recorded" && second.entry.id, first.status === "credited" && first.entry.id);
       assert.equal(second.status === "already_recorded" && second.balance, 50);
       assert.equal((await orderRows(orderRef)).length, 1);
+      const lots = await sql<{ n: number }[]>
+        `select count(*)::int as n from token_purchase_lots
+        where provider = 'shopier' and external_order_reference = ${orderRef}`;
+      assert.equal(lots[0].n, 1, "repeated purchase must not create another purchase lot");
       await assertConsistent(userId, 50);
     });
 
