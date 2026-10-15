@@ -6,6 +6,7 @@ import { SignInOptions } from "@/components/auth/SignInOptions";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { PageContainer } from "@/components/layout/PageContainer";
+import type { WallVisibilityState } from "@/features/profile/lib/wallConsent";
 import type { PersonalWallNote } from "@/features/profile/types";
 import { CopyLinkButton } from "@/features/profile/components/CopyLinkButton";
 import { WallNotes } from "@/features/profile/components/WallNotes";
@@ -25,7 +26,8 @@ interface MeData {
   memoriesCount: number;
   digitalCount: number;
   physicalCount: number;
-  publicWallEnabled: boolean;
+  /** "consent-required": turned on before (or under an older) consent — closed to visitors until accepted. */
+  wallState: WallVisibilityState;
   publicWallDescription: string | null;
   totalWrittenCount: number;
   publishedCount: number;
@@ -45,7 +47,7 @@ export function MePageContent({ isSignedIn, data }: MePageContentProps) {
   // Lifted here (not just inside WallSettings) so the "Share my wall"
   // section below reacts immediately when the toggle changes, without a
   // full page reload — WallSettings still owns persisting the change.
-  const [wallEnabled, setWallEnabled] = useState(data?.publicWallEnabled ?? false);
+  const [wallState, setWallState] = useState<WallVisibilityState>(data?.wallState ?? "off");
 
   if (!isSignedIn || !data) {
     return (
@@ -115,9 +117,9 @@ export function MePageContent({ isSignedIn, data }: MePageContentProps) {
 
       <section className="flex flex-col gap-4">
         <WallSettings
-          initialEnabled={data.publicWallEnabled}
+          initialState={data.wallState}
           initialDescription={data.publicWallDescription}
-          onEnabledChange={setWallEnabled}
+          onStateChange={setWallState}
         />
 
         <div className="flex flex-wrap items-center justify-center gap-2 text-center">
@@ -135,7 +137,8 @@ export function MePageContent({ isSignedIn, data }: MePageContentProps) {
         />
 
         {data.wallNotes.length > 0 &&
-          (wallEnabled ? (
+          // Only a wall visitors can actually see has a share image to offer.
+          (wallState === "public" ? (
             <div className="mx-auto flex w-full max-w-sm flex-col gap-2">
               <span className="text-center text-sm font-medium text-navy">{dictionary.publicWall.shareWallButton}</span>
               <ShareCardPicker

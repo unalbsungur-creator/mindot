@@ -143,6 +143,11 @@ export const tr: Dictionary = {
     fontMonoLabel: "Mono",
     fontElegantLabel: "Elegant",
     fontBoldLabel: "Bold",
+    textAlignLabel: "Hizalama",
+    textAlignLeftLabel: "Sola",
+    textAlignCenterLabel: "Ortaya",
+    textAlignRightLabel: "Sağa",
+    textAlignFootballHint: "Futbol kartlarında yazı topun içinde her zaman ortalı kalır.",
     nameLabel: "Görünecek isim (isteğe bağlı)",
     namePlaceholder: "Nasıl imzalayalım?",
     anonymousLabel: "İmzasız bırak",
@@ -436,7 +441,6 @@ export const tr: Dictionary = {
     captureNoteOnly: "Sadece not",
     captureNoteOnlyHint: "Yalnızca düşüncenin kendisi.",
     captureSurrounding: "Düşünce + çevresindeki duvar",
-    captureSurroundingHint: "Yakınına yerleştirilmiş notları da dahil et.",
     step3Heading: "Formatını seç",
     outputPersonalPdf: "Anı PDF'i",
     outputPersonalPdfHint: "Ücretsiz, sade bir hatıra.",
@@ -619,7 +623,7 @@ export const tr: Dictionary = {
   },
   share: {
     shareAction: "Paylaş",
-    pageTitle: "Bu düşünceyi paylaş",
+    pageTitle: "Bir düşünce",
     pageSubtitle: "Her yerde paylaşabileceğin MINDOT markalı bir görsel oluştur.",
     scopeLabel: "Neler dahil olsun",
     shareButton: "Görseli paylaş",
@@ -724,6 +728,26 @@ export const tr: Dictionary = {
     wallDescriptionSave: "Kaydet",
     wallDescriptionSaved: "Kaydedildi",
     shareWallDisabledHint: "Paylaşmak için önce yukarıdan herkese açık duvarını aç.",
+    // LEGAL REVIEW REQUIRED: draft public-wall consent text (PUBLIC_WALL_CONSENT_VERSION 1.0) — wording and translations need legal review before release.
+    wallConsentTitle: "Duvarını herkese açmadan önce",
+    wallConsentIntro: "Herkese açık duvarın, bağlantısını bilen herkesin görebileceği bir sayfadır. Açmadan önce lütfen aşağıdakileri oku.",
+    wallConsentPoints: [
+      "Duvar bağlantına sahip olan herkes, giriş yapmadan duvarını görebilir; bağlantı başkalarına iletilebilir.",
+      "Duvarında adın, profil görselin, kısa açıklaman ve duvarına eklediğin, adınla paylaşılmış ve onaylanmış düşüncelerin görünür.",
+      "Ziyaretçiler her kartı kendi bağlantısıyla açabilir; duvarın ve kartların görselleri indirilip paylaşılabilir.",
+      "Bu düşünceler duvardan bağımsız olarak MINDOT duvarında ve kendi bağlantılarında zaten herkese açıktır; duvarını kapatmak onları gizlemez.",
+      "Duvarını kapattığında duvar sayfası ve duvar görseli kapanır. Önbelleklerdeki kopyalar kısa bir süre daha görünebilir; daha önce indirilen, paylaşılan veya başka platformların kaydettiği kopyalar MINDOT’un kontrolünde değildir.",
+      "Duvar açıklaman moderasyondan geçmeden herkese açık görünür; içeriğinden sen sorumlusun ve Kullanım Koşulları’na uygun olmalıdır.",
+      "Duvarını her açışında bu bilgilendirmeyi yeniden onaylaman istenir; onayının sürümü ve tarihi hesabında saklanır.",
+    ],
+    wallConsentCheckbox: "Bu bilgilendirmeyi okudum ve duvarımı herkese açmayı kabul ediyorum.",
+    wallConsentConfirm: "Duvarı aç",
+    wallConsentCancel: "Vazgeç",
+    wallConsentVersionLabel: "Bilgilendirme sürümü: {version}",
+    wallConsentLegalLinksLabel: "Ayrıntılar:",
+    wallConsentRequiredNotice: "Duvarın şu anda herkese kapalı. Yeniden açmak için güncel bilgilendirmeyi onaylaman gerekiyor.",
+    wallConsentRequiredAction: "Bilgilendirmeyi oku ve duvarı aç",
+    wallConsentError: "Duvarın açılamadı. Lütfen tekrar dene.",
   },
   archive: {
     pageTitle: "Arşiv",
@@ -769,6 +793,7 @@ export const tr: Dictionary = {
     disabledBody: "Sahibi henüz herkese açık hale getirmedi.",
     emptyMessage: "Bu duvar ilk düşüncesini bekliyor.",
     shareWallButton: "Bu duvarı paylaş",
+    openCardLabel: "Kartı aç: {text}",
   },
   memoryLibrary: {
     pageTitle: "Anılar",
@@ -806,6 +831,11 @@ export const tr: Dictionary = {
       {
         title: "Düşünceler ve kimlik seçimi",
         body: "Bir düşünceyi anonim veya adınızla paylaşmayı seçebilirsiniz. Anonim olarak gönderilen düşünceler kamuya açık içerikte sizinle ilişkilendirilmez. Adınızla gönderilen ve onaylanan düşünceler kamuya açık duvarda görünebilir. Kişisel duvarınız ayrıca yönetilir ve varsayılan olarak gizlidir; onu herkese açık hale getirip getirmeyeceğinize siz karar verirsiniz.",
+      },
+      {
+        title: "Herkese açık kişisel duvar",
+        body: "Kişisel duvarınızı herkese açtığınızda adınız, profil görseliniz, duvar açıklamanız ve duvarınıza eklediğiniz isimli, onaylanmış düşünceler, bağlantıya sahip herkesin görebileceği şekilde yayımlanır. Duvarı açarken verdiğiniz onayın metin sürümü ve tarihi, onayınızı gösterebilmek için hesabınızda saklanır; duvarı kapattığınızda son onay kaydı korunur ve hesabınızı sildiğinizde hesap kaydınızla birlikte silinir. Duvarı kapattığınızda duvar sayfası ve duvar görseli yayından kalkar; önbelleklerdeki kopyalar kısa bir süre daha erişilebilir kalabilir.",
+        // LEGAL REVIEW REQUIRED: draft — the legal basis for publishing the wall (explicit consent vs. information), retention of the consent record and the cache wording need legal review before release.
       },
       {
         title: "İçerik bildirimleri, engellemeler ve uygulama içi bildirimler",
@@ -868,6 +898,11 @@ export const tr: Dictionary = {
       {
         title: "Anonimlik ve isimli paylaşım",
         body: "Anonim paylaşım seçtiğinizde düşünceniz kamuya açık içerikte adınızla ilişkilendirilmez. İsimli ve onaylanmış düşünceler, seçtiğiniz özelliklere ve MINDOT’un yayınlama kurallarına bağlı olarak kamuya açık alanda veya kişisel duvarınızda gösterilebilir.",
+      },
+      {
+        title: "Kişisel duvar",
+        body: "Kişisel duvarınız isteğe bağlıdır ve varsayılan olarak kapalıdır. Duvarınızı yalnızca, her açışınızda gösterilen bilgilendirmeyi açıkça onaylayarak herkese açabilirsiniz. Açık bir duvar, bağlantısına sahip herkes tarafından giriş yapmadan görüntülenebilir; duvarda adınız, profil görseliniz, duvar açıklamanız ve duvarınıza eklediğiniz, adınızla paylaşılmış ve onaylanmış düşünceler yer alır. Ziyaretçiler her kartı kendi bağlantısıyla açabilir; duvarın ve kartların görselleri indirilip paylaşılabilir. Duvar açıklaması yayımlanmadan önce moderasyondan geçmez; içeriğinden siz sorumlusunuz ve MINDOT, bu koşullara veya Topluluk İlkeleri’ne aykırı bir açıklamayı kaldırabilir. Duvarınızı istediğiniz zaman kapatabilirsiniz: duvar sayfası ve duvar görseli kapanır, ancak düşünceleriniz MINDOT duvarında ve kendi bağlantılarında herkese açık kalır. Önbelleklerdeki kopyalar kısa bir süre daha görünebilir; daha önce indirilen, paylaşılan veya üçüncü taraf platformların kaydettiği kopyalar MINDOT’un kontrolünde değildir. Bilgilendirme metni değiştiğinde açık duvarlar, sahipleri güncel metni onaylayana kadar herkese kapalı gösterilir.",
+        // LEGAL REVIEW REQUIRED: draft for the public wall consent (PUBLIC_WALL_CONSENT_VERSION 1.0) — the consent mechanism, the description-responsibility clause and the cache/third-party-copy wording need legal review before release.
       },
       {
         title: "Moderasyon, bildirme ve engelleme",

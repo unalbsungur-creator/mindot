@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db/client";
 import { messageLikes, messages } from "@/lib/db/schema";
 import { computePlacement, findEmptyTile, hasCollision, neighborTiles, tileForSequence, type NoteFootprint, type OccupantFootprint } from "@/features/board/lib/placement";
 import { estimateNoteFootprint } from "@/features/notes/lib/footprint";
+import { toNoteTextAlign } from "@/features/notes/lib/textAlign";
 import { CONTENT_CONSENT_VERSION } from "./consent";
 import type { Message, NewMessageInput } from "./types";
 
@@ -217,6 +218,14 @@ export interface MessageRepository {
    */
   countPublicByAuthorInRange(authorId: string, range?: { from?: Date; to?: Date }): Promise<number>;
   /**
+   * The newest `limit` messages a public wall shows (same filter as
+   * `listPublicByAuthor`: approved + named + wall-visible), newest first,
+   * ties broken by id so the pick is deterministic. Only for the wall share
+   * image's default selection — `listPublicByAuthor` (oldest first) stays
+   * the wall page's read. Indexed by `messages_author_created_idx`.
+   */
+  listNewestPublicByAuthor(authorId: string, limit: number): Promise<Message[]>;
+  /**
    * EPIC 011: toggles one message's personal-wall curation flag. An atomic
    * conditional UPDATE — `authorId`, `status = "approved"`, and
    * `isAnonymous = false` are all part of the WHERE clause, so this is the
@@ -302,6 +311,7 @@ function toMessage(row: typeof messages.$inferSelect): Message {
     language: row.language,
     templateId: row.templateId,
     fontFamily: row.fontFamily as Message["fontFamily"],
+    textAlign: toNoteTextAlign(row.textAlign),
     invitationId: row.invitationId,
     status: row.status,
     tileX: row.tileX,
@@ -812,6 +822,24 @@ class DrizzleMessageRepository implements MessageRepository {
       .orderBy(messages.createdAt)
       .limit(options?.limit ?? 1000)
       .offset(options?.offset ?? 0);
+    return rows.map(toMessage);
+  }
+
+  async listNewestPublicByAuthor(authorId: string, limit: number): Promise<Message[]> {
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.authorId, authorId),
+          eq(messages.status, "approved"),
+          eq(messages.isAnonymous, false),
+          eq(messages.showOnPersonalWall, true)
+        )
+      )
+      .orderBy(desc(messages.createdAt), desc(messages.id))
+      .limit(limit);
     return rows.map(toMessage);
   }
 

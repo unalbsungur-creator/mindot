@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type MouseEvent } from "react";
+import { useEffect, useId, useRef, type MouseEvent, type ReactNode } from "react";
 import { Button } from "./Button";
 
 interface ConfirmDialogProps {
@@ -24,6 +24,12 @@ interface ConfirmDialogProps {
   reasonPlaceholder?: string;
   reasonValue?: string;
   onReasonChange?: (value: string) => void;
+  /**
+   * Optional extra content between `body` (and the reason field) and the
+   * buttons — e.g. the public-wall consent's points and its checkbox.
+   * Callers that don't pass it render exactly as before.
+   */
+  children?: ReactNode;
 }
 
 /**
@@ -50,6 +56,7 @@ export function ConfirmDialog({
   reasonPlaceholder,
   reasonValue,
   onReasonChange,
+  children,
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const headingId = useId();
@@ -98,6 +105,7 @@ export function ConfirmDialog({
             />
           </div>
         )}
+        {children}
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
             {cancelLabel}

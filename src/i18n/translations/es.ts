@@ -141,6 +141,11 @@ export const es: Dictionary = {
     fontMonoLabel: "Mono",
     fontElegantLabel: "Elegant",
     fontBoldLabel: "Bold",
+    textAlignLabel: "Alineación",
+    textAlignLeftLabel: "Izquierda",
+    textAlignCenterLabel: "Centro",
+    textAlignRightLabel: "Derecha",
+    textAlignFootballHint: "En las tarjetas de fútbol, el texto siempre queda centrado dentro del balón.",
     nameLabel: "Nombre a mostrar (opcional)",
     namePlaceholder: "¿Cómo lo firmamos?",
     anonymousLabel: "Dejar sin firmar",
@@ -434,7 +439,6 @@ export const es: Dictionary = {
     captureNoteOnly: "Solo la nota",
     captureNoteOnlyHint: "Solo el pensamiento en sí.",
     captureSurrounding: "Pensamiento + muro circundante",
-    captureSurroundingHint: "Incluye las notas colocadas cerca.",
     step3Heading: "Elige tu formato",
     outputPersonalPdf: "PDF de recuerdo",
     outputPersonalPdfHint: "Un recuerdo simple y gratuito.",
@@ -617,7 +621,7 @@ export const es: Dictionary = {
   },
   share: {
     shareAction: "Compartir",
-    pageTitle: "Comparte este pensamiento",
+    pageTitle: "Un pensamiento",
     pageSubtitle: "Crea una imagen de MINDOT para compartir en cualquier lugar.",
     scopeLabel: "Qué incluir",
     shareButton: "Compartir imagen",
@@ -722,6 +726,26 @@ export const es: Dictionary = {
     wallDescriptionSave: "Guardar",
     wallDescriptionSaved: "Guardado",
     shareWallDisabledHint: "Activa tu muro público arriba para compartirlo.",
+    // LEGAL REVIEW REQUIRED: draft public-wall consent text (PUBLIC_WALL_CONSENT_VERSION 1.0) — wording and translations need legal review before release.
+    wallConsentTitle: "Antes de hacer público tu muro",
+    wallConsentIntro: "Tu muro público es una página que cualquiera con el enlace puede ver. Lee lo siguiente antes de activarlo.",
+    wallConsentPoints: [
+      "Cualquiera con el enlace de tu muro puede verlo sin iniciar sesión, y el enlace puede compartirse con otras personas.",
+      "Tu muro muestra tu nombre, tu foto de perfil, tu breve descripción y los pensamientos con nombre y aprobados que hayas añadido.",
+      "Los visitantes pueden abrir cada tarjeta mediante su propio enlace, y las imágenes de tu muro y de sus tarjetas pueden descargarse y compartirse.",
+      "Estos pensamientos ya son públicos en el muro de MINDOT y en sus propios enlaces, independientemente de tu muro: desactivar tu muro no los oculta.",
+      "Cuando desactivas tu muro, la página del muro y la imagen del muro se cierran. Las copias en caché pueden seguir visibles un breve tiempo, y las copias ya descargadas, compartidas o guardadas por otras plataformas quedan fuera del control de MINDOT.",
+      "La descripción de tu muro aparece públicamente sin moderación; eres responsable de ella y debe cumplir las Condiciones de uso.",
+      "Cada vez que actives tu muro se te pedirá que vuelvas a aceptar esta información; la versión y la fecha de tu consentimiento se guardan en tu cuenta.",
+    ],
+    wallConsentCheckbox: "He leído esta información y acepto hacer público mi muro.",
+    wallConsentConfirm: "Activar muro",
+    wallConsentCancel: "Cancelar",
+    wallConsentVersionLabel: "Versión de la información: {version}",
+    wallConsentLegalLinksLabel: "Detalles:",
+    wallConsentRequiredNotice: "Tu muro está cerrado para todos en este momento. Para volver a abrirlo, acepta la información actual.",
+    wallConsentRequiredAction: "Leer la información y activar el muro",
+    wallConsentError: "No se pudo activar tu muro. Inténtalo de nuevo.",
   },
   archive: {
     pageTitle: "Archivo",
@@ -767,6 +791,7 @@ export const es: Dictionary = {
     disabledBody: "Su propietario aún no lo ha hecho público.",
     emptyMessage: "Este muro espera su primer pensamiento.",
     shareWallButton: "Compartir este muro",
+    openCardLabel: "Abrir tarjeta: {text}",
   },
   memoryLibrary: {
     pageTitle: "Recuerdos",
@@ -804,6 +829,11 @@ export const es: Dictionary = {
       {
         title: "Pensamientos y elección de identidad",
         body: "Puede elegir compartir un pensamiento de forma anónima o con su nombre. Los pensamientos enviados de forma anónima nunca se vinculan a usted en el contenido público. Los pensamientos enviados con su nombre, una vez aprobados, pueden aparecer en el muro público. Su muro personal se gestiona por separado y es privado de forma predeterminada; usted decide si lo hace público.",
+      },
+      {
+        title: "Muro personal público",
+        body: "Cuando haces público tu muro personal, tu nombre, tu foto de perfil, la descripción de tu muro y los pensamientos con nombre y aprobados que hayas añadido se publican de forma que cualquiera con el enlace pueda verlos. La versión y la fecha del consentimiento que das al activar el muro se guardan en tu cuenta para poder acreditar tu consentimiento; al desactivar el muro se conserva el último registro de consentimiento, y al eliminar tu cuenta se elimina junto con el registro de tu cuenta. Cuando desactivas el muro, la página del muro y la imagen del muro se retiran; las copias en caché pueden seguir accesibles un breve tiempo.",
+        // LEGAL REVIEW REQUIRED: draft — the legal basis for publishing the wall (explicit consent vs. information), retention of the consent record and the cache wording need legal review before release.
       },
       {
         title: "Denuncias, bloqueos y notificaciones",
@@ -866,6 +896,11 @@ export const es: Dictionary = {
       {
         title: "Publicación anónima y con nombre",
         body: "Cuando elige la publicación anónima, su pensamiento no se vincula a su nombre en el contenido público. Los pensamientos publicados con nombre y aprobados pueden mostrarse en el área pública o en su muro personal, según las funciones elegidas y las reglas de publicación de MINDOT.",
+      },
+      {
+        title: "Muro personal",
+        body: "Tu muro personal es opcional y está desactivado de forma predeterminada. Solo puedes hacerlo público aceptando expresamente la información que se muestra cada vez que lo activas. Un muro público puede ser visto sin iniciar sesión por cualquier persona que tenga su enlace; muestra tu nombre, tu foto de perfil, la descripción de tu muro y los pensamientos con nombre y aprobados que hayas añadido. Los visitantes pueden abrir cada tarjeta mediante su propio enlace, y las imágenes del muro y de sus tarjetas pueden descargarse y compartirse. La descripción del muro no se modera antes de publicarse; eres responsable de ella y MINDOT puede retirar una descripción contraria a estas condiciones o a las Normas de la comunidad. Puedes desactivar tu muro en cualquier momento: la página del muro y la imagen del muro se cierran, pero tus pensamientos siguen siendo públicos en el muro de MINDOT y en sus propios enlaces. Las copias en caché pueden seguir visibles un breve tiempo, y las copias ya descargadas, compartidas o guardadas por plataformas de terceros quedan fuera del control de MINDOT. Cuando cambia el texto informativo, los muros públicos se muestran cerrados hasta que sus propietarios acepten el texto actual.",
+        // LEGAL REVIEW REQUIRED: draft for the public wall consent (PUBLIC_WALL_CONSENT_VERSION 1.0) — the consent mechanism, the description-responsibility clause and the cache/third-party-copy wording need legal review before release.
       },
       {
         title: "Moderación, denuncias y bloqueo",

@@ -1,4 +1,4 @@
-import type { NoteTextFontFamily } from "@/features/notes/types";
+import type { NoteTextAlign, NoteTextFontFamily } from "@/features/notes/types";
 
 /**
  * The public-facing identity behind a personal wall — deliberately narrow,
@@ -26,6 +26,7 @@ export interface PersonalWallNote {
   templateId: string;
   /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface — rendering metadata, same privacy tier as `templateId`. */
   fontFamily: NoteTextFontFamily;
+  textAlign: NoteTextAlign;
   rotation: number;
   language: string;
   createdAt: string;
@@ -73,6 +74,7 @@ export interface ArchiveMessage {
   templateId: string;
   /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface — rendering metadata, same privacy tier as `templateId`. */
   fontFamily: NoteTextFontFamily;
+  textAlign: NoteTextAlign;
   language: string;
   isAnonymous: boolean;
   createdAt: string;
@@ -122,6 +124,7 @@ export interface MemoryLibraryItem {
   noteTemplateId: string | null;
   /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface — rendering metadata, same privacy tier as `noteTemplateId`. */
   noteFontFamily: NoteTextFontFamily | null;
+  noteTextAlign: NoteTextAlign | null;
   noteLanguage: string | null;
   captureMode: "note_only" | "note_with_surrounding";
   outputType: "personal_pdf" | "digital_frame" | "physical_gift";

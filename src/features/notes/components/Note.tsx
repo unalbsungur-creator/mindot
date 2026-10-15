@@ -6,7 +6,8 @@ import { getNoteTemplate } from "../config/templates";
 import { NoteActionTooltip } from "./NoteActionTooltip";
 import { FrostDrift, renderNoteDecoration } from "../lib/noteDecorations";
 import { footballBallBackground } from "../lib/sportsBall";
-import { noteFontFamilyClass, noteTextScaleClass } from "../lib/textScale";
+import { effectiveTextAlign, textAlignClass } from "../lib/textAlign";
+import { footballTextSizeRem, noteFontFamilyClass, noteTextScaleClass, spaciousTextSizeCqw } from "../lib/textScale";
 import type { NoteData } from "../types";
 
 const paperClasses: Record<string, string> = {
@@ -244,12 +245,15 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
   // `NoteData` built before this field existed.
   const fontFamily = note.fontFamily ?? "modern";
   const fontFamilyClass = noteFontFamilyClass(fontFamily);
+  // The writer's alignment, as a class on the text and its author line — none for "auto" (the card's own
+  // alignment) and none on the football disc, which always stays centered (lib/textAlign.ts).
+  const alignClass = textAlignClass(effectiveTextAlign(note.textAlign, template.shape));
   // EPIC 045: card geometry (width, and heart/football's fixed
   // aspect-ratio height) never changes with content — only this tier does,
   // so long text (up to MESSAGE_MAX_LENGTH) stays inside the same fixed
   // box instead of deforming or overflowing it. See lib/textScale.ts.
   const textScaleClass = noteTextScaleClass(
-    note.content.length,
+    note.content,
     fontFamily,
     isSpacious
       ? "imageBackedSpacious"
@@ -476,17 +480,19 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
                 left: template.contentArea!.left,
                 width: template.contentArea!.width,
                 height: template.contentArea!.height,
+                // Spacious: the tier size, fitted for line breaks, in cqw of the card (lib/textScale.ts).
+                ...(isSpacious ? { fontSize: `${spaciousTextSizeCqw(note.content, fontFamily, template)}cqw` } : {}),
               }}
             >
               <p
                 lang={note.language}
-                className={cn("break-words text-ink", !isSpacious && textScaleClass, fontFamilyClass)}
+                className={cn("whitespace-pre-line break-words text-ink", !isSpacious && textScaleClass, fontFamilyClass, alignClass)}
               >
                 {note.content}
               </p>
               {/* Spacious: the author line scales with the text (0.85em,
                   0.5em gap) exactly like the share card / PDF draw it. */}
-              <span className={cn("break-words text-ink-soft", isSpacious ? "mt-[0.5em] text-[0.85em]" : "text-xs")}>
+              <span className={cn("break-words text-ink-soft", isSpacious ? "mt-[0.5em] text-[0.85em]" : "text-xs", alignClass)}>
                 — {note.authorName}
               </span>
             </div>
@@ -544,14 +550,23 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
                 // disc's own rendered width, giving break-words something to
                 // wrap against, exactly like the standard shape's
                 // full-width wrapper already does implicitly.
-                "max-w-full break-words text-ink",
+                // `shrink-0` (here and on the author line): the disc is a
+                // fixed box, so text and author keep their own heights and
+                // never overlap — any overflow is the disc's clip instead.
+                "max-w-full shrink-0 whitespace-pre-line break-words text-ink",
                 textScaleClass,
                 fontFamilyClass
               )}
             >
               {note.content}
             </p>
-            <span className="max-w-full break-words text-[0.65rem] text-ink-soft">— {note.authorName}</span>
+            <span
+              className="max-w-full shrink-0 break-words text-[0.65rem] text-ink-soft"
+              // With line breaks the message can drop to a smaller tier: the author line never ends up larger than it.
+              style={note.content.includes("\n") ? { fontSize: `min(0.65rem, ${footballTextSizeRem(note.content, fontFamily)}rem)` } : undefined}
+            >
+              — {note.authorName}
+            </span>
           </div>
         ) : (
           <>
@@ -570,14 +585,18 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
                 // unbreakable word wrap mid-word as a last resort, matching
                 // the PDF renderer's own guaranteed-fit text handling
                 // (pdfTextMeasure.ts) — never truncated/hidden, always visible.
-                "break-words text-ink",
+                // `whitespace-pre-line` keeps the writer's own line breaks
+                // (normalized server-side, see messages/lib/messageContent.ts)
+                // in all three text branches, as the share card and PDF do.
+                "whitespace-pre-line break-words text-ink",
                 textScaleClass,
-                fontFamilyClass
+                fontFamilyClass,
+                alignClass
               )}
             >
               {note.content}
             </p>
-            <span className="break-words text-xs text-ink-soft">— {note.authorName}</span>
+            <span className={cn("break-words text-xs text-ink-soft", alignClass)}>— {note.authorName}</span>
           </>
         )}
       </div>

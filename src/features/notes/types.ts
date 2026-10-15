@@ -61,6 +61,16 @@ export type NoteTextFontFamily =
   | "elegant"
   | "bold";
 
+/**
+ * The writer's text alignment. `"auto"` (the default, and what every
+ * message written before this choice existed has) is the card's own
+ * alignment — left on every card but the football disc, which is always
+ * centered; the football disc ignores every other value too. Stored on the
+ * message (`messages.text_align`, migration 0024), fixed at writing time —
+ * a revision changes the text only.
+ */
+export type NoteTextAlign = "auto" | "left" | "center" | "right";
+
 export type NoteSize = "sm" | "md" | "lg";
 
 export type NoteTemplateCategory = "standard" | "seasonal" | "sports";
@@ -228,4 +238,6 @@ export interface NoteData {
   language?: string;
   /** EPIC — Kart Yazı Tipi Seçenekleri: defaults to `"modern"` when absent (e.g. any `NoteData` built before this field existed — sample notes, older call sites) — never left `undefined` all the way down to Note.tsx's own rendering logic. */
   fontFamily?: NoteTextFontFamily;
+  /** Absent means `"auto"` — sample notes, older call sites, and board responses cached before the field existed. */
+  textAlign?: NoteTextAlign;
 }

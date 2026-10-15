@@ -141,6 +141,11 @@ export const fr: Dictionary = {
     fontMonoLabel: "Mono",
     fontElegantLabel: "Elegant",
     fontBoldLabel: "Bold",
+    textAlignLabel: "Alignement",
+    textAlignLeftLabel: "Gauche",
+    textAlignCenterLabel: "Centré",
+    textAlignRightLabel: "Droite",
+    textAlignFootballHint: "Sur les cartes football, le texte reste toujours centré dans le ballon.",
     nameLabel: "Nom affiché (facultatif)",
     namePlaceholder: "Comment devrions-nous signer ?",
     anonymousLabel: "Laisser non signée",
@@ -434,7 +439,6 @@ export const fr: Dictionary = {
     captureNoteOnly: "Note seule",
     captureNoteOnlyHint: "Uniquement la pensée elle-même.",
     captureSurrounding: "Pensée + mur environnant",
-    captureSurroundingHint: "Inclure les notes placées à proximité.",
     step3Heading: "Choisissez votre format",
     outputPersonalPdf: "PDF souvenir",
     outputPersonalPdfHint: "Un souvenir simple et gratuit.",
@@ -617,7 +621,7 @@ export const fr: Dictionary = {
   },
   share: {
     shareAction: "Partager",
-    pageTitle: "Partager cette pensée",
+    pageTitle: "Une pensée",
     pageSubtitle: "Crée une image MINDOT à partager partout.",
     scopeLabel: "Ce qu'il faut inclure",
     shareButton: "Partager l'image",
@@ -722,6 +726,26 @@ export const fr: Dictionary = {
     wallDescriptionSave: "Enregistrer",
     wallDescriptionSaved: "Enregistré",
     shareWallDisabledHint: "Activez votre mur public ci-dessus pour le partager.",
+    // LEGAL REVIEW REQUIRED: draft public-wall consent text (PUBLIC_WALL_CONSENT_VERSION 1.0) — wording and translations need legal review before release.
+    wallConsentTitle: "Avant de rendre votre mur public",
+    wallConsentIntro: "Votre mur public est une page que toute personne disposant du lien peut voir. Veuillez lire ce qui suit avant de l’activer.",
+    wallConsentPoints: [
+      "Toute personne disposant du lien de votre mur peut le voir sans se connecter, et le lien peut être transmis à d’autres.",
+      "Votre mur affiche votre nom, votre photo de profil, votre courte description et les pensées nominatives et approuvées que vous y avez ajoutées.",
+      "Les visiteurs peuvent ouvrir chaque carte via son propre lien, et les images de votre mur et de ses cartes peuvent être téléchargées et partagées.",
+      "Ces pensées sont déjà publiques sur le mur MINDOT et à leurs propres liens, indépendamment de votre mur — désactiver votre mur ne les masque pas.",
+      "Lorsque vous désactivez votre mur, la page du mur et l’image du mur sont fermées. Des copies en cache peuvent rester visibles un court moment ; les copies déjà téléchargées, partagées ou enregistrées par d’autres plateformes échappent au contrôle de MINDOT.",
+      "La description de votre mur apparaît publiquement sans modération ; vous en êtes responsable et elle doit respecter les Conditions d’utilisation.",
+      "Chaque fois que vous activez votre mur, il vous sera demandé d’accepter à nouveau ces informations ; la version et la date de votre consentement sont conservées avec votre compte.",
+    ],
+    wallConsentCheckbox: "J’ai lu ces informations et j’accepte de rendre mon mur public.",
+    wallConsentConfirm: "Activer le mur",
+    wallConsentCancel: "Annuler",
+    wallConsentVersionLabel: "Version des informations : {version}",
+    wallConsentLegalLinksLabel: "Détails :",
+    wallConsentRequiredNotice: "Votre mur est actuellement fermé à tous. Pour le rouvrir, veuillez accepter les informations actuelles.",
+    wallConsentRequiredAction: "Lire les informations et activer le mur",
+    wallConsentError: "Votre mur n’a pas pu être activé. Veuillez réessayer.",
   },
   archive: {
     pageTitle: "Archives",
@@ -767,6 +791,7 @@ export const fr: Dictionary = {
     disabledBody: "Son propriétaire ne l'a pas encore rendu public.",
     emptyMessage: "Ce mur attend sa première pensée.",
     shareWallButton: "Partager ce mur",
+    openCardLabel: "Ouvrir la carte : {text}",
   },
   memoryLibrary: {
     pageTitle: "Souvenirs",
@@ -804,6 +829,11 @@ export const fr: Dictionary = {
       {
         title: "Pensées et choix d'identité",
         body: "Vous pouvez choisir de partager une pensée de manière anonyme ou sous votre nom. Les pensées envoyées anonymement ne sont jamais associées à vous dans le contenu public. Les pensées envoyées sous votre nom et approuvées peuvent apparaître sur le mur public. Votre mur personnel est géré séparément et reste privé par défaut ; vous décidez de le rendre public ou non.",
+      },
+      {
+        title: "Mur personnel public",
+        body: "Lorsque vous rendez votre mur personnel public, votre nom, votre photo de profil, la description de votre mur et les pensées nominatives et approuvées que vous y avez ajoutées sont publiés de sorte que toute personne disposant du lien puisse les voir. La version et la date du consentement que vous donnez en activant le mur sont conservées avec votre compte afin de pouvoir démontrer votre consentement ; la désactivation du mur conserve le dernier consentement enregistré, et la suppression de votre compte le supprime avec votre compte. Lorsque vous désactivez le mur, la page du mur et l’image du mur sont retirées ; des copies en cache peuvent rester accessibles un court moment.",
+        // LEGAL REVIEW REQUIRED: draft — the legal basis for publishing the wall (explicit consent vs. information), retention of the consent record and the cache wording need legal review before release.
       },
       {
         title: "Signalements, blocages et notifications",
@@ -866,6 +896,11 @@ export const fr: Dictionary = {
       {
         title: "Partage anonyme et nominatif",
         body: "Lorsque vous choisissez le partage anonyme, votre pensée n'est pas associée à votre nom dans le contenu public. Les pensées nominatives et approuvées peuvent être affichées dans l'espace public ou sur votre mur personnel, selon les fonctionnalités choisies et les règles de publication de MINDOT.",
+      },
+      {
+        title: "Mur personnel",
+        body: "Votre mur personnel est facultatif et désactivé par défaut. Vous ne pouvez le rendre public qu’en acceptant expressément les informations affichées à chaque activation. Un mur public peut être consulté sans connexion par toute personne disposant de son lien ; il affiche votre nom, votre photo de profil, la description de votre mur et les pensées nominatives et approuvées que vous y avez ajoutées. Les visiteurs peuvent ouvrir chaque carte via son propre lien, et les images du mur et de ses cartes peuvent être téléchargées et partagées. La description du mur n’est pas modérée avant sa publication ; vous en êtes responsable et MINDOT peut retirer une description contraire aux présentes conditions ou aux Règles de la communauté. Vous pouvez désactiver votre mur à tout moment : la page du mur et l’image du mur sont fermées, mais vos pensées restent publiques sur le mur MINDOT et à leurs propres liens. Des copies en cache peuvent rester visibles un court moment ; les copies déjà téléchargées, partagées ou enregistrées par des plateformes tierces échappent au contrôle de MINDOT. Lorsque le texte d’information change, les murs publics apparaissent fermés jusqu’à ce que leurs propriétaires acceptent le texte actuel.",
+        // LEGAL REVIEW REQUIRED: draft for the public wall consent (PUBLIC_WALL_CONSENT_VERSION 1.0) — the consent mechanism, the description-responsibility clause and the cache/third-party-copy wording need legal review before release.
       },
       {
         title: "Modération, signalement et blocage",

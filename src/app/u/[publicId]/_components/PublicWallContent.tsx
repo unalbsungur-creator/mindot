@@ -29,6 +29,14 @@ function pageHref(pathname: string, searchParams: URLSearchParams, page: number)
   return qs ? `${pathname}?${qs}` : pathname;
 }
 
+const CARD_LINK_EXCERPT_CHARS = 60;
+
+/** A card link's accessible name carries the start of its text — not the whole card (text + author) read out as one long link. */
+function cardExcerpt(content: string): string {
+  const text = content.replace(/\s+/g, " ").trim();
+  return text.length > CARD_LINK_EXCERPT_CHARS ? `${text.slice(0, CARD_LINK_EXCERPT_CHARS).trimEnd()}…` : text;
+}
+
 /** Shared skeleton for the "nothing to show" states below — same layout, different copy. */
 function WallMessagePanel({ title, body, image, children }: { title: string; body: string; image?: string | null; children?: ReactNode }) {
   return (
@@ -97,7 +105,12 @@ export function PublicWallContent({ publicId, wall, page, totalPages, canBlock }
         {canBlock && <BlockUserButton publicId={publicId} displayName={wall.profile.displayName} blocked={false} />}
       </div>
 
-      <WallNotes notes={wall.notes} profile={wall.profile} emptyMessage={dictionary.publicWall.emptyMessage} />
+      <WallNotes
+        notes={wall.notes}
+        profile={wall.profile}
+        emptyMessage={dictionary.publicWall.emptyMessage}
+        cardLinkLabel={(note) => dictionary.publicWall.openCardLabel.replace("{text}", cardExcerpt(note.content))}
+      />
 
       {/* EPIC 024: same generic notifications.pagination* reuse as ArchivePageContent — see its own comment for why. */}
       {totalPages > 1 && (

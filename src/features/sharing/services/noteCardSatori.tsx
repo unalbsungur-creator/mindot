@@ -32,9 +32,11 @@ import type { ReactNode } from "react";
 import { HEART_PATH } from "@/features/notes/components/Note";
 import { getNoteTemplate } from "@/features/notes/config/templates";
 import { SPORTS_COLOR_HEX } from "@/features/notes/lib/sportsBall";
-import { noteTextSizeTier } from "@/features/notes/lib/textScale";
-import type { NoteDecoration, NoteShape, NoteTemplate, NoteTextFontFamily, SportsColorKey } from "@/features/notes/types";
+import { effectiveTextAlign } from "@/features/notes/lib/textAlign";
+import { noteTextLengthTier, noteTextSizeTier, spaciousLineHeight, spaciousTextSizeCqw } from "@/features/notes/lib/textScale";
+import type { NoteDecoration, NoteShape, NoteTemplate, NoteTextAlign, NoteTextFontFamily, SportsColorKey } from "@/features/notes/types";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "@/features/memories/services/pdfPalette";
+import { measureTextWidth, wrapTextToLines } from "@/features/memories/services/pdfTextMeasure";
 import { readPublicAsset } from "./publicAsset";
 
 /**
@@ -119,6 +121,8 @@ export interface MemoryNoteCardInput {
   templateId: string;
   /** The writer's own text typeface — see FONT_METRICS above. */
   fontFamily: NoteTextFontFamily;
+  /** The writer's alignment; absent or "auto" is the card's own, and the football disc ignores it (features/notes/lib/textAlign.ts). */
+  textAlign?: NoteTextAlign;
   /** Degrees — the note's real rotation (its board placement, or 0 for a fresh preview). */
   rotation: number;
   /** Target render width in px; height is derived from content + template, never fixed in advance. */
@@ -212,11 +216,97 @@ function scaledHeartPath(width: number, height: number): string {
  * fixed box, mirroring `features/notes/lib/textScale.ts`'s tiers/
  * thresholds (90/130 chars) conceptually, expressed as a plain numeric
  * multiplier since Satori needs inline pixel values, not Tailwind classes.
+ * Uses the same line-aware `noteTextSizeTier` as the DOM; its two short
+ * tiers keep the default size here, as FOOTBALL_TEXT_SCALE does.
  */
-function footballFontScale(contentLength: number): number {
-  if (contentLength > 130) return 0.5;
-  if (contentLength > 90) return 0.64;
+function footballFontScale(content: string): number {
+  // By length alone: the measured fit below (`footballTextFitScale`) sizes for the line breaks.
+  const tier = noteTextLengthTier(content);
+  if (tier === "dense") return 0.5;
+  if (tier === "compact") return 0.64;
   return 0.82;
+}
+
+// The football text disc at BASELINE_WIDTH, as `MemoryNoteCard` draws it: a
+// circle 74% of the (square) card wide, text wrapping inside its 14px
+// padding, the author line 8px below at 10.5px. Ratios — the fit below
+// holds at every render width.
+const FOOTBALL_DISC_RADIUS = (BASELINE_WIDTH * 0.74) / 2;
+const FOOTBALL_DISC_PADDING = 14;
+const FOOTBALL_TEXT_LINE_HEIGHT = 1.3;
+const FOOTBALL_AUTHOR_GAP = 8;
+const FOOTBALL_AUTHOR_FONT_PX = 10.5;
+// Satori's "normal" line height for Noto Sans, rounded up.
+const FOOTBALL_AUTHOR_LINE_HEIGHT = 1.4;
+// Kept clear between a line's ends and the circle's edge.
+const FOOTBALL_EDGE_MARGIN = 2;
+
+/**
+ * The football author line's size at BASELINE_WIDTH: 10.5px, as before, for
+ * a message without a line break; with breaks it shrinks by the same fit as
+ * the text and never ends up larger than the text itself.
+ */
+export function footballAuthorFontPx(content: string, textFontPx: number, fit: number): number {
+  if (!content.includes("\n")) return FOOTBALL_AUTHOR_FONT_PX;
+  return Math.min(FOOTBALL_AUTHOR_FONT_PX * fit, textFontPx);
+}
+
+/**
+ * Whether `lines` (already wrapped) plus the author line fit the football
+ * disc at `fontPx`, measured with real glyph widths: the block is centered
+ * vertically, and every line — its glyph band, not its full leading — must
+ * stay inside the circle's chord at its own height.
+ */
+function footballLinesFit(lines: string[], fontFamily: NoteTextFontFamily, fontPx: number, authorName: string | null, authorPx: number): boolean {
+  const lineBox = fontPx * FOOTBALL_TEXT_LINE_HEIGHT;
+  const rows = lines.map((text) => ({ width: measureTextWidth(text, fontFamily, fontPx), height: lineBox, glyph: fontPx }));
+  if (authorName) {
+    rows.push({
+      width: measureTextWidth(`— ${authorName}`, "modern", authorPx),
+      height: (FOOTBALL_AUTHOR_GAP * authorPx) / FOOTBALL_AUTHOR_FONT_PX + authorPx * FOOTBALL_AUTHOR_LINE_HEIGHT,
+      glyph: authorPx,
+    });
+  }
+  let top = -rows.reduce((sum, row) => sum + row.height, 0) / 2;
+  for (const row of rows) {
+    const center = top + row.height - Math.min(row.height, row.glyph * FOOTBALL_TEXT_LINE_HEIGHT) / 2;
+    const far = Math.abs(center) + row.glyph / 2;
+    if (far >= FOOTBALL_DISC_RADIUS) return false;
+    const halfChord = Math.sqrt(FOOTBALL_DISC_RADIUS ** 2 - far ** 2);
+    if (row.width / 2 + FOOTBALL_EDGE_MARGIN > halfChord) return false;
+    top += row.height;
+  }
+  return true;
+}
+
+/**
+ * Extra shrink (≤ 1) on top of `footballFontScale`'s length tier, only for a
+ * message with the writer's own line breaks: the largest size at which its
+ * lines (wrapped and measured with the real fonts, `wrapTextToLines`) and
+ * the author line (`footballAuthorFontPx`, shrinking with it) fit the disc
+ * without touching its edge. A message without a line break keeps exactly
+ * 1 — its card is unchanged, the tiers were tuned for it. Needs
+ * `ensurePdfMeasureFontsLoaded()` (renderShareCard and renderPdfCardImage
+ * await it); without the fonts it falls back to 1, the pre-fit size,
+ * rather than failing a share image.
+ */
+export function footballTextFitScale(content: string, fontFamily: NoteTextFontFamily, authorName: string | null): number {
+  if (!content.includes("\n")) return 1;
+  const baseFontPx = FONT_METRICS[fontFamily].fontSize * footballFontScale(content);
+  const wrapWidth = FOOTBALL_DISC_RADIUS * 2 - 2 * FOOTBALL_DISC_PADDING;
+  try {
+    let fit = 1;
+    // No floor that real text could hit: 150 characters can be 75 one-character lines.
+    while (fit > 0.05) {
+      const fontPx = baseFontPx * fit;
+      const authorPx = footballAuthorFontPx(content, fontPx, fit);
+      if (footballLinesFit(wrapTextToLines(content, fontFamily, fontPx, wrapWidth), fontFamily, fontPx, authorName, authorPx)) break;
+      fit -= 0.02;
+    }
+    return Math.round(fit * 100) / 100;
+  } catch {
+    return 1;
+  }
 }
 
 /**
@@ -227,40 +317,33 @@ function footballFontScale(contentLength: number): number {
  * above, which is sized for a standard card's much larger padded box.
  */
 export function imageBackedFontSizePx(
-  contentLength: number,
+  content: string,
   template?: NoteTemplate,
   fontFamily: NoteTextFontFamily = "modern"
 ): number {
-  if (template?.contentTextSize === "spacious") {
-    return SPACIOUS_IMAGE_BACKED_FONT_PX[fontFamily][noteTextSizeTier(contentLength)];
-  }
-  if (contentLength > 130) return 7.36; // 0.46rem
-  if (contentLength > 90) return 8.64; // 0.54rem
+  if (template?.contentTextSize === "spacious") return spaciousTextSizePx(content, fontFamily, template);
+  const tier = noteTextSizeTier(content);
+  if (tier === "dense") return 7.36; // 0.46rem
+  if (tier === "compact") return 8.64; // 0.54rem
   return 9.28; // 0.58rem — kept in sync with IMAGE_BACKED_TEXT_SCALE's "modern"/"classic" default tier (lib/textScale.ts); a real ~90-char message was confirmed overflowing the smaller Special Day contentArea boxes at the old 0.78rem value, both here and in the DOM, and both were fixed together.
 }
 
 /**
  * `contentTextSize: "spacious"` templates (the new Standard cards) — px at
- * the 176px baseline, mirroring SPACIOUS_IMAGE_BACKED_TEXT_SCALE
- * (lib/textScale.ts): cqw × 1.76 per font and tier. Unlike the compact Special
- * Day sizes above it is per font, since Caveat/Geist Mono differ enough in
- * width to need their own sizes in a box this large.
+ * the 176px baseline, derived from the DOM's own cqw size
+ * (`spaciousTextSizeCqw`, lib/textScale.ts: tier size, fitted for line
+ * breaks) as `cqw × 176 / 100`, so the share card and PDF can never drift
+ * from what Note.tsx shows. Per font, since Caveat/Geist Mono differ
+ * enough in width to need their own sizes in a box this large.
  */
-const SPACIOUS_IMAGE_BACKED_FONT_PX: Record<NoteTextFontFamily, Record<"default" | "compact" | "dense", number>> = {
-  modern: { default: 12.5, compact: 10.03, dense: 9.68 },
-  classic: { default: 12.14, compact: 9.68, dense: 9.33 },
-  handwritten: { default: 14.08, compact: 12.14, dense: 11.26 },
-  typewriter: { default: 11.62, compact: 9.77, dense: 9.68 },
-  serif: { default: 11.79, compact: 9.42, dense: 8.98 },
-  mono: { default: 11.62, compact: 9.77, dense: 9.68 },
-  elegant: { default: 11.09, compact: 8.8, dense: 8.62 },
-  bold: { default: 11.79, compact: 9.42, dense: 9.15 },
-};
+export function spaciousTextSizePx(content: string, fontFamily: NoteTextFontFamily, template: NoteTemplate): number {
+  return (spaciousTextSizeCqw(content, fontFamily, template) * BASELINE_WIDTH) / 100;
+}
 
-/** Line height for an image-backed card's text — mirrors the DOM tables' `leading-*` (spacious: `leading-snug`, Caveat `leading-tight`; compact Special Day sizes: 1.25 as before). */
+/** Line height for an image-backed card's text — mirrors the DOM tables' `leading-*` (spacious: `spaciousLineHeight`; compact Special Day sizes: 1.25 as before). */
 export function imageBackedLineHeight(template: NoteTemplate, fontFamily: NoteTextFontFamily): number {
   if (template.contentTextSize !== "spacious") return 1.25;
-  return fontFamily === "handwritten" ? 1.25 : 1.375;
+  return spaciousLineHeight(fontFamily);
 }
 
 /**
@@ -448,9 +531,20 @@ function decorationIcon(decoration: NoteDecoration): ReactNode {
   }
 }
 
-export function MemoryNoteCard({ content, authorName, templateId, fontFamily, rotation, width, artworkDataUri }: MemoryNoteCardInput): ReactNode {
+/**
+ * The Satori style for an effective alignment: nothing for "auto", so an
+ * "auto" card renders exactly as before; otherwise `textAlign` for wrapped
+ * text plus `justifyContent` for a flex row of text nodes (the author line).
+ */
+function textAlignStyle(align: NoteTextAlign): { textAlign?: "left" | "center" | "right"; justifyContent?: "flex-start" | "center" | "flex-end" } {
+  if (align === "auto") return {};
+  return { textAlign: align, justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center" };
+}
+
+export function MemoryNoteCard({ content, authorName, templateId, fontFamily, textAlign, rotation, width, artworkDataUri }: MemoryNoteCardInput): ReactNode {
   const template = getNoteTemplate(templateId);
   const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily);
+  const alignStyle = textAlignStyle(effectiveTextAlign(textAlign, template.shape));
 
   // EPIC: Special Day Clean Artwork + Share Visual Consistency — the exact
   // same artwork + contentArea Note.tsx renders in Picker/Preview/DUVAR,
@@ -463,7 +557,7 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
       throw new Error(`MemoryNoteCard: image-backed template "${templateId}" requires artworkDataUri`);
     }
     const area = template.contentArea!;
-    const fontSize = imageBackedFontSizePx(content.length, template, fontFamily) * (width / BASELINE_WIDTH);
+    const fontSize = imageBackedFontSizePx(content, template, fontFamily) * (width / BASELINE_WIDTH);
     return (
       <div style={{ position: "relative", display: "flex", width, height, transform: `rotate(${rotation}deg)`, overflow: "hidden" }}>
         {/* eslint-disable-next-line @next/next/no-img-element -- Satori server-side render, not an optimizable next/image asset */}
@@ -485,9 +579,9 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
               box — over the printed frame on standard-quote, off the card edge at the largest
               size. This breaks only such a word, like Note.tsx's `break-words` in the DOM;
               every line that already fit lays out exactly as before. Never `break-all`. */}
-          <span style={{ display: "flex", ...noteTextFontStyle(fontFamily, fontSize), fontSize, lineHeight: imageBackedLineHeight(template, fontFamily), color: PDF_COLORS.ink, wordBreak: "break-word" }}>{content}</span>
+          <span style={{ display: "flex", ...noteTextFontStyle(fontFamily, fontSize), fontSize, lineHeight: imageBackedLineHeight(template, fontFamily), color: PDF_COLORS.ink, wordBreak: "break-word", whiteSpace: "pre-line", ...alignStyle }}>{content}</span>
           {authorName && (
-            <span style={{ display: "flex", marginTop: fontSize * 0.5, fontSize: fontSize * 0.85, color: PDF_COLORS.inkSoft }}>— {authorName}</span>
+            <span style={{ display: "flex", marginTop: fontSize * 0.5, fontSize: fontSize * 0.85, color: PDF_COLORS.inkSoft, ...alignStyle }}>— {authorName}</span>
           )}
         </div>
       </div>
@@ -502,6 +596,10 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
   const shape = shapeStyleFor(template.shape, width, height, scale);
   const metrics = FONT_METRICS[fontFamily];
   const paperColor = PDF_PAPER_COLORS[template.paper] ?? PDF_PAPER_COLORS.white;
+  const footballFit = isFootball ? footballTextFitScale(content, fontFamily, authorName) : 1;
+  const footballFontPx = isFootball ? metrics.fontSize * scale * footballFontScale(content) * footballFit : 0;
+  // Baseline px, so the gap keeps its 8 : 10.5 ratio to the author line as it shrinks.
+  const footballAuthorPx = isFootball ? footballAuthorFontPx(content, footballFontPx / scale, footballFit) : 0;
 
   const paddingStyle = isHeart
     ? { paddingLeft: 28 * scale, paddingRight: 28 * scale, paddingTop: 28 * scale, paddingBottom: 40 * scale }
@@ -554,18 +652,22 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
             <span
               style={{
                 display: "flex",
-                ...noteTextFontStyle(fontFamily, metrics.fontSize * scale * footballFontScale(content.length)),
-                fontSize: metrics.fontSize * scale * footballFontScale(content.length),
-                lineHeight: 1.3,
+                // Never squeezed below its own height: a shrunk text box
+                // let overflowing lines draw over the author line.
+                flexShrink: 0,
+                ...noteTextFontStyle(fontFamily, footballFontPx),
+                fontSize: footballFontPx,
+                lineHeight: FOOTBALL_TEXT_LINE_HEIGHT,
                 color: PDF_COLORS.ink,
                 // Same as the image-backed text above: break only a word too wide for the line.
                 wordBreak: "break-word",
+                whiteSpace: "pre-line",
               }}
             >
               {content}
             </span>
             {authorName && (
-              <span style={{ display: "flex", marginTop: 8 * scale, fontSize: 10.5 * scale, color: PDF_COLORS.inkSoft }}>— {authorName}</span>
+              <span style={{ display: "flex", flexShrink: 0, marginTop: ((8 * footballAuthorPx) / 10.5) * scale, fontSize: footballAuthorPx * scale, color: PDF_COLORS.inkSoft }}>— {authorName}</span>
             )}
           </div>
         </div>
@@ -585,7 +687,10 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
           }}
         >
           {isPolaroid && (
-            <div style={{ display: "flex", width: `calc(100% + ${32 * scale}px)`, height: 96 * scale, background: "rgba(13,27,42,0.1)", marginLeft: -16 * scale, marginTop: -16 * scale, marginBottom: 4 * scale }} />
+            // Edge to edge across the card: the 16*scale padding on both sides cancelled by the
+            // negative margin. A number, not calc() — Satori drops calc() and the strip stopped
+            // one padding short of the right edge.
+            <div style={{ display: "flex", width, height: 96 * scale, background: "rgba(13,27,42,0.1)", marginLeft: -16 * scale, marginTop: -16 * scale, marginBottom: 4 * scale }} />
           )}
           <span
             style={{
@@ -596,12 +701,15 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, ro
               color: PDF_COLORS.ink,
               // Same as the image-backed text above: break only a word too wide for the line.
               wordBreak: "break-word",
+              // The writer's own line breaks (messages/lib/messageContent.ts), as Note.tsx shows them.
+              whiteSpace: "pre-line",
+              ...alignStyle,
             }}
           >
             {content}
           </span>
           {authorName && (
-            <span style={{ display: "flex", marginTop: 12 * scale, fontSize: 12 * scale, color: PDF_COLORS.inkSoft }}>— {authorName}</span>
+            <span style={{ display: "flex", marginTop: 12 * scale, fontSize: 12 * scale, color: PDF_COLORS.inkSoft, ...alignStyle }}>— {authorName}</span>
           )}
         </div>
       )}

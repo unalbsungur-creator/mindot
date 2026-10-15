@@ -143,6 +143,11 @@ export const en: Dictionary = {
     fontMonoLabel: "Mono",
     fontElegantLabel: "Elegant",
     fontBoldLabel: "Bold",
+    textAlignLabel: "Alignment",
+    textAlignLeftLabel: "Left",
+    textAlignCenterLabel: "Center",
+    textAlignRightLabel: "Right",
+    textAlignFootballHint: "Football cards always keep their text centered inside the ball.",
     nameLabel: "Name to show (optional)",
     namePlaceholder: "How should we sign it?",
     anonymousLabel: "Leave it unsigned",
@@ -436,7 +441,6 @@ export const en: Dictionary = {
     captureNoteOnly: "Note only",
     captureNoteOnlyHint: "Just the thought itself.",
     captureSurrounding: "Thought + surrounding wall",
-    captureSurroundingHint: "Include the notes placed nearby.",
     step3Heading: "Choose your format",
     outputPersonalPdf: "Memory PDF",
     outputPersonalPdfHint: "A free, simple keepsake.",
@@ -619,7 +623,7 @@ export const en: Dictionary = {
   },
   share: {
     shareAction: "Share",
-    pageTitle: "Share this thought",
+    pageTitle: "A thought",
     pageSubtitle: "Create a branded MINDOT image to share anywhere.",
     scopeLabel: "What to include",
     shareButton: "Share image",
@@ -724,6 +728,26 @@ export const en: Dictionary = {
     wallDescriptionSave: "Save",
     wallDescriptionSaved: "Saved",
     shareWallDisabledHint: "Turn on your public wall above to share it.",
+    // LEGAL REVIEW REQUIRED: draft public-wall consent text (PUBLIC_WALL_CONSENT_VERSION 1.0) — wording and translations need legal review before release.
+    wallConsentTitle: "Before you make your wall public",
+    wallConsentIntro: "Your public wall is a page anyone with its link can see. Please read the following before you turn it on.",
+    wallConsentPoints: [
+      "Anyone with your wall link can see your wall without signing in, and the link can be passed on to others.",
+      "Your wall shows your name, your profile picture, your short description and the named, approved thoughts you’ve added to it.",
+      "Visitors can open each card through its own link, and images of your wall and its cards can be downloaded and shared.",
+      "These thoughts are already public on the MINDOT board and at their own links, independently of your wall — turning your wall off doesn’t hide them.",
+      "When you turn your wall off, the wall page and the wall image close. Cached copies may stay visible for a short while, and copies already downloaded, shared or saved by other platforms are outside MINDOT’s control.",
+      "Your wall description appears publicly without moderation; you’re responsible for it, and it must follow the Terms of Use.",
+      "Each time you turn your wall on, you’ll be asked to accept this again; the version and date of your consent are stored with your account.",
+    ],
+    wallConsentCheckbox: "I have read this and agree to make my wall public.",
+    wallConsentConfirm: "Turn on wall",
+    wallConsentCancel: "Cancel",
+    wallConsentVersionLabel: "Information version: {version}",
+    wallConsentLegalLinksLabel: "Details:",
+    wallConsentRequiredNotice: "Your wall is currently closed to everyone. To open it again, please accept the current information.",
+    wallConsentRequiredAction: "Read the information and turn on wall",
+    wallConsentError: "Your wall couldn’t be turned on. Please try again.",
   },
   archive: {
     pageTitle: "Archive",
@@ -769,6 +793,7 @@ export const en: Dictionary = {
     disabledBody: "Its owner hasn't made it public.",
     emptyMessage: "This wall is waiting for its first thought.",
     shareWallButton: "Share this wall",
+    openCardLabel: "Open card: {text}",
   },
   memoryLibrary: {
     pageTitle: "Memories",
@@ -860,6 +885,11 @@ export const en: Dictionary = {
         body: "You can choose to share a thought anonymously or under your name. Thoughts submitted anonymously are never linked to you in public content. Thoughts submitted under your name, once approved, may appear on the public board. Your personal wall is managed separately and is private by default; you decide whether to make it public.",
       },
       {
+        title: "Public personal wall",
+        body: "When you make your personal wall public, your name, profile picture, wall description and the named, approved thoughts you’ve added to it are published so that anyone with the link can see them. The version and date of the consent you give when turning the wall on are stored with your account so your consent can be shown; turning the wall off keeps the last consent record, and deleting your account deletes it together with your account record. When you turn the wall off, the wall page and the wall image are taken down; cached copies may remain reachable for a short while.",
+        // LEGAL REVIEW REQUIRED: draft — the legal basis for publishing the wall (explicit consent vs. information), retention of the consent record and the cache wording need legal review before release.
+      },
+      {
         title: "Reports, blocks and notifications",
         body: "When you report a thought, the report records the thought, the reason you chose, any details you add, and either your account or a random identifier stored in your browser. Reports are reviewed by MINDOT's administrators; the reporter's identity is not shown to the author of the reported thought. The list of users you block is stored with your account so their named thoughts can be hidden from you; the blocked user is not notified. In-app notifications (for example, the moderation outcome of your thought or of your report) are shown only inside MINDOT and stored with your account.",
       },
@@ -920,6 +950,11 @@ export const en: Dictionary = {
       {
         title: "Anonymous and named sharing",
         body: "When you choose anonymous sharing, your thought is not linked to your name in public content. Named, approved thoughts may be shown in the public area or on your personal wall, depending on the features you choose and MINDOT's publication rules.",
+      },
+      {
+        title: "Personal wall",
+        body: "Your personal wall is optional and off by default. You can make it public only by explicitly accepting the information shown each time you turn it on. A public wall can be viewed without signing in by anyone with its link; it shows your name, your profile picture, your wall description and the named, approved thoughts you’ve added to it. Visitors can open each card through its own link, and images of the wall and its cards can be downloaded and shared. The wall description is not moderated before it appears; you are responsible for it, and MINDOT may remove a description that breaks these terms or the Community Guidelines. You can turn your wall off at any time: the wall page and the wall image close, but your thoughts stay public on the MINDOT board and at their own links. Cached copies may stay visible for a short while, and copies already downloaded, shared or saved by third-party platforms are outside MINDOT’s control. When the information text changes, public walls are shown as closed until their owners accept the current text.",
+        // LEGAL REVIEW REQUIRED: draft for the public wall consent (PUBLIC_WALL_CONSENT_VERSION 1.0) — the consent mechanism, the description-responsibility clause and the cache/third-party-copy wording need legal review before release.
       },
       {
         title: "Moderation, reporting and blocking",

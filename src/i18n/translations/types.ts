@@ -149,6 +149,12 @@ export interface Dictionary {
     fontMonoLabel: string;
     fontElegantLabel: string;
     fontBoldLabel: string;
+    textAlignLabel: string;
+    textAlignLeftLabel: string;
+    textAlignCenterLabel: string;
+    textAlignRightLabel: string;
+    /** Shown under the disabled alignment choice when a football card is selected. */
+    textAlignFootballHint: string;
     nameLabel: string;
     namePlaceholder: string;
     anonymousLabel: string;
@@ -458,7 +464,6 @@ export interface Dictionary {
     captureNoteOnly: string;
     captureNoteOnlyHint: string;
     captureSurrounding: string;
-    captureSurroundingHint: string;
     step3Heading: string;
     outputPersonalPdf: string;
     outputPersonalPdfHint: string;
@@ -763,6 +768,19 @@ export interface Dictionary {
     wallDescriptionSave: string;
     wallDescriptionSaved: string;
     shareWallDisabledHint: string;
+    /** The public-wall consent dialog (PUBLIC_WALL_CONSENT_VERSION) and /me's "waiting for consent" state. */
+    wallConsentTitle: string;
+    wallConsentIntro: string;
+    wallConsentPoints: string[];
+    wallConsentCheckbox: string;
+    wallConsentConfirm: string;
+    wallConsentCancel: string;
+    /** "{version}" is replaced with PUBLIC_WALL_CONSENT_VERSION. */
+    wallConsentVersionLabel: string;
+    wallConsentLegalLinksLabel: string;
+    wallConsentRequiredNotice: string;
+    wallConsentRequiredAction: string;
+    wallConsentError: string;
   };
   archive: {
     pageTitle: string;
@@ -812,6 +830,7 @@ export interface Dictionary {
     disabledBody: string;
     emptyMessage: string;
     shareWallButton: string;
+    openCardLabel: string;
   };
   memoryLibrary: {
     pageTitle: string;

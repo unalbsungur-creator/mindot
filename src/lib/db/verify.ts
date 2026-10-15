@@ -32,6 +32,7 @@ import { digitalAccessCodeRepository, memoryRepository, physicalOrderRepository 
 import { checkMemoryOutputAccess } from "../../features/memories/services/outputAccess";
 import type { MemoryOutputType } from "../../features/memories/types";
 import { messageRepository } from "../../features/messages/repository";
+import { isPublicWallEligible, PUBLIC_WALL_CONSENT_VERSION } from "../../features/profile/lib/wallConsent";
 import { getPublicWall } from "../../features/profile/repository";
 
 const ADMIN_ID = "dev-admin-0001";
@@ -132,7 +133,12 @@ async function main() {
   }
 
   const enabledWall = await getPublicWall(USER_PUBLIC_ID);
-  assert(enabledWall.status === "ok", "enabled wall returns 'ok'", enabledWall.status);
+  assert(enabledWall.status === "ok", "enabled wall (with current consent) returns 'ok'", enabledWall.status);
+
+  // The consent rule getPublicWall applies (migration 0025): turned on is not enough.
+  assert(!isPublicWallEligible({ publicWallEnabled: true, publicWallConsentVersion: null }), "enabled wall without consent is not public");
+  assert(!isPublicWallEligible({ publicWallEnabled: true, publicWallConsentVersion: "0.9" }), "enabled wall under an older consent is not public");
+  assert(!isPublicWallEligible({ publicWallEnabled: false, publicWallConsentVersion: PUBLIC_WALL_CONSENT_VERSION }), "turned-off wall is not public");
 
   // ---------------------------------------------------------------------
   // 5. Digital access-code lifecycle: single-use, revoked, expired.

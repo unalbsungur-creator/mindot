@@ -1,5 +1,5 @@
 import type { Locale } from "@/i18n/config";
-import type { NoteTemplateCategory, NoteTextFontFamily } from "@/features/notes/types";
+import type { NoteTemplateCategory, NoteTextAlign, NoteTextFontFamily } from "@/features/notes/types";
 
 /**
  * The public tile contract. Deliberately narrow: no authorId, no
@@ -19,6 +19,8 @@ export interface BoardTileMessage {
   templateId: string;
   /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface — rendering metadata, same privacy tier as `templateId`. */
   fontFamily: NoteTextFontFamily;
+  /** Optional: a board response cached before alignment existed has none — read it as "auto". */
+  textAlign?: NoteTextAlign;
   position: { x: number; y: number };
   rotation: number;
   language: string;

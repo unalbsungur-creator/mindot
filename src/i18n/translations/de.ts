@@ -141,6 +141,11 @@ export const de: Dictionary = {
     fontMonoLabel: "Mono",
     fontElegantLabel: "Elegant",
     fontBoldLabel: "Bold",
+    textAlignLabel: "Ausrichtung",
+    textAlignLeftLabel: "Links",
+    textAlignCenterLabel: "Mittig",
+    textAlignRightLabel: "Rechts",
+    textAlignFootballHint: "Auf Fußballkarten bleibt der Text im Ball immer zentriert.",
     nameLabel: "Angezeigter Name (optional)",
     namePlaceholder: "Wie sollen wir unterschreiben?",
     anonymousLabel: "Unsigniert lassen",
@@ -434,7 +439,6 @@ export const de: Dictionary = {
     captureNoteOnly: "Nur die Notiz",
     captureNoteOnlyHint: "Nur der Gedanke selbst.",
     captureSurrounding: "Gedanke + umliegende Wand",
-    captureSurroundingHint: "Notizen in der Nähe einbeziehen.",
     step3Heading: "Format wählen",
     outputPersonalPdf: "Erinnerungs-PDF",
     outputPersonalPdfHint: "Ein kostenloses, einfaches Andenken.",
@@ -617,7 +621,7 @@ export const de: Dictionary = {
   },
   share: {
     shareAction: "Teilen",
-    pageTitle: "Diesen Gedanken teilen",
+    pageTitle: "Ein Gedanke",
     pageSubtitle: "Erstelle ein MINDOT-Bild zum Teilen.",
     scopeLabel: "Was einbezogen werden soll",
     shareButton: "Bild teilen",
@@ -722,6 +726,26 @@ export const de: Dictionary = {
     wallDescriptionSave: "Speichern",
     wallDescriptionSaved: "Gespeichert",
     shareWallDisabledHint: "Schalte deine öffentliche Wand oben ein, um sie zu teilen.",
+    // LEGAL REVIEW REQUIRED: draft public-wall consent text (PUBLIC_WALL_CONSENT_VERSION 1.0) — wording and translations need legal review before release.
+    wallConsentTitle: "Bevor du deine Wand öffentlich machst",
+    wallConsentIntro: "Deine öffentliche Wand ist eine Seite, die jeder mit dem Link sehen kann. Bitte lies Folgendes, bevor du sie einschaltest.",
+    wallConsentPoints: [
+      "Jeder mit dem Link zu deiner Wand kann sie ohne Anmeldung sehen, und der Link kann weitergegeben werden.",
+      "Deine Wand zeigt deinen Namen, dein Profilbild, deine kurze Beschreibung und die namentlichen, freigegebenen Gedanken, die du ihr hinzugefügt hast.",
+      "Besucher können jede Karte über ihren eigenen Link öffnen, und Bilder deiner Wand und ihrer Karten können heruntergeladen und geteilt werden.",
+      "Diese Gedanken sind unabhängig von deiner Wand bereits auf der MINDOT-Wand und unter ihren eigenen Links öffentlich — das Ausschalten deiner Wand verbirgt sie nicht.",
+      "Wenn du deine Wand ausschaltest, werden die Wandseite und das Wandbild geschlossen. Zwischengespeicherte Kopien können noch kurz sichtbar bleiben; bereits heruntergeladene, geteilte oder von anderen Plattformen gespeicherte Kopien liegen außerhalb der Kontrolle von MINDOT.",
+      "Deine Wandbeschreibung erscheint ohne Moderation öffentlich; du bist für sie verantwortlich, und sie muss den Nutzungsbedingungen entsprechen.",
+      "Jedes Mal, wenn du deine Wand einschaltest, wirst du erneut um Zustimmung gebeten; Version und Datum deiner Zustimmung werden in deinem Konto gespeichert.",
+    ],
+    wallConsentCheckbox: "Ich habe diese Informationen gelesen und stimme zu, meine Wand öffentlich zu machen.",
+    wallConsentConfirm: "Wand einschalten",
+    wallConsentCancel: "Abbrechen",
+    wallConsentVersionLabel: "Version der Information: {version}",
+    wallConsentLegalLinksLabel: "Details:",
+    wallConsentRequiredNotice: "Deine Wand ist derzeit für alle geschlossen. Um sie wieder zu öffnen, stimme bitte den aktuellen Informationen zu.",
+    wallConsentRequiredAction: "Informationen lesen und Wand einschalten",
+    wallConsentError: "Deine Wand konnte nicht eingeschaltet werden. Bitte versuche es erneut.",
   },
   archive: {
     pageTitle: "Archiv",
@@ -767,6 +791,7 @@ export const de: Dictionary = {
     disabledBody: "Der Besitzer hat sie noch nicht öffentlich gemacht.",
     emptyMessage: "Diese Wand wartet auf ihren ersten Gedanken.",
     shareWallButton: "Diese Wand teilen",
+    openCardLabel: "Karte öffnen: {text}",
   },
   memoryLibrary: {
     pageTitle: "Erinnerungen",
@@ -804,6 +829,11 @@ export const de: Dictionary = {
       {
         title: "Gedanken und Identitätswahl",
         body: "Sie können wählen, ob Sie einen Gedanken anonym oder unter Ihrem Namen teilen. Anonym eingereichte Gedanken werden in öffentlichen Inhalten niemals mit Ihnen in Verbindung gebracht. Unter Ihrem Namen eingereichte und freigegebene Gedanken können an der öffentlichen Wand erscheinen. Ihre persönliche Wand wird separat verwaltet und ist standardmäßig privat; Sie entscheiden, ob Sie sie öffentlich machen.",
+      },
+      {
+        title: "Öffentliche persönliche Wand",
+        body: "Wenn du deine persönliche Wand öffentlich machst, werden dein Name, dein Profilbild, deine Wandbeschreibung und die namentlichen, freigegebenen Gedanken, die du ihr hinzugefügt hast, so veröffentlicht, dass jeder mit dem Link sie sehen kann. Version und Datum der Zustimmung, die du beim Einschalten der Wand gibst, werden in deinem Konto gespeichert, damit deine Zustimmung nachgewiesen werden kann; beim Ausschalten der Wand bleibt der letzte Zustimmungseintrag erhalten, und beim Löschen deines Kontos wird er zusammen mit deinem Kontodatensatz gelöscht. Wenn du die Wand ausschaltest, werden die Wandseite und das Wandbild entfernt; zwischengespeicherte Kopien können noch kurz erreichbar bleiben.",
+        // LEGAL REVIEW REQUIRED: draft — the legal basis for publishing the wall (explicit consent vs. information), retention of the consent record and the cache wording need legal review before release.
       },
       {
         title: "Meldungen, Blockierungen und Benachrichtigungen",
@@ -866,6 +896,11 @@ export const de: Dictionary = {
       {
         title: "Anonymes und namentliches Teilen",
         body: "Wenn Sie anonymes Teilen wählen, wird Ihr Gedanke in öffentlichen Inhalten nicht mit Ihrem Namen verknüpft. Namentlich eingereichte und freigegebene Gedanken können, abhängig von den gewählten Funktionen und den Veröffentlichungsregeln von MINDOT, im öffentlichen Bereich oder auf Ihrer persönlichen Wand angezeigt werden.",
+      },
+      {
+        title: "Persönliche Wand",
+        body: "Deine persönliche Wand ist optional und standardmäßig ausgeschaltet. Du kannst sie nur öffentlich machen, indem du den Informationen, die bei jedem Einschalten angezeigt werden, ausdrücklich zustimmst. Eine öffentliche Wand kann ohne Anmeldung von jedem mit ihrem Link angesehen werden; sie zeigt deinen Namen, dein Profilbild, deine Wandbeschreibung und die namentlichen, freigegebenen Gedanken, die du ihr hinzugefügt hast. Besucher können jede Karte über ihren eigenen Link öffnen, und Bilder der Wand und ihrer Karten können heruntergeladen und geteilt werden. Die Wandbeschreibung wird vor ihrer Veröffentlichung nicht moderiert; du bist für sie verantwortlich, und MINDOT kann eine Beschreibung entfernen, die gegen diese Bedingungen oder die Community-Richtlinien verstößt. Du kannst deine Wand jederzeit ausschalten: Die Wandseite und das Wandbild werden geschlossen, deine Gedanken bleiben jedoch auf der MINDOT-Wand und unter ihren eigenen Links öffentlich. Zwischengespeicherte Kopien können noch kurz sichtbar bleiben; bereits heruntergeladene, geteilte oder von Drittplattformen gespeicherte Kopien liegen außerhalb der Kontrolle von MINDOT. Ändert sich der Informationstext, werden öffentliche Wände als geschlossen angezeigt, bis ihre Inhaber dem aktuellen Text zustimmen.",
+        // LEGAL REVIEW REQUIRED: draft for the public wall consent (PUBLIC_WALL_CONSENT_VERSION 1.0) — the consent mechanism, the description-responsibility clause and the cache/third-party-copy wording need legal review before release.
       },
       {
         title: "Moderation, Meldungen und Blockieren",

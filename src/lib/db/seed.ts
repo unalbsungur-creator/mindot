@@ -19,6 +19,7 @@ import { computePlacement, tileForSequence, type OccupantFootprint } from "../..
 import { estimateNoteFootprint } from "../../features/notes/lib/footprint";
 import { devFallbackModerationService } from "../../features/moderation/providers/devFallback";
 import { generateAccessCode, generateOrderNumber } from "../../features/memories/lib/identifiers";
+import { PUBLIC_WALL_CONSENT_VERSION } from "../../features/profile/lib/wallConsent";
 import { getDb } from "./client";
 import { digitalAccessCodes, invitations, memoryProjects, messages, physicalOrders, users } from "./schema";
 
@@ -73,8 +74,11 @@ async function main() {
         image: null,
         role: "user",
         publicId: USER_PUBLIC_ID,
-        // The seed's deliberate "personal wall enabled" example.
+        // The seed's deliberate "personal wall enabled" example — with the
+        // current consent, or getPublicWall would keep it closed.
         publicWallEnabled: true,
+        publicWallConsentVersion: PUBLIC_WALL_CONSENT_VERSION,
+        publicWallConsentAt: now,
         publicWallDescription: "Thoughts I didn't want to keep only in my own head.",
         createdAt: now,
         updatedAt: now,

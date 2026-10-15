@@ -1,5 +1,5 @@
 import type { Locale } from "@/i18n/config";
-import type { NoteTextFontFamily } from "@/features/notes/types";
+import type { NoteTextAlign, NoteTextFontFamily } from "@/features/notes/types";
 
 /**
  * Bridges a writer's in-progress note across the one full-page navigation
@@ -29,6 +29,8 @@ export interface WriteDraft {
   templateId: string;
   /** EPIC — Kart Yazı Tipi Seçenekleri: optional — a draft saved before this field existed simply restores as `undefined`, and `WriteThoughtForm`'s own state already defaults that to `"modern"`; no key-version bump needed for a purely additive field. */
   fontFamily?: NoteTextFontFamily;
+  /** Optional the same way: a draft from before alignment existed restores as `undefined`, which the form reads as "auto" (`toNoteTextAlign`) — no key-version bump. */
+  textAlign?: NoteTextAlign;
   isAnonymous: boolean;
   displayName: string;
   language: Locale;

@@ -17,7 +17,7 @@
  * needed to make this estimate reliable.
  */
 import { getNoteTemplate } from "../config/templates";
-import { noteTextSizeTier, type NoteTextSizeTier } from "./textScale";
+import { noteTextSizeTier, STANDARD_LINE_BREAK_WEIGHT, type NoteTextSizeTier } from "./textScale";
 import type { NoteTextFontFamily } from "../types";
 
 export interface NoteFootprint {
@@ -71,7 +71,7 @@ const MAX_ESTIMATED_LINES = 8;
  * relationship `features/memories/services/pdfPalette.ts` already has with
  * `tokens.css`.
  */
-const FONT_METRICS: Record<NoteTextFontFamily, Record<NoteTextSizeTier, { charsPerLine: number; lineHeight: number }>> = {
+const FONT_METRICS: Record<NoteTextFontFamily, Record<Exclude<NoteTextSizeTier, "xlarge" | "large">, { charsPerLine: number; lineHeight: number }>> = {
   modern: {
     default: { charsPerLine: 18, lineHeight: 21 },
     compact: { charsPerLine: 21, lineHeight: 19 },
@@ -169,8 +169,9 @@ export function estimateNoteFootprint(
     return { width: BASE_WIDTH, height: Math.round((BASE_WIDTH * template.imageHeight) / template.imageWidth) };
   }
 
-  const tier = noteTextSizeTier(content.length);
-  const metrics = FONT_METRICS[fontFamily][tier];
+  // Line-aware, like Note.tsx. The two short tiers keep the "default" size on every card this estimates (only fixed-box Standard cards size them up).
+  const tier = noteTextSizeTier(content, STANDARD_LINE_BREAK_WEIGHT);
+  const metrics = FONT_METRICS[fontFamily][tier === "xlarge" || tier === "large" ? "default" : tier];
 
   const lines = estimateLineCount(content, metrics.charsPerLine);
   const paddingY = isHeart ? HEART_PADDING_Y : STANDARD_PADDING_Y;

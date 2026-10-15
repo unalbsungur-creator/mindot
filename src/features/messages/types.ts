@@ -1,4 +1,4 @@
-import type { NoteTextFontFamily } from "@/features/notes/types";
+import type { NoteTextAlign, NoteTextFontFamily } from "@/features/notes/types";
 
 export type MessageStatus = "pending" | "approved" | "rejected" | "archived";
 export type AiModerationDecision = "safe" | "review" | "blocked";
@@ -15,6 +15,8 @@ export interface Message {
   // row — including ones that predate this column — already reads back as
   // `"modern"` with no app-level fallback needed here.
   fontFamily: NoteTextFontFamily;
+  /** The writer's alignment, `"auto"` for every message written before it existed. */
+  textAlign: NoteTextAlign;
   /** EPIC 011: owner-controlled curation — eligible (approved + named) doesn't mean shown; see setShowOnPersonalWall. Never affects global board visibility. */
   showOnPersonalWall: boolean;
   /** Denormalized count kept in sync with message_likes — see repository.ts's like(). */
@@ -75,6 +77,7 @@ export type NewMessageInput = Pick<
   | "language"
   | "templateId"
   | "fontFamily"
+  | "textAlign"
   | "invitationId"
   | "aiModerationStatus"
   | "aiModerationProvider"

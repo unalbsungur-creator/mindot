@@ -73,6 +73,7 @@ function tileToNoteData(message: BoardTile["messages"][number]): NoteData {
     authorImage: message.author?.image ?? null,
     templateId: message.templateId,
     fontFamily: message.fontFamily,
+    textAlign: message.textAlign,
     size: "md",
     rotation: message.rotation,
     position: { top: `${message.position.y * 100}%`, left: `${message.position.x * 100}%` },

@@ -2,6 +2,7 @@ import { auth } from "@/features/auth/auth";
 import { blockRepository } from "@/features/blocks/repository";
 import { memoryRepository, physicalOrderRepository } from "@/features/memories/repository";
 import { messageRepository } from "@/features/messages/repository";
+import { wallVisibilityState } from "@/features/profile/lib/wallConsent";
 import { getPersonalWallByUserId } from "@/features/profile/repository";
 import { userRepository } from "@/features/users/repository";
 import { MePageContent } from "./_components/MePageContent";
@@ -45,7 +46,7 @@ export default async function MePage() {
         memoriesCount: memoryProjects.length,
         digitalCount: memoryProjects.filter((project) => project.outputType === "digital_frame").length,
         physicalCount: physicalOrders.length,
-        publicWallEnabled: user?.publicWallEnabled ?? false,
+        wallState: user ? wallVisibilityState(user) : "off",
         publicWallDescription: user?.publicWallDescription ?? null,
         // The user's own address, for the account-deletion confirmation
         // step. Admins never get the self-service deletion (refused server-side too).

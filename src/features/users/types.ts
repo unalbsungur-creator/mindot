@@ -14,6 +14,10 @@ export interface User {
   publicWallEnabled: boolean;
   /** EPIC 011: optional short line shown on the public wall header, only when publicWallEnabled. */
   publicWallDescription: string | null;
+  /** The public-wall consent text version the owner last accepted (migration 0025) — null if never. Set together with `publicWallConsentAt`. */
+  publicWallConsentVersion: string | null;
+  /** When that consent was given — the database's own clock. Null if never. */
+  publicWallConsentAt: string | null;
   /** EPIC 013: "active" unless an admin has suspended this account — see submitMessage's server-side re-check. */
   status: UserAccountStatus;
   /** The most recent suspend action's reason, admin-authored. Cleared to null on unsuspend. Null for an always-active account. */

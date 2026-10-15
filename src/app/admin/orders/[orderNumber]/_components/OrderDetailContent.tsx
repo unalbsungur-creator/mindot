@@ -82,6 +82,7 @@ export function OrderDetailContent({ authorized, order, project, message, custom
         authorImage: message.author?.image ?? null,
         templateId: message.templateId,
         fontFamily: message.fontFamily,
+        textAlign: message.textAlign,
         size: "md",
         rotation: 0,
         position: { top: "0%", left: "0%" },

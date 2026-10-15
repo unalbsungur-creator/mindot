@@ -8,10 +8,12 @@ import { CONTENT_CONSENT_VERSION } from "./consent";
 import {
   likeMessageAsVisitor,
   submitMessageForAuthor,
+  submitMessageRevisionForAuthor,
   type LikeMessageDeps,
   type LikeResult,
   type SubmitMessageDeps,
   type SubmitMessageParams,
+  type SubmitRevisionDeps,
 } from "./service";
 import type { Message, NewMessageInput } from "./types";
 
@@ -325,6 +327,161 @@ describe("submitMessageForAuthor — accepted submissions", () => {
     await submitMessageForAuthor(params(), counting);
     await submitMessageForAuthor(params(), counting);
     assert.equal(resolutions, 2);
+  });
+});
+
+describe("submitMessageForAuthor — line breaks", () => {
+  it("stores and pre-screens the normalized text, keeping the writer's line breaks", async () => {
+    const { deps, created } = fake();
+    let screened: string | undefined;
+    deps.moderation = () => ({
+      async analyzeMessage(content) {
+        screened = content;
+        return AI_RESULT;
+      },
+    });
+    const result = await submitMessageForAuthor(params({ content: "\r\n  Bir\r\n\r\n\r\n\r\nİki  \r\nÜç\n\n" }), deps);
+    assert.equal(result.ok, true);
+    assert.equal(created[0].content, "Bir\n\nİki\nÜç");
+    assert.equal(screened, "Bir\n\nİki\nÜç");
+  });
+
+  it("refuses text that is only line breaks and blank lines", async () => {
+    const { deps, calls } = fake();
+    assert.deepEqual(await submitMessageForAuthor(params({ content: "\r\n \n\t\n\n" }), deps), {
+      ok: false,
+      error: "empty-content",
+    });
+    assertNoAiOrCreate(calls);
+  });
+
+  it("counts the card limit after normalization, line breaks included", async () => {
+    // 98 letters + "\n\n" = 100 code points once the extra blank lines collapse.
+    const fits = `${"a".repeat(49)}\n\n\n\n\n${"b".repeat(49)}`;
+    const { deps, created } = fake();
+    assert.equal((await submitMessageForAuthor(params({ content: fits, templateId: CARD_100 }), deps)).ok, true);
+    assert.equal([...created[0].content].length, 100);
+
+    const tooLong = `${"a".repeat(50)}\n\n${"b".repeat(50)}`;
+    const second = fake();
+    assert.deepEqual(await submitMessageForAuthor(params({ content: tooLong, templateId: CARD_100 }), second.deps), {
+      ok: false,
+      error: "too-long",
+    });
+    assertNoAiOrCreate(second.calls);
+  });
+});
+
+describe("submitMessageForAuthor — text alignment", () => {
+  it("stores each allowed alignment as chosen", async () => {
+    for (const textAlign of ["auto", "left", "center", "right"]) {
+      const { deps, created } = fake();
+      assert.equal((await submitMessageForAuthor(params({ textAlign }), deps)).ok, true);
+      assert.equal(created[0].textAlign, textAlign);
+    }
+  });
+
+  it("stores 'auto' when an older client sends nothing", async () => {
+    const { deps, created } = fake();
+    await submitMessageForAuthor(params(), deps);
+    assert.equal(created[0].textAlign, "auto");
+  });
+
+  it("stores 'auto' for anything outside the allowed values", async () => {
+    for (const textAlign of ["justify", "LEFT", "", "start"]) {
+      const { deps, created } = fake();
+      assert.equal((await submitMessageForAuthor(params({ textAlign }), deps)).ok, true);
+      assert.equal(created[0].textAlign, "auto", textAlign);
+    }
+  });
+});
+
+describe("submitMessageRevisionForAuthor", () => {
+  function revisionFake(stored: Partial<Message> | null = { id: "msg-1", authorId: "user-1", templateId: CARD_150 }) {
+    const calls: string[] = [];
+    const revisions: string[] = [];
+    let accept = true;
+    const deps: SubmitRevisionDeps = {
+      messages: {
+        async getById() {
+          calls.push("getById");
+          return stored as Message | null;
+        },
+        async submitRevision(_id, _authorId, content) {
+          calls.push("submitRevision");
+          revisions.push(content);
+          return accept ? (stored as Message) : null;
+        },
+      },
+    };
+    return { deps, calls, revisions, reject: () => (accept = false) };
+  }
+  const revision = (content: string) => ({ messageId: "msg-1", authorId: "user-1", content });
+
+  it("stores the same normalized text a new message would", async () => {
+    const { deps, revisions } = revisionFake();
+    assert.deepEqual(await submitMessageRevisionForAuthor(revision("  Bir\r\n\r\n\r\nİki \n\n\n"), deps), { ok: true });
+    assert.deepEqual(revisions, ["Bir\n\nİki"]);
+  });
+
+  it("refuses text that is only line breaks before reading the message", async () => {
+    const { deps, calls } = revisionFake();
+    assert.deepEqual(await submitMessageRevisionForAuthor(revision("\n \r\n\t"), deps), { ok: false, error: "empty-content" });
+    assert.deepEqual(calls, []);
+  });
+
+  it("applies the global limit before reading the message", async () => {
+    const { deps, calls } = revisionFake();
+    assert.deepEqual(await submitMessageRevisionForAuthor(revision("a".repeat(151)), deps), { ok: false, error: "too-long" });
+    assert.deepEqual(calls, []);
+  });
+
+  it("applies the stored card's own limit after normalization", async () => {
+    const card100 = { id: "msg-1", authorId: "user-1", templateId: CARD_100 };
+    const fits = revisionFake(card100);
+    assert.deepEqual(
+      await submitMessageRevisionForAuthor(revision(`${"a".repeat(49)}\n\n\n\n${"b".repeat(49)}`), fits.deps),
+      { ok: true }
+    );
+    assert.equal([...fits.revisions[0]].length, 100);
+
+    const tooLong = revisionFake(card100);
+    assert.deepEqual(await submitMessageRevisionForAuthor(revision("a".repeat(101)), tooLong.deps), {
+      ok: false,
+      error: "too-long",
+    });
+    assert.deepEqual(tooLong.calls, ["getById"]);
+  });
+
+  it("answers forbidden for someone else's or a missing message, before the card limit", async () => {
+    for (const stored of [{ id: "msg-1", authorId: "someone-else", templateId: CARD_100 }, null]) {
+      const { deps, calls } = revisionFake(stored);
+      assert.deepEqual(await submitMessageRevisionForAuthor(revision("a".repeat(120)), deps), { ok: false, error: "forbidden" });
+      assert.deepEqual(calls, ["getById"]);
+    }
+  });
+
+  it("hands the repository the text only — a revision can never change the stored alignment", async () => {
+    const calls: unknown[][] = [];
+    const deps: SubmitRevisionDeps = {
+      messages: {
+        async getById() {
+          return { id: "msg-1", authorId: "user-1", templateId: CARD_150, textAlign: "right" } as Message;
+        },
+        async submitRevision(...args) {
+          calls.push(args);
+          return {} as Message;
+        },
+      },
+    };
+    assert.deepEqual(await submitMessageRevisionForAuthor(revision("Yeni metin"), deps), { ok: true });
+    assert.deepEqual(calls, [["msg-1", "user-1", "Yeni metin"]]);
+  });
+
+  it("answers forbidden when the repository refuses the revision", async () => {
+    const { deps, reject } = revisionFake();
+    reject();
+    assert.deepEqual(await submitMessageRevisionForAuthor(revision("Yeni metin"), deps), { ok: false, error: "forbidden" });
   });
 });
 

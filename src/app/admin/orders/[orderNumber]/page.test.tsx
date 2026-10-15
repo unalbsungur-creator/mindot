@@ -214,4 +214,16 @@ describe("admin order detail page", () => {
     assert.deepEqual(calls.message, [], "no message lookup without a project");
     assertNotFoundPanel(props);
   });
+
+  it("still labels a project created with the retired 'note + surrounding wall' capture", async () => {
+    session = { user: { id: "admin-1", role: "admin" } };
+    projectResult = { ...project, captureMode: "note_with_surrounding" };
+    const props = await renderPage();
+
+    const label = (mode: string) => `${escapeHtml(dictionary.adminOrders.captureModeLabel)}: ${escapeHtml(mode)}`;
+    const legacy = markup({ ...props, message: null });
+    assert.ok(legacy.includes(label(dictionary.memory.captureSurrounding)), "legacy capture label rendered");
+    const current = markup({ ...props, project, message: null });
+    assert.ok(current.includes(label(dictionary.memory.captureNoteOnly)), "note-only label rendered");
+  });
 });

@@ -1,4 +1,4 @@
-import type { NoteTextFontFamily } from "@/features/notes/types";
+import type { NoteTextAlign, NoteTextFontFamily } from "@/features/notes/types";
 import type { UserAccountStatus } from "@/features/users/types";
 
 export type ReportReason = "spam" | "harassment" | "hate" | "sexual_content" | "violence" | "illegal" | "copyright" | "other";
@@ -53,6 +53,7 @@ export interface ReportQueueItem {
     templateId: string;
     /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface — rendering metadata, same privacy tier as `templateId`. */
     fontFamily: NoteTextFontFamily;
+    textAlign: NoteTextAlign;
     language: string;
     authorName: string;
     isAnonymous: boolean;

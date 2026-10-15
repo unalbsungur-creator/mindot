@@ -13,13 +13,13 @@ import {
   type MemoryActionError,
 } from "@/features/memories/actions";
 import { PersonalPdfAccess } from "@/features/memories/components/PersonalPdfAccess";
-import type { MemoryCaptureMode, MemoryOutputType, MemoryProject, PhysicalOrder } from "@/features/memories/types";
+import { NEW_MEMORY_PROJECT_CAPTURE_MODE } from "@/features/memories/lib/outputPolicy";
+import type { MemoryOutputType, MemoryProject, PhysicalOrder } from "@/features/memories/types";
 import { Note } from "@/features/notes/components/Note";
 import type { NoteData } from "@/features/notes/types";
 import { ShareCardPicker } from "@/features/sharing/components/ShareCardPicker";
 import { useLocale } from "@/i18n/LocaleProvider";
 import type { Dictionary } from "@/i18n/translations";
-import { cn } from "@/lib/cn";
 
 export interface ExistingProjectView {
   project: MemoryProject;
@@ -55,7 +55,7 @@ interface PdfAccessState {
   onBalanceChange: (balance: number) => void;
 }
 
-type Step = "capture" | "preview" | "result";
+type Step = "preview" | "result";
 
 const errorMessage = (dictionary: Dictionary): Record<MemoryActionError, string> => ({
   "auth-required": dictionary.write.signInRequired,
@@ -90,8 +90,9 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
   };
 
   const [showWizard, setShowWizard] = useState(existingProjects.length === 0);
-  const [step, setStep] = useState<Step>("capture");
-  const [captureMode, setCaptureMode] = useState<MemoryCaptureMode>("note_only");
+  // The wizard starts at the preview: the capture step ("note only" vs
+  // "note + surrounding wall") is gone, every new project is note_only.
+  const [step, setStep] = useState<Step>("preview");
   // No format-selection step anymore (see the "capture" step's Continue
   // button) — the free wizard only ever produces a visually-shareable
   // project, so nothing ever sets this beyond its initial value. Kept as
@@ -122,6 +123,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
     authorImage: message.author?.image ?? null,
     templateId: message.templateId,
     fontFamily: message.fontFamily,
+    textAlign: message.textAlign,
     size: "lg",
     rotation: 0,
     position: { top: "0%", left: "0%" },
@@ -133,7 +135,7 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
     startTransition(async () => {
       const result = await createMemoryProject({
         messageId,
-        captureMode,
+        captureMode: NEW_MEMORY_PROJECT_CAPTURE_MODE,
         outputType,
       });
       if (!result.ok || !result.data) {
@@ -195,36 +197,24 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
 
       {showWizard && (
         <>
-          {step === "capture" && (
-            <section className="flex flex-col items-center gap-4">
-              <h2 className="font-display text-xl font-medium text-navy">{dictionary.memory.step2Heading}</h2>
-              <div className="grid w-full gap-3 sm:grid-cols-2">
-                <OptionCard
-                  selected={captureMode === "note_only"}
-                  onSelect={() => setCaptureMode("note_only")}
-                  title={dictionary.memory.captureNoteOnly}
-                  hint={dictionary.memory.captureNoteOnlyHint}
-                />
-                <OptionCard
-                  selected={captureMode === "note_with_surrounding"}
-                  onSelect={() => setCaptureMode("note_with_surrounding")}
-                  title={dictionary.memory.captureSurrounding}
-                  hint={dictionary.memory.captureSurroundingHint}
-                />
-              </div>
-              <Button onClick={() => setStep("preview")}>{dictionary.memory.continueButton}</Button>
-            </section>
-          )}
-
           {step === "preview" && (
             <section className="flex flex-col items-center gap-4">
               <h2 className="font-display text-xl font-medium text-navy">{dictionary.memory.step4Heading}</h2>
               <p className="max-w-md text-center text-sm text-ink-soft">{dictionary.memory.previewDisclaimer}</p>
               {createError && <p className="text-sm text-red-600">{errorMessage(dictionary)[createError]}</p>}
               <div className="flex gap-2">
-                <Button variant="ghost" onClick={() => setStep("capture")}>
-                  {dictionary.memory.backButton}
-                </Button>
+                {/* The first step now — "back" only exists when there's a project list to return to. */}
+                {existingProjects.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setCreateError(null);
+                      setShowWizard(false);
+                    }}
+                  >
+                    {dictionary.memory.backButton}
+                  </Button>
+                )}
                 <Button onClick={handleCreate} disabled={isPending}>
                   {isPending ? dictionary.memory.creating : dictionary.memory.createButton}
                 </Button>
@@ -420,33 +410,5 @@ function PhysicalOrderPanel({ order, dilekkutumUrl }: { order: PhysicalOrder | n
       )}
       <MemoryShareSection projectId={order.memoryProjectId} />
     </div>
-  );
-}
-
-function OptionCard({
-  selected,
-  onSelect,
-  title,
-  hint,
-}: {
-  selected: boolean;
-  onSelect: () => void;
-  title: string;
-  hint: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      onClick={onSelect}
-      className={cn(
-        "flex flex-col items-start gap-1 rounded-md border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange",
-        selected ? "border-navy bg-navy/5" : "border-border bg-surface hover:border-navy/40"
-      )}
-    >
-      <span className="text-sm font-medium text-navy">{title}</span>
-      <span className="text-xs text-ink-soft">{hint}</span>
-    </button>
   );
 }
