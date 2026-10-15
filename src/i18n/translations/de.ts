@@ -599,7 +599,7 @@ export const de: Dictionary = {
     noRefunds: "Noch keine Erstattungen vorhanden.",
     refundFooter: "Ausstehende Rückerstattungen reservieren Tokens. Bei Stornierung wird die Reservierung aufgehoben. Erst nach Abschluss bei Shopier mit der echten externen Referenz bestätigen.",
     purchasesTitle: "Token-Käufe",
-    purchasesIntro: "Diese Liste zeigt Quelldatensätze zur Prüfung einer möglichen Erstattung; sie bedeutet nicht, dass ein Kauf erstattungsfähig ist. Ist der Zahlungsfreigabezeitpunkt unbekannt, muss er separat geprüft werden. Es wird kein Erstattungsbetrag und keine Token-Rückbuchung vorgeschlagen.",
+    purchasesIntro: "Diese Liste zeigt Kaufdatensätze zur Erstattungsprüfung. Der Administrator gibt den Betrag und die zu reservierenden Tokens ein; das System begrenzt sie auf den Kaufpreis und die aufgezeichneten ungenutzten Tokens. Dies begründet für sich allein keinen rechtlichen Erstattungsanspruch.",
     package: "Paket",
     tokens: "Token",
     allocatedTokens: "Zugeordnet",
@@ -620,7 +620,7 @@ export const de: Dictionary = {
     confirmRefund: "Shopier-Erstattung bestätigen",
     externalReferenceInput: "Tatsächliche Shopier-Erstattungsreferenz",
     tokensToReverseInput: "Zu reservierende Token",
-    refundAmountInput: "Erstattungsbetrag (Kuruş)",
+    refundAmountInput: "Erstattungsbetrag (TRY)",
     createRefund: "Erstattung erfassen",
   },
   adminOrders: {
