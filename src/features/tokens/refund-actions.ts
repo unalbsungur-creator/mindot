@@ -41,9 +41,20 @@ export async function createTokenRefund(input: {
   try {
     await db.transaction(async (tx) => {
       const idempotencyKey = `token_refund_reserve:${input.requestId.toLowerCase()}`;
-      const [existing] = await tx.select({ id: tokenRefunds.id }).from(tokenRefunds)
-        .where(eq(tokenRefunds.idempotencyKey, idempotencyKey)).limit(1);
-      if (existing) return;
+      const [existing] = await tx.select({
+        id: tokenRefunds.id,
+        purchaseLotId: tokenRefunds.purchaseLotId,
+        refundAmountKurus: tokenRefunds.refundAmountKurus,
+        tokensReversed: tokenRefunds.tokensReversed,
+      }).from(tokenRefunds).where(eq(tokenRefunds.idempotencyKey, idempotencyKey)).limit(1);
+      if (existing) {
+        if (
+          existing.purchaseLotId === input.purchaseLotId &&
+          existing.refundAmountKurus === input.refundAmountKurus &&
+          existing.tokensReversed === input.tokensReversed
+        ) return;
+        throw new Error("idempotency_conflict");
+      }
 
       const [lot] = await tx.select().from(tokenPurchaseLots)
         .where(eq(tokenPurchaseLots.id, input.purchaseLotId)).for("update");
@@ -89,7 +100,7 @@ export async function createTokenRefund(input: {
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message : "";
-    const allowed = ["purchase_not_found", "insufficient_balance", "tokens_exceed_unused", "amount_exceeds_paid"];
+    const allowed = ["purchase_not_found", "insufficient_balance", "tokens_exceed_unused", "amount_exceeds_paid", "idempotency_conflict"];
     return { ok: false, error: allowed.includes(reason) ? reason : "conflict" };
   }
   revalidatePath("/admin/refunds");
