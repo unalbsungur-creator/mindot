@@ -587,6 +587,7 @@ export const tr: Dictionary = {
     revokeButton: "İptal et",
     revoking: "İptal ediliyor…",
   },
+  adminRefunds: { title: "İadeler" },
   adminOrders: {
     title: "Fiziksel Siparişler",
     subtitle: "MINDOT baskısından gönderilen hediyeye kadar takip et.",
