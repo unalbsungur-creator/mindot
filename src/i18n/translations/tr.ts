@@ -604,6 +604,8 @@ export const tr: Dictionary = {
     purchasesIntro: "Bu liste iade değerlendirmesi için kaynak kayıtları gösterir; satın alımın iade edilebilir olduğu anlamına gelmez. Ödeme onay zamanı bilinmiyorsa ayrıca doğrulanmalıdır. Henüz iade tutarı veya geri alınacak Token miktarı önerilmez.",
     package: "Paket",
     tokens: "Token",
+    allocatedTokens: "Tahsis edilen",
+    remainingRecordedTokens: "Kayıtlı kalan",
     paidAmount: "Ödenen tutar",
     paymentApprovedAt: "Ödeme onayı",
     purchaseCreatedAt: "Kayıt tarihi",
