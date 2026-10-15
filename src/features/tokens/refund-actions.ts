@@ -32,7 +32,7 @@ export async function createTokenRefund(input: {
   if (!admin) return { ok: false, error: "unauthorized" };
   if (
     typeof input.purchaseLotId !== "string" || !input.purchaseLotId ||
-    !Number.isSafeInteger(input.refundAmountKurus) || input.refundAmountKurus < 0 ||
+    !Number.isSafeInteger(input.refundAmountKurus) || input.refundAmountKurus <= 0 ||
     !Number.isSafeInteger(input.tokensReversed) || input.tokensReversed <= 0 ||
     typeof input.requestId !== "string" || !REQUEST_ID.test(input.requestId)
   ) return { ok: false, error: "invalid_input" };
@@ -59,11 +59,14 @@ export async function createTokenRefund(input: {
         .where(eq(tokenPurchaseAllocations.purchaseLotId, lot.id));
       const refunds = await tx.select({
         tokens: sql<number>`coalesce(sum(${tokenRefunds.tokensReversed}), 0)::int`,
+        amountKurus: sql<number>`coalesce(sum(${tokenRefunds.refundAmountKurus}), 0)::int`,
       }).from(tokenRefunds)
         .where(and(eq(tokenRefunds.purchaseLotId, lot.id), inArray(tokenRefunds.status, ["pending_external_refund", "external_refund_confirmed"])));
       const alreadyReserved = refunds[0]?.tokens ?? 0;
+      const alreadyRefundedAmount = refunds[0]?.amountKurus ?? 0;
       const unused = lot.packageTokens - (allocations[0]?.allocated ?? 0) - alreadyReserved;
       if (input.tokensReversed > unused) throw new Error("tokens_exceed_unused");
+      if (input.refundAmountKurus > lot.paidAmountKurus - alreadyRefundedAmount) throw new Error("amount_exceeds_paid");
 
       const id = crypto.randomUUID();
       const [debited] = await tx.update(tokenWallets)
@@ -86,7 +89,7 @@ export async function createTokenRefund(input: {
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message : "";
-    const allowed = ["purchase_not_found", "insufficient_balance", "tokens_exceed_unused"];
+    const allowed = ["purchase_not_found", "insufficient_balance", "tokens_exceed_unused", "amount_exceeds_paid"];
     return { ok: false, error: allowed.includes(reason) ? reason : "conflict" };
   }
   revalidatePath("/admin/refunds");
