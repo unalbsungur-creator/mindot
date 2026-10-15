@@ -585,6 +585,7 @@ export const de: Dictionary = {
     revokeButton: "Widerrufen",
     revoking: "Wird widerrufen…",
   },
+  adminRefunds: { title: "Rückerstattungen" },
   adminOrders: {
     title: "Physische Bestellungen",
     subtitle: "Verfolge die Erfüllung vom MINDOT-Druck bis zum versendeten Geschenk.",
