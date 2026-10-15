@@ -41,6 +41,16 @@ export async function createTokenRefund(input: {
   try {
     await db.transaction(async (tx) => {
       const idempotencyKey = `token_refund_reserve:${input.requestId.toLowerCase()}`;
+
+      // SELECT-before-INSERT alone is racy: two transactions can both observe
+      // no row for this unique key. Serialize that key before reading it.
+      // The two-int advisory-lock namespace/value pair is deterministic for
+      // the request key; any hash collision only serializes unrelated requests.
+      const [lockKey] = await tx.execute(sql<{
+        key: number;
+      }>`select hashtext(${idempotencyKey})::int as key`);
+      await tx.execute(sql`select pg_advisory_xact_lock(194650, ${lockKey.key})`);
+
       const [existing] = await tx.select({
         id: tokenRefunds.id,
         purchaseLotId: tokenRefunds.purchaseLotId,
