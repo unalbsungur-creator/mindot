@@ -56,7 +56,8 @@ ALTER TABLE "token_purchase_lots" ADD CONSTRAINT "token_purchase_lots_credited_l
 ALTER TABLE "token_purchase_allocations" ADD CONSTRAINT "token_purchase_allocations_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
 --> statement-breakpoint
 ALTER TABLE "token_purchase_allocations" ADD CONSTRAINT "token_purchase_allocations_consume_ledger_entry_id_token_ledger_id_fk" FOREIGN KEY ("consume_ledger_entry_id") REFERENCES "public"."token_ledger"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
---> statement-breakpointALTER TABLE "token_purchase_allocations" ADD CONSTRAINT "token_purchase_allocations_source_ledger_entry_id_token_ledger_id_fk" FOREIGN KEY ("source_ledger_entry_id") REFERENCES "public"."token_ledger"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+--> statement-breakpoint
+ALTER TABLE "token_purchase_allocations" ADD CONSTRAINT "token_purchase_allocations_source_ledger_entry_id_token_ledger_id_fk" FOREIGN KEY ("source_ledger_entry_id") REFERENCES "public"."token_ledger"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
 --> statement-breakpoint
 ALTER TABLE "token_purchase_allocations" ADD CONSTRAINT "token_purchase_allocations_purchase_lot_id_token_purchase_lots_id_fk" FOREIGN KEY ("purchase_lot_id") REFERENCES "public"."token_purchase_lots"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
 --> statement-breakpoint
