@@ -606,6 +606,7 @@ export const tr: Dictionary = {
     tokens: "Token",
     allocatedTokens: "Tahsis edilen",
     remainingRecordedTokens: "Kayıtlı kalan",
+    allocationInconsistent: "Tutarsız kayıt — inceleme gerekli",
     paidAmount: "Ödenen tutar",
     paymentApprovedAt: "Ödeme onayı",
     purchaseCreatedAt: "Kayıt tarihi",
