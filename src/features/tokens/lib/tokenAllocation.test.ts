@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { planTokenConsumption } from "./tokenAllocation";
+import { classifyTokenSource, planTokenConsumption } from "./tokenAllocation";
 
 describe("planTokenConsumption", () => {
   it("allocates FIFO and can split one spend across sources", () => {
@@ -56,18 +56,15 @@ describe("planTokenConsumption", () => {
 
  
 describe("classifyTokenSource", () => {
-  it("does not treat historical purchases without a purchase lot as refundable lots", async () => {
-    const { classifyTokenSource } = await import("./tokenAllocation");
+  it("does not treat historical purchases without a purchase lot as refundable lots", () => {
     assert.equal(classifyTokenSource({ ledgerType: "purchase", purchaseLotId: null, referenceType: "shopier_order" }), "other");
   });
 
-  it("classifies only purchases with a linked lot as purchase sources", async () => {
-    const { classifyTokenSource } = await import("./tokenAllocation");
+  it("classifies only purchases with a linked lot as purchase sources", () => {
     assert.equal(classifyTokenSource({ ledgerType: "purchase", purchaseLotId: "lot-1" }), "purchase");
   });
 
-  it("keeps share rewards and admin grants distinct", async () => {
-    const { classifyTokenSource } = await import("./tokenAllocation");
+  it("keeps share rewards and admin grants distinct", () => {
     assert.equal(classifyTokenSource({ ledgerType: "grant", purchaseLotId: null, referenceType: "first_share_reward" }), "reward");
     assert.equal(classifyTokenSource({ ledgerType: "grant", purchaseLotId: null }), "admin_grant");
   });
