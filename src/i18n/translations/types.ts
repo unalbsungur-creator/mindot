@@ -11,6 +11,8 @@ export interface Dictionary {
     myMindot: string;
     admin: string;
     login: string;
+    /** Secondary CTA to /tokens — header and homepage hero. */
+    buyTokens: string;
   };
   hero: {
     badge: string;
@@ -387,6 +389,53 @@ export interface Dictionary {
     grantErrorTargetNotFound: string;
     grantErrorConflict: string;
     grantErrorUnauthorized: string;
+    /** Finding a user in /admin/users by email or name — a filter over the list the page already loaded. */
+    searchLabel: string;
+    searchPlaceholder: string;
+    searchNoResults: string;
+    /**
+     * Recording a Shopier Token purchase (Token Al V1, manual model) — separate from the grant above.
+     * The amount always comes from the chosen package, server-side. Placeholders: {name}, {email},
+     * {tokens}, {price} (formatted by the UI), {balance}, {date}, {user}. Each result/error of
+     * `recordShopierPurchase` has its own message.
+     */
+    recordPurchaseAction: string;
+    recordPurchaseTitle: string;
+    recordPurchaseBody: string;
+    recordPurchaseAccountEmail: string;
+    recordPurchasePackageLabel: string;
+    recordPurchasePackageOption: string;
+    recordPurchaseOrderLabel: string;
+    recordPurchaseOrderHint: string;
+    recordPurchaseBuyerEmailLabel: string;
+    recordPurchaseBuyerEmailHint: string;
+    recordPurchaseManualReviewLabel: string;
+    recordPurchaseManualReviewHint: string;
+    recordPurchaseReasonLabel: string;
+    recordPurchaseReasonPlaceholder: string;
+    recordPurchaseNoteLabel: string;
+    recordPurchaseNotePlaceholder: string;
+    recordPurchaseConfirm: string;
+    recordPurchaseCancel: string;
+    recordPurchaseDone: string;
+    recordPurchaseSubmitting: string;
+    /** `credited`, emails matched. */
+    recordPurchaseSuccess: string;
+    /** `credited` after a manual review. */
+    recordPurchaseSuccessManual: string;
+    /** `already_recorded`: the same order for the same account and package — nothing added twice. */
+    recordPurchaseAlreadyRecorded: string;
+    /** `order-already-used`: the order went to another account or package. {user} may be tokenHistoryAdmin.deletedAccount. */
+    recordPurchaseErrorOrderUsed: string;
+    recordPurchaseErrorEmailMismatch: string;
+    recordPurchaseErrorReasonRequired: string;
+    recordPurchaseErrorInvalidPackage: string;
+    recordPurchaseErrorInvalidOrder: string;
+    recordPurchaseErrorInvalidEmail: string;
+    recordPurchaseErrorTargetNotFound: string;
+    recordPurchaseErrorConflict: string;
+    recordPurchaseErrorUnauthorized: string;
+    recordPurchaseErrorFailed: string;
   };
   /** Admin Token history (/admin/tokens) — read-only view of the ledger. */
   tokenHistoryAdmin: {
@@ -522,6 +571,8 @@ export interface Dictionary {
     pdfDownloadError: string;
     pdfUnlockButton: string;
     pdfUnlockRequired: string;
+    /** Link to /tokens under pdfUnlockRequired — only while locked, with the source available and a zero balance. */
+    pdfBuyTokensAction: string;
     pdfUnlockConfirmTitle: string;
     pdfUnlockConfirmBody: string;
     pdfUnlockConfirmButton: string;
@@ -831,6 +882,27 @@ export interface Dictionary {
     emptyMessage: string;
     shareWallButton: string;
     openCardLabel: string;
+  };
+  /**
+   * /tokens (Token Al V1, manual model): the three Shopier packages. Payment happens on Shopier and an
+   * admin credits the Tokens by hand — never promise a time. Placeholders: {count}, {email}.
+   */
+  tokenPurchase: {
+    pageTitle: string;
+    intro: string;
+    packageTokens: string;
+    buyOnShopier: string;
+    /** Screen-reader hint on the Shopier links (target="_blank"). */
+    opensInNewTab: string;
+    notOnSale: string;
+    noneOnSale: string;
+    signInPrompt: string;
+    balance: string;
+    accountEmail: string;
+    emailMatchHint: string;
+    howItWorksTitle: string;
+    howItWorksSteps: [string, string, string];
+    manualNotice: string;
   };
   memoryLibrary: {
     pageTitle: string;

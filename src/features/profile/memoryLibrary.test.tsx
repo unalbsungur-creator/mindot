@@ -140,3 +140,44 @@ describe("getMemoryLibrary", () => {
     assert.equal(byId["project-archived"].noteTemplateId, null);
   });
 });
+
+// PersonalPdfAccess's "Buy Tokens" link (Token Al V1): only while the PDF is
+// locked, its source is available and the balance is zero.
+describe("personal PDF panel's /tokens link", () => {
+  const renderPdf = (overrides: Partial<MemoryLibraryItem>, tokenBalance: number) =>
+    renderToStaticMarkup(
+      <LocaleProvider>
+        <MemoryLibraryContent isSignedIn items={[item({ outputType: "personal_pdf", ...overrides })]} tokenBalance={tokenBalance} />
+      </LocaleProvider>
+    );
+  const buyLink = `href="/tokens"`;
+  const buyText = escapeHtml(dictionary.memory.pdfBuyTokensAction);
+
+  it("links to /tokens under the explanation when the PDF is locked and the balance is zero", () => {
+    const html = renderPdf({ pdfUnlocked: false }, 0);
+    assert.ok(html.includes(escapeHtml(dictionary.memory.pdfUnlockRequired)));
+    assert.ok(html.includes(buyLink), "link target");
+    assert.ok(html.includes(`>${buyText}</a>`), "link text");
+    assert.ok(html.indexOf(escapeHtml(dictionary.memory.pdfUnlockRequired)) < html.indexOf(buyLink), "below the explanation");
+    assert.ok(!html.includes(escapeHtml(dictionary.memory.pdfUnlockButton)), "no unlock button without a Token");
+  });
+
+  it("offers the unlock instead — no /tokens link — when there is a Token to spend", () => {
+    const html = renderPdf({ pdfUnlocked: false }, 1);
+    assert.ok(html.includes(escapeHtml(dictionary.memory.pdfUnlockButton)));
+    assert.ok(!html.includes(buyLink));
+    assert.ok(!html.includes(buyText));
+  });
+
+  it("has no /tokens link once the PDF is unlocked, even with a zero balance", () => {
+    const html = renderPdf({ pdfUnlocked: true }, 0);
+    assert.ok(!html.includes(buyLink));
+    assert.ok(!html.includes(buyText));
+  });
+
+  it("has no /tokens link when the source is no longer available", () => {
+    const html = renderPdf({ pdfUnlocked: false, sourceAvailable: false, noteContent: null, noteTemplateId: null }, 0);
+    assert.ok(!html.includes(buyLink));
+    assert.ok(!html.includes(buyText));
+  });
+});

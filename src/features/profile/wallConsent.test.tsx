@@ -259,9 +259,15 @@ describe("consent texts", () => {
 
   it("mark every new legal draft as needing legal review", () => {
     for (const locale of locales) {
-      const source = readFileSync(`src/i18n/translations/${locale}.ts`, "utf8");
-      const drafts = source.match(/LEGAL REVIEW REQUIRED: draft/g) ?? [];
-      assert.equal(drafts.length, 3, `${locale}: consent dialog, terms and privacy drafts`);
+      const markers = readFileSync(`src/i18n/translations/${locale}.ts`, "utf8")
+        .split("\n")
+        .filter((line) => line.includes("LEGAL REVIEW REQUIRED: draft"));
+      // The public-wall consent's own drafts, each naming the wall: other features' drafts don't count here.
+      const wallDrafts = markers.filter((line) => /\bwall\b/.test(line));
+      assert.equal(wallDrafts.length, 3, `${locale}: consent dialog, terms and privacy drafts`);
+      // Token Al V1's Terms and Privacy drafts (manual Shopier purchases), told apart by their own prefix.
+      const tokenDrafts = markers.filter((line) => line.includes("LEGAL REVIEW REQUIRED: draft for Token Al V1"));
+      assert.equal(tokenDrafts.length, 2, `${locale}: Token purchase terms and privacy drafts`);
     }
   });
 });

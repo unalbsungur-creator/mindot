@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { messageRepository } from "@/features/messages/repository";
+import { TOKEN_PACKAGES } from "@/features/tokens/config/tokenPackages";
 import { tokenRepository } from "@/features/tokens/repository";
 import { userRepository } from "@/features/users/repository";
 import { UsersPageContent } from "./_components/UsersPageContent";
@@ -23,5 +24,10 @@ export default async function UsersPage() {
     }))
   );
 
-  return <UsersPageContent authorized={authorized} items={items} currentUserId={adminUser?.id ?? null} />;
+  // Display data only (id, amount, price): the purchase links never reach the admin page.
+  const tokenPackages = authorized ? TOKEN_PACKAGES.map(({ id, tokens, priceTry }) => ({ id, tokens, priceTry })) : [];
+
+  return (
+    <UsersPageContent authorized={authorized} items={items} currentUserId={adminUser?.id ?? null} tokenPackages={tokenPackages} />
+  );
 }

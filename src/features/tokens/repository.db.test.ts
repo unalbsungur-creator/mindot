@@ -297,6 +297,292 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
     });
   });
 
+  describe("Shopier purchase", () => {
+    function newOrderRef(): string {
+      return `T-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    }
+
+    function emailOf(id: string): string {
+      return `${id}@example.test`; // createUser's address
+    }
+
+    function purchase(overrides: Partial<Parameters<typeof tokenRepository.creditShopierPurchase>[0]> = {}) {
+      return tokenRepository.creditShopierPurchase({
+        userId,
+        adminId,
+        packageId: "tokens-50",
+        orderRef: newOrderRef(),
+        buyerEmail: emailOf(userId),
+        ...overrides,
+      });
+    }
+
+    async function orderRows(orderRef: string) {
+      return sql<
+        {
+          id: string;
+          user_id: string;
+          amount: number;
+          type: string;
+          balance_after: number;
+          reference_type: string | null;
+          reference_id: string | null;
+          idempotency_key: string;
+          external_provider: string | null;
+          external_reference: string | null;
+          created_by: string | null;
+          note: string | null;
+        }[]
+      >`
+        select id, user_id, amount, type::text as type, balance_after, reference_type, reference_id, idempotency_key,
+          external_provider, external_reference, created_by, note
+        from token_ledger where external_reference = ${orderRef} order by created_at, id`;
+    }
+
+    async function walletExists(id: string): Promise<boolean> {
+      const [row] = await sql<{ n: number }[]>`select count(*)::int as n from token_wallets where user_id = ${id}`;
+      return row.n === 1;
+    }
+
+    it("credits the package's amount with a purchase entry naming the order, the package and the admin", async () => {
+      const orderRef = newOrderRef();
+      const result = await purchase({ orderRef: `  ${orderRef.toLowerCase()} ` });
+
+      assert.equal(result.status, "credited");
+      if (result.status !== "credited") return;
+      assert.equal(result.emailCheck, "matched");
+      assert.equal(result.balance, 50);
+      const rows = await orderRows(orderRef);
+      assert.equal(rows.length, 1);
+      assert.deepEqual(
+        { ...rows[0], id: undefined },
+        {
+          id: undefined,
+          user_id: userId,
+          amount: 50,
+          type: "purchase",
+          balance_after: 50,
+          reference_type: "shopier_order",
+          reference_id: "tokens-50",
+          idempotency_key: `shopier_order:${orderRef}`,
+          external_provider: "shopier",
+          external_reference: orderRef,
+          created_by: adminId,
+          note: "email: matched",
+        }
+      );
+      assert.equal(result.entry.id, rows[0].id);
+      await assertConsistent(userId, 50);
+    });
+
+    it("takes every amount from its package", async () => {
+      let total = 0;
+      for (const [packageId, tokens] of [["tokens-10", 10], ["tokens-50", 50], ["tokens-100", 100]] as const) {
+        const result = await purchase({ packageId });
+        assert.equal(result.status, "credited", packageId);
+        total += tokens;
+        assert.equal(result.status === "credited" && result.entry.amount, tokens, packageId);
+      }
+      await assertConsistent(userId, total);
+    });
+
+    it("records a repeated order for the same account and package only once", async () => {
+      const orderRef = newOrderRef();
+      const first = await purchase({ orderRef });
+      const second = await purchase({ orderRef: ` ${orderRef.toLowerCase()}` });
+
+      assert.equal(first.status, "credited");
+      assert.equal(second.status, "already_recorded");
+      assert.equal(second.status === "already_recorded" && second.entry.id, first.status === "credited" && first.entry.id);
+      assert.equal(second.status === "already_recorded" && second.balance, 50);
+      assert.equal((await orderRows(orderRef)).length, 1);
+      await assertConsistent(userId, 50);
+    });
+
+    it("credits 10 concurrent submits of the same order only once", async () => {
+      const orderRef = newOrderRef();
+      const results = await Promise.all(Array.from({ length: 10 }, () => purchase({ orderRef })));
+
+      const statuses = results.map((result) => result.status);
+      assert.equal(statuses.filter((status) => status === "credited").length, 1, statuses.join(","));
+      assert.equal(statuses.filter((status) => status === "already_recorded").length, 9, statuses.join(","));
+      assert.equal((await orderRows(orderRef)).length, 1);
+      await assertConsistent(userId, 50);
+    });
+
+    it("refuses an order already credited to another account, writing nothing for that account", async () => {
+      const orderRef = newOrderRef();
+      const first = await purchase({ orderRef });
+      assert.equal(first.status, "credited");
+      const other = await createUser();
+
+      const second = await purchase({ userId: other, orderRef, buyerEmail: emailOf(other) });
+
+      assert.equal(second.status, "order_already_used");
+      if (second.status !== "order_already_used") return;
+      assert.equal(second.existing.userId, userId);
+      assert.equal(second.existing.packageId, "tokens-50");
+      assert.equal(second.existing.amount, 50);
+      assert.equal(second.existing.createdBy, adminId);
+      assert.equal(second.existing.entryId, first.status === "credited" && first.entry.id);
+      assert.equal(await walletExists(other), false, "no wallet row for the refused account");
+      assert.equal((await ledgerRows(other)).length, 0);
+      await assertConsistent(userId, 50);
+    });
+
+    it("refuses the same order for another package of the same account", async () => {
+      const orderRef = newOrderRef();
+      assert.equal((await purchase({ orderRef })).status, "credited");
+
+      const second = await purchase({ orderRef, packageId: "tokens-100" });
+
+      assert.equal(second.status, "order_already_used");
+      assert.equal((await orderRows(orderRef)).length, 1);
+      await assertConsistent(userId, 50);
+    });
+
+    it("reports a reused order as such even when the email no longer matches", async () => {
+      const orderRef = newOrderRef();
+      assert.equal((await purchase({ orderRef })).status, "credited");
+      const other = await createUser();
+
+      const second = await purchase({ userId: other, orderRef, buyerEmail: "someone-else@example.test" });
+
+      assert.equal(second.status, "order_already_used");
+      assert.equal(await walletExists(other), false);
+    });
+
+    it("credits exactly one of two accounts racing for the same order", async () => {
+      const orderRef = newOrderRef();
+      const other = await createUser();
+
+      const results = await Promise.all([
+        purchase({ orderRef }),
+        purchase({ userId: other, orderRef, buyerEmail: emailOf(other) }),
+      ]);
+
+      assert.deepEqual(results.map((result) => result.status).sort(), ["credited", "order_already_used"]);
+      assert.equal((await orderRows(orderRef)).length, 1);
+      const winner = results[0].status === "credited" ? userId : other;
+      const loser = winner === userId ? other : userId;
+      await assertConsistent(winner, 50);
+      await assertConsistent(loser, 0);
+    });
+
+    it("writes nothing on an email mismatch without a manual-review reason", async () => {
+      const orderRef = newOrderRef();
+      for (const manualReviewReason of [undefined, null, "", "   "]) {
+        const result = await purchase({ orderRef, buyerEmail: "someone-else@example.test", manualReviewReason });
+        assert.deepEqual(result, { status: "email_mismatch" }, JSON.stringify(manualReviewReason));
+      }
+      assert.equal(await walletExists(userId), false);
+      assert.equal((await ledgerRows(userId)).length, 0);
+      assert.equal((await orderRows(orderRef)).length, 0);
+    });
+
+    it("credits a mismatch only with a reason, and never stores the buyer's email", async () => {
+      const orderRef = newOrderRef();
+      const buyer = "Someone-Else@Example.test";
+
+      const result = await purchase({
+        orderRef,
+        buyerEmail: buyer,
+        manualReviewReason: "Confirmed with someone-else@example.test by phone",
+        note: `Paid from ${buyer}`,
+      });
+
+      assert.equal(result.status, "credited");
+      assert.equal(result.status === "credited" && result.emailCheck, "manual_review");
+      const [row] = await orderRows(orderRef);
+      assert.equal(row.note, "email: manual review — Confirmed with [e-posta] by phone | Paid from [e-posta]");
+      const [leaks] = await sql<{ n: number }[]>`
+        select count(*)::int as n from token_ledger t
+        where lower(row_to_json(t)::text) like ${"%someone-else@example.test%"}`;
+      assert.equal(leaks.n, 0, "the buyer's email reached the ledger");
+      await assertConsistent(userId, 50);
+    });
+
+    it("matches the account email regardless of case and surrounding spaces", async () => {
+      const result = await purchase({ buyerEmail: `  ${emailOf(userId).toUpperCase()} ` });
+      assert.equal(result.status === "credited" && result.emailCheck, "matched");
+    });
+
+    it("refuses a tombstone and an unknown account, writing nothing", async () => {
+      const tombstone = `deleted_${crypto.randomUUID()}`;
+      await sql`insert into users (id, email, role, deleted_at) values (${tombstone}, ${`${tombstone}@deleted.invalid`}, 'user', now())`;
+      const unknown = `missing-${crypto.randomUUID()}`;
+
+      for (const id of [tombstone, unknown]) {
+        const orderRef = newOrderRef();
+        assert.deepEqual(await purchase({ userId: id, orderRef, buyerEmail: emailOf(id) }), { status: "ineligible" }, id);
+        assert.equal(await walletExists(id), false, `wallet for ${id}`);
+        assert.equal((await orderRows(orderRef)).length, 0);
+      }
+    });
+
+    it("still credits a suspended account — the order was paid", async () => {
+      await sql`update users set status = 'suspended' where id = ${userId}`;
+      assert.equal((await purchase()).status, "credited");
+      await assertConsistent(userId, 50);
+    });
+
+    it("keeps a deleted account's order used: its tombstone holds it, and no new account can reuse it", async () => {
+      const orderRef = newOrderRef();
+      assert.equal((await purchase({ orderRef })).status, "credited");
+      assert.deepEqual(await userRepository.deleteAccount(userId), { status: "deleted" });
+      const [row] = await orderRows(orderRef);
+      assert.match(row.user_id, /^deleted_/);
+      assert.equal(row.external_reference, orderRef, "the order stays on the entry");
+      await assertConsistent(row.user_id, 50);
+
+      const other = await createUser();
+      const reused = await purchase({ userId: other, orderRef, buyerEmail: emailOf(other) });
+      assert.equal(reused.status, "order_already_used");
+      assert.equal(reused.status === "order_already_used" && reused.existing.userId, row.user_id);
+      assert.equal(await walletExists(other), false);
+    });
+
+    it("has the unique index reject a second entry for the same order even under another key", async () => {
+      const orderRef = newOrderRef();
+      assert.equal((await purchase({ orderRef })).status, "credited");
+
+      await assert.rejects(
+        sql`
+          insert into token_ledger (id, user_id, amount, type, balance_after, idempotency_key, external_provider, external_reference)
+          values (${crypto.randomUUID()}, ${userId}, 50, 'purchase', 100, ${`other:${crypto.randomUUID()}`}, 'shopier', ${orderRef})`,
+        /token_ledger_external_ref_idx/
+      );
+      assert.equal((await orderRows(orderRef)).length, 1);
+      await assertConsistent(userId, 50);
+    });
+
+    it("keeps a purchase entry append-only (migration 0022)", async () => {
+      const result = await purchase();
+      assert.equal(result.status, "credited");
+      if (result.status !== "credited") return;
+      const id = result.entry.id;
+
+      await assert.rejects(sql`update token_ledger set amount = 500 where id = ${id}`, /token_ledger is append-only/);
+      await assert.rejects(sql`update token_ledger set external_reference = 'OTHER' where id = ${id}`, /token_ledger is append-only/);
+      await assert.rejects(sql`update token_ledger set note = 'x' where id = ${id}`, /token_ledger is append-only/);
+      await assert.rejects(sql`delete from token_ledger where id = ${id}`, /token_ledger is append-only/);
+      await assertConsistent(userId, 50);
+    });
+
+    it("leaves admin grants as they were: a grant and a purchase add up, and only the purchase names a provider", async () => {
+      await grant(userId, 5);
+      assert.equal((await purchase()).status, "credited");
+
+      const rows = await sql<{ type: string; external_provider: string | null }[]>`
+        select type::text as type, external_provider from token_ledger where user_id = ${userId} order by created_at, id`;
+      assert.deepEqual([...rows], [
+        { type: "grant", external_provider: null },
+        { type: "purchase", external_provider: "shopier" },
+      ]);
+      await assertConsistent(userId, 55);
+    });
+  });
+
   describe("first-share reward", () => {
     const REWARD_KEY = /^first_share_reward:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
@@ -641,6 +927,97 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
         sessionUser = { id: userId, role: "user" };
         assert.deepEqual(await claimFirstShareReward(), { status: "ineligible" });
         await assertConsistent(userId, 0);
+      });
+    });
+
+    // Same session stub as grantTokens: the real action, gate and repository on the real database.
+    describe("recordShopierPurchase action", () => {
+      let recordShopierPurchase: typeof import("./admin-actions").recordShopierPurchase;
+      before(async () => {
+        ({ recordShopierPurchase } = await import("./admin-actions"));
+      });
+
+      function input(overrides: Partial<Parameters<typeof recordShopierPurchase>[0]> = {}) {
+        return {
+          userId,
+          packageId: "tokens-50",
+          orderRef: `A-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+          buyerEmail: `${userId}@example.test`,
+          ...overrides,
+        };
+      }
+
+      it("keeps the admin gate: no session or a non-admin session writes nothing", async () => {
+        const ledgerBefore = await ledgerCount();
+        sessionUser = null;
+        assert.deepEqual(await recordShopierPurchase(input()), { ok: false, error: "auth-required" });
+        sessionUser = { id: userId, role: "user" };
+        assert.deepEqual(await recordShopierPurchase(input()), { ok: false, error: "forbidden" });
+        assert.equal(await ledgerCount(), ledgerBefore);
+        await assertConsistent(userId, 0);
+      });
+
+      it("credits the package once per order, recorded under the session's admin", async () => {
+        const purchase = input();
+        const first = await recordShopierPurchase(purchase);
+        const second = await recordShopierPurchase(purchase);
+
+        assert.equal(first.ok && first.data.status, "credited");
+        assert.equal(first.ok && first.data.tokens, 50);
+        assert.equal(second.ok && second.data.status, "already_recorded");
+        const [row] = await sql<{ created_by: string; type: string }[]>`
+          select created_by, type::text as type from token_ledger where user_id = ${userId}`;
+        assert.deepEqual({ ...row }, { created_by: adminId, type: "purchase" });
+        await assertConsistent(userId, 50);
+      });
+
+      it("refuses bad input, a tombstone and an unknown account without touching the ledger", async () => {
+        const ledgerBefore = await ledgerCount();
+        assert.deepEqual(await recordShopierPurchase(input({ packageId: "tokens-25" })), { ok: false, error: "invalid-package" });
+        assert.deepEqual(await recordShopierPurchase(input({ orderRef: " " })), { ok: false, error: "invalid-order" });
+        assert.deepEqual(await recordShopierPurchase(input({ buyerEmail: "nope" })), { ok: false, error: "invalid-email" });
+        assert.deepEqual(await recordShopierPurchase(input({ manualReview: true, manualReviewReason: " " })), {
+          ok: false,
+          error: "manual-review-reason-required",
+        });
+        assert.deepEqual(await recordShopierPurchase(input({ userId: `missing-${crypto.randomUUID()}` })), {
+          ok: false,
+          error: "target-user-not-found",
+        });
+        const tombstoneId = await deleteAndFindTombstoneForAction(await createUser());
+        const ledgerBeforeTombstone = await ledgerCount();
+        assert.deepEqual(await recordShopierPurchase(input({ userId: tombstoneId, buyerEmail: "x@example.test" })), {
+          ok: false,
+          error: "target-user-not-found",
+        });
+        assert.equal(await ledgerCount(), ledgerBeforeTombstone);
+        await assertConsistent(tombstoneId, 2);
+        assert.equal(ledgerBeforeTombstone - ledgerBefore, 1, "only the tombstone setup's own grant was written");
+        await assertConsistent(userId, 0);
+      });
+
+      it("reports an order used by another account with where it went, crediting nothing", async () => {
+        const other = await createUser();
+        const purchase = input();
+        assert.equal((await recordShopierPurchase(purchase)).ok, true);
+
+        const reused = await recordShopierPurchase({ ...purchase, userId: other, buyerEmail: `${other}@example.test` });
+
+        assert.equal(reused.ok, false);
+        assert.equal(!reused.ok && reused.error, "order-already-used");
+        assert.equal(!reused.ok && reused.error === "order-already-used" && reused.existingOrder.userId, userId);
+        await assertConsistent(other, 0);
+        await assertConsistent(userId, 50);
+      });
+
+      it("needs manual review plus a reason for differing emails", async () => {
+        const differing = input({ buyerEmail: "someone-else@example.test", manualReviewReason: "checked" });
+        assert.deepEqual(await recordShopierPurchase(differing), { ok: false, error: "email-mismatch" });
+        await assertConsistent(userId, 0);
+
+        const reviewed = await recordShopierPurchase({ ...differing, manualReview: true });
+        assert.equal(reviewed.ok && reviewed.data.emailCheck, "manual_review");
+        await assertConsistent(userId, 50);
       });
     });
 

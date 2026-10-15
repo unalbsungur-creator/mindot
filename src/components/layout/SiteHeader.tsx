@@ -173,8 +173,12 @@ export function SiteHeader() {
           </Link>
         </nav>
 
-        <div className="hidden flex-1 justify-center lg:flex">
+        <div className="hidden flex-1 items-center justify-center gap-3 lg:flex">
           <DotCtaButton href="/write">{dictionary.nav.writeThought}</DotCtaButton>
+          {/* Secondary to the write CTA, never instead of it; the same for everyone — /tokens handles sign-in. */}
+          <Button href="/tokens" variant="outline" size="sm">
+            {dictionary.nav.buyTokens}
+          </Button>
         </div>
 
         <div className="flex items-center gap-1 sm:gap-3">
@@ -247,9 +251,14 @@ export function SiteHeader() {
       </PageContainer>
 
       {/* Below lg:, the centered CTA gets its own full-width row instead
-          of squeezing into the main bar next to nav + the right cluster. */}
-      <div className="flex justify-center border-t border-white/10 py-2.5 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:hidden">
+          of squeezing into the main bar next to nav + the right cluster.
+          "Buy Tokens" joins it here (wrapping if needed), not the main bar,
+          which is already measured tight at 375–390px. */}
+      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 border-t border-white/10 py-2.5 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:hidden">
         <DotCtaButton href="/write">{dictionary.nav.writeThought}</DotCtaButton>
+        <Button href="/tokens" variant="outline" size="sm">
+          {dictionary.nav.buyTokens}
+        </Button>
       </div>
     </header>
   );
