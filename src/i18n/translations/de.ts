@@ -604,6 +604,7 @@ export const de: Dictionary = {
     tokens: "Token",
     allocatedTokens: "Zugeordnet",
     remainingRecordedTokens: "Laut Aufzeichnung verbleibend",
+    allocationInconsistent: "Widersprüchliche Daten — Prüfung erforderlich",
     paidAmount: "Bezahlter Betrag",
     paymentApprovedAt: "Zahlungsfreigabe",
     purchaseCreatedAt: "Erfassungsdatum",
