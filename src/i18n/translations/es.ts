@@ -585,6 +585,7 @@ export const es: Dictionary = {
     revokeButton: "Revocar",
     revoking: "Revocando…",
   },
+  adminRefunds: { title: "Reembolsos" },
   adminOrders: {
     title: "Pedidos físicos",
     subtitle: "Sigue el cumplimiento desde la impresión MINDOT hasta el regalo enviado.",
