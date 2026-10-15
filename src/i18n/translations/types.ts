@@ -646,6 +646,7 @@ export interface Dictionary {
     tokens: string;
     allocatedTokens: string;
     remainingRecordedTokens: string;
+    allocationInconsistent: string;
     paidAmount: string;
     paymentApprovedAt: string;
     purchaseCreatedAt: string;
