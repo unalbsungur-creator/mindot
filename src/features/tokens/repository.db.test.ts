@@ -1829,7 +1829,7 @@ describe("token ledger guard on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_T
         values
           (${`refund-${crypto.randomUUID()}`}, ${userId}, ${lot.id}, ${status}, 100, 1,
            ${`test-refund:${crypto.randomUUID()}`}, ${reference}, ${adminId},
-           ${status === "external_refund_confirmed" ? new Date() : null})`;
+           ${status === "external_refund_confirmed" ? new Date().toISOString() : null})`;
 
     await assert.rejects(insertRefund("external_refund_confirmed", null), /token_refunds_external_reference_pair|check constraint/i);
     await assert.rejects(insertRefund("pending_external_refund", `SHOPIER-REFUND-${crypto.randomUUID()}`), /token_refunds_external_reference_pair|check constraint/i);
