@@ -42,6 +42,10 @@ jobs:
       # in the disposable Docker database; never points at production.
       - run: npm run test:db:tokens
 
+      # Run refund-action concurrency tests in a separate disposable database;
+      # Drizzle migrations must not race each other in parallel test processes.
+      - run: npm run test:db:refunds
+
       - run: npm run lint
 
       # PageProps/LayoutProps are global types Next generates into the
