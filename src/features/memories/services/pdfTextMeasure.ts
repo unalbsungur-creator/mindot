@@ -129,6 +129,11 @@ function measureWidthPt(font: PdfMeasureFont, loaded: Font, text: string, fontSi
   return (loaded.layout(text).advanceWidth / loaded.unitsPerEm) * fontSizePt + tracking;
 }
 
+/** `text`'s rendered width at `fontSize` (same unit out as in), letter spacing included. Fonts must be loaded (`ensurePdfMeasureFontsLoaded`). */
+export function measureTextWidth(text: string, font: PdfMeasureFont, fontSize: number): number {
+  return text ? measureWidthPt(font, loadFont(font), text, fontSize) : 0;
+}
+
 export function widestWordWidthPt(text: string, font: PdfMeasureFont, fontSizePt: number): number {
   const words = text.split(/\s+/).filter(Boolean);
   if (words.length === 0 || fontSizePt <= 0) return 0;

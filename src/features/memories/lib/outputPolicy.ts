@@ -108,7 +108,13 @@ export function decideMemoryOutputAccess(input: {
 // Project creation
 // ---------------------------------------------------------------------------
 
-const CAPTURE_MODES: readonly MemoryCaptureMode[] = ["note_only", "note_with_surrounding"];
+/**
+ * The only capture a new project is created with. The wizard no longer
+ * offers "note + surrounding wall"; projects that already store
+ * `note_with_surrounding` keep it and still render their tile neighbours
+ * (`resolveCaptureRegion`) — this only gates creation.
+ */
+export const NEW_MEMORY_PROJECT_CAPTURE_MODE: MemoryCaptureMode = "note_only";
 
 /** Only digital_frame is sold as framed output; every other type is created unframed. */
 const FRAMED_OUTPUT_TYPES: ReadonlySet<MemoryOutputType> = new Set(["digital_frame"]);
@@ -130,7 +136,7 @@ export function validateNewMemoryProject(
   const { outputType, captureMode, frameTemplateId } = input;
   if (!isKnownOutputType(outputType)) return "invalid-output-type";
   if (outputType === "physical_gift" && !options.physicalGiftAvailable) return "invalid-output-type";
-  if (!CAPTURE_MODES.includes(captureMode as MemoryCaptureMode)) return "invalid-capture-mode";
+  if (captureMode !== NEW_MEMORY_PROJECT_CAPTURE_MODE) return "invalid-capture-mode";
 
   if (frameTemplateId === undefined || frameTemplateId === null) return null;
   if (!FRAMED_OUTPUT_TYPES.has(outputType)) return "invalid-frame";

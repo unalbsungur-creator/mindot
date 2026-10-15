@@ -1,7 +1,6 @@
 import { auth } from "@/features/auth/auth";
 import { getPublicMessageById, isMessageAuthorBlockedBy } from "@/features/board/repository";
 import { BlockedNoteNotice } from "@/features/blocks/components/BlockedNoteNotice";
-import { getShoppierProductUrl } from "@/features/memories/config/shoppier";
 import { FIRST_SHARE_REWARD_AMOUNT, tokenRepository } from "@/features/tokens/repository";
 import { getAppUrl, getRequestOrigin } from "@/lib/env";
 import { SharePageContent } from "./_components/SharePageContent";
@@ -54,8 +53,6 @@ export default async function SharePage({ params }: PageProps<"/share/[messageId
       signedIn={!!session?.user?.id}
       firstShareRewardAmount={FIRST_SHARE_REWARD_AMOUNT}
       firstShareRewardAvailable={firstShareRewardAvailable}
-      // Only the public product link, read on the server per request.
-      shoppierProductUrl={getShoppierProductUrl()}
     />
   );
 }

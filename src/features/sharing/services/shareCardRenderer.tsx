@@ -1,10 +1,13 @@
 import { ImageResponse } from "next/og";
 import { getNoteTemplate } from "@/features/notes/config/templates";
-import type { NoteTextFontFamily } from "@/features/notes/types";
+import type { NoteTextAlign, NoteTextFontFamily } from "@/features/notes/types";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "@/features/memories/services/pdfPalette";
+import { ensurePdfMeasureFontsLoaded } from "@/features/memories/services/pdfTextMeasure";
 import type { FrameTemplate } from "@/features/memories/config/frameTemplates";
 import type { ShareFormat } from "../types";
+import { layoutWallCards, wallLayoutMetrics, type WallFormat } from "../lib/wallLayout";
 import { BrandLockup, logoToneFor, MemorySeal, MemoryWatermark } from "./brandMarkSatori";
+import { cardBackingFor, cardBackingStyle, type CardBacking } from "./cardBacking";
 import { estimateMemoryCardSize, loadTemplateArtwork, MemoryNoteCard } from "./noteCardSatori";
 import { BRAND_FONT_FAMILY, loadShareFonts, SHARE_FONT_FAMILY, type LoadedFont } from "./shareFonts";
 import { getMasterContentRegion, getMasterSafeArea, loadShareMasterImage, type LoadedMasterImage, type MasterSafeArea } from "./shareMasterImages";
@@ -18,6 +21,8 @@ export interface ShareCardNote {
   templateId: string;
   /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface, threaded through to `MemoryNoteCard` so the generated PNG never disagrees with what `/write`'s preview and `/board` already show for this same message. */
   fontFamily: NoteTextFontFamily;
+  /** Absent means "auto". */
+  textAlign?: NoteTextAlign;
   authorName: string | null;
   /** `DD.MM.YYYY`, already formatted by the caller (see shareCardData.ts) — this renderer never touches a raw timestamp/UUID/template id. Optional: omitted entirely (not shown as "unknown") when unavailable. */
   date?: string | null;
@@ -91,7 +96,8 @@ function chunk<T>(items: T[], size: number): T[][] {
 export async function renderShareCard(input: ShareCardInput): Promise<ImageResponse> {
   const master = !input.frame ? await loadShareMasterImage(input.format.id) : null;
   const safeArea = master ? getMasterSafeArea(input.format.id) : null;
-  const fonts = await loadShareFonts();
+  // The measure fonts: `MemoryNoteCard` fits a football card's multi-line text with them.
+  const [fonts] = await Promise.all([loadShareFonts(), ensurePdfMeasureFontsLoaded()]);
   // EPIC: Special Day Clean Artwork + Share Visual Consistency — loaded
   // once here (never per-render-branch) so both composition strategies
   // below share the exact same artwork bytes Note.tsx itself renders;
@@ -101,7 +107,14 @@ export async function renderShareCard(input: ShareCardInput): Promise<ImageRespo
   if (master && safeArea) {
     return renderWithMasterBackground(input, master, safeArea, getMasterContentRegion(input.format.id), fonts, artworkDataUri);
   }
-  return renderFullyDrawnShareCard(input, fonts, artworkDataUri);
+  // A dark frame (the navy ones — the frames whose logo is drawn inverted)
+  // would show through a see-through-centre card behind its dark text, so
+  // that card gets the board's canvas under it, as in PDF V2. Light and
+  // orange frames keep their own colour there (product decision), and
+  // without a frame the background already is that canvas.
+  const darkFrame = input.frame ? logoToneFor(input.frame.background) === "inverted" : false;
+  const backing = darkFrame ? await cardBackingFor(getNoteTemplate(input.primary.templateId)) : null;
+  return renderFullyDrawnShareCard(input, fonts, artworkDataUri, backing);
 }
 
 function renderWithMasterBackground(
@@ -178,7 +191,7 @@ function renderWithMasterBackground(
             gap: sectionGap,
           }}
         >
-          <MemoryNoteCard content={primary.content} authorName={primary.authorName} templateId={primary.templateId} fontFamily={primary.fontFamily} rotation={0} width={cardWidth} artworkDataUri={artworkDataUri} />
+          <MemoryNoteCard content={primary.content} authorName={primary.authorName} templateId={primary.templateId} fontFamily={primary.fontFamily} textAlign={primary.textAlign} rotation={0} width={cardWidth} artworkDataUri={artworkDataUri} />
 
           {rows.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16, width: rowWidth, opacity: 0.82 }}>
@@ -246,7 +259,8 @@ function renderWithMasterBackground(
 function renderFullyDrawnShareCard(
   { primary, surrounding = [], format, frame, slogan }: ShareCardInput,
   fonts: LoadedFont[],
-  artworkDataUri: string | undefined
+  artworkDataUri: string | undefined,
+  backing: CardBacking
 ): ImageResponse {
   const backgroundColor = frame?.background ?? PDF_COLORS.canvas;
   const inkColor = frame?.ink ?? PDF_COLORS.ink;
@@ -323,15 +337,32 @@ function renderFullyDrawnShareCard(
         </div>
 
         <div style={{ display: "flex", flex: 1, flexDirection: "column", alignItems: "center", justifyContent: "center", gap: sectionGap }}>
-          <MemoryNoteCard
-            content={primary.content}
-            authorName={primary.authorName}
-            templateId={primary.templateId}
-            fontFamily={primary.fontFamily}
-            rotation={0}
-            width={cardWidth}
-            artworkDataUri={artworkDataUri}
-          />
+          {backing ? (
+            <div style={{ position: "relative", display: "flex", width: cardWidth, height: cardSize.height }}>
+              <div style={cardBackingStyle(backing, getNoteTemplate(primary.templateId), cardWidth, cardSize.height)} />
+              <MemoryNoteCard
+                content={primary.content}
+                authorName={primary.authorName}
+                templateId={primary.templateId}
+                fontFamily={primary.fontFamily}
+                textAlign={primary.textAlign}
+                rotation={0}
+                width={cardWidth}
+                artworkDataUri={artworkDataUri}
+              />
+            </div>
+          ) : (
+            <MemoryNoteCard
+              content={primary.content}
+              authorName={primary.authorName}
+              templateId={primary.templateId}
+              fontFamily={primary.fontFamily}
+              textAlign={primary.textAlign}
+              rotation={0}
+              width={cardWidth}
+              artworkDataUri={artworkDataUri}
+            />
+          )}
 
           {rows.length > 0 && (
             // EPIC: "Note + surrounding wall" composition — a receded
@@ -484,5 +515,136 @@ export async function renderWallShareCard({ displayName, notes, format, slogan }
       height: format.height,
       fonts,
     }
+  );
+}
+
+/** One card on the wall share image (V2): what `MemoryNoteCard` needs to draw it as the board does. */
+export interface WallShareCardV2Note {
+  content: string;
+  templateId: string;
+  fontFamily: NoteTextFontFamily;
+  /** Absent means "auto". */
+  textAlign?: NoteTextAlign;
+}
+
+export interface WallShareCardV2Input {
+  displayName: string;
+  /** In display order — the caller picks them (the newest eligible cards); the layout may draw fewer, see wallLayout.ts. */
+  notes: WallShareCardV2Note[];
+  /** Square (1080×1080) or story (1080×1920) only. */
+  format: ShareFormat;
+  slogan?: string | null;
+}
+
+/**
+ * The personal wall's share image drawn with the real cards: every note is
+ * `MemoryNoteCard` (its template, artwork, typeface, alignment and line
+ * breaks, exactly as on the board), placed by `layoutWallCards` — at most
+ * 4 on a square, 8 on a story, in order, one card width, a row as tall as
+ * its tallest card, cards dropped from the end rather than drawn narrower
+ * than 280px. The owner's name is shown once, in the header; the cards
+ * carry no author line. The page is navy, so a see-through-centre card
+ * (the two Special Day frames) gets the canvas backing under it, as on a
+ * dark frame. Each template's artwork and backing, and the fonts, are
+ * loaded once per render.
+ *
+ * Only the wall share route uses this; the wall's Open Graph image keeps
+ * `renderWallShareCard`. Throws on failure — the route falls back to
+ * `renderWallShareCard` then.
+ */
+export async function renderWallShareCardV2({ displayName, notes, format, slogan }: WallShareCardV2Input): Promise<ImageResponse> {
+  if (format.id !== "square" && format.id !== "story") throw new Error(`renderWallShareCardV2: unsupported format "${format.id}"`);
+  // The measure fonts: card heights (and a football card's text fit) are measured with them.
+  await ensurePdfMeasureFontsLoaded();
+  const metrics = wallLayoutMetrics(format.width, format.height);
+  const aspects = notes.map((note) => estimateMemoryCardSize(note.templateId, note.content, 1000, note.fontFamily).height / 1000);
+  const layout = layoutWallCards(format.id as WallFormat, aspects, metrics);
+
+  const templateIds = [...new Set(layout.cards.map((card) => notes[card.index].templateId))];
+  const [fonts, prepared] = await Promise.all([
+    loadShareFonts(),
+    Promise.all(
+      templateIds.map(async (id) => {
+        const template = getNoteTemplate(id);
+        const [artworkDataUri, backing] = await Promise.all([loadTemplateArtwork(template), cardBackingFor(template)]);
+        return [id, { artworkDataUri: artworkDataUri ?? undefined, backing }] as const;
+      })
+    ),
+  ]);
+  const byTemplate = new Map(prepared);
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          position: "relative",
+          width: format.width,
+          height: format.height,
+          display: "flex",
+          flexDirection: "column",
+          background: PDF_COLORS.navy,
+          fontFamily: SHARE_FONT_FAMILY,
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: metrics.padding,
+            width: format.width,
+            height: metrics.headerHeight,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <BrandLockup cell={format.width * 0.014} tone="inverted" inkColor={PDF_COLORS.surface} />
+          <span style={{ fontSize: format.width * 0.026, color: PDF_COLORS.surface, opacity: 0.9 }}>{displayName}</span>
+        </div>
+
+        {layout.cards.map((placed) => {
+          const note = notes[placed.index];
+          const { artworkDataUri, backing } = byTemplate.get(note.templateId)!;
+          const template = getNoteTemplate(note.templateId);
+          return (
+            <div
+              key={placed.index}
+              style={{ position: "absolute", left: placed.x, top: placed.y, width: placed.width, height: placed.height, display: "flex" }}
+            >
+              {backing && <div style={cardBackingStyle(backing, template, placed.width, placed.height)} />}
+              <MemoryNoteCard
+                content={note.content}
+                authorName={null}
+                templateId={note.templateId}
+                fontFamily={note.fontFamily}
+                textAlign={note.textAlign}
+                rotation={0}
+                width={placed.width}
+                artworkDataUri={artworkDataUri}
+              />
+            </div>
+          );
+        })}
+
+        {slogan && (
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              top: format.height - metrics.padding - metrics.footerHeight,
+              width: format.width,
+              height: metrics.footerHeight,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "flex-end",
+            }}
+          >
+            <span style={{ fontSize: format.width * 0.018, color: PDF_COLORS.surface, opacity: 0.75 }}>{slogan}</span>
+          </div>
+        )}
+      </div>
+    ),
+    { width: format.width, height: format.height, fonts }
   );
 }

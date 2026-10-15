@@ -5,6 +5,12 @@ import { auth } from "@/features/auth/auth";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { userRepository } from "@/features/users/repository";
 import { adminGrantIdempotencyKey, tokenRepository } from "./repository";
+import {
+  defaultCreditShopierPurchase,
+  recordShopierPurchaseForAdmin,
+  type RecordShopierPurchaseInput,
+  type RecordShopierPurchaseResult,
+} from "./shopierPurchases";
 import { MAX_ADMIN_GRANT_AMOUNT } from "./types";
 
 const MAX_NOTE_LENGTH = 500;
@@ -73,4 +79,24 @@ export async function grantTokens(input: {
 
   revalidatePath("/admin/users");
   return { ok: true, data: { status: result.status, balance: result.balance, ledgerEntryId: result.entry.id } };
+}
+
+/**
+ * Records a Shopier Token purchase from /admin/users (Token Al V1, manual
+ * model): the admin has checked the order and payment on Shopier. Separate
+ * from `grantTokens`, which stays for gifts and corrections. The admin gate,
+ * input checks and result mapping are `recordShopierPurchaseForAdmin`; the
+ * amount, idempotency and transaction are `tokenRepository.creditShopierPurchase`.
+ */
+export async function recordShopierPurchase(input: RecordShopierPurchaseInput): Promise<RecordShopierPurchaseResult> {
+  return recordShopierPurchaseForAdmin(input, {
+    requireAdmin,
+    hasSession: async () => Boolean((await auth())?.user?.id),
+    isActiveAccount: (userId) => userRepository.isActiveAccount(userId),
+    credit: defaultCreditShopierPurchase,
+    revalidate: () => {
+      revalidatePath("/admin/users");
+      revalidatePath("/admin/tokens");
+    },
+  });
 }

@@ -5,9 +5,10 @@ import Link from "next/link";
 import { SignInOptions } from "@/components/auth/SignInOptions";
 import { Note } from "@/features/notes/components/Note";
 import { TemplatePicker } from "@/features/notes/components/TemplatePicker";
-import { getActiveNoteTemplates } from "@/features/notes/config/templates";
+import { getActiveNoteTemplates, getNoteTemplate } from "@/features/notes/config/templates";
+import { toNoteTextAlign } from "@/features/notes/lib/textAlign";
 import { noteFontFamilyClass } from "@/features/notes/lib/textScale";
-import type { NoteData, NoteTextFontFamily } from "@/features/notes/types";
+import type { NoteData, NoteTextAlign, NoteTextFontFamily } from "@/features/notes/types";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { locales, localeLabels, type Locale } from "@/i18n/config";
@@ -71,6 +72,13 @@ const FONT_OPTIONS: {
     { value: "bold", labelKey: "fontBoldLabel", className: noteFontFamilyClass("bold") },
   ];
 
+/** The three alignments a writer picks from; "auto" is the untouched default, not an option. */
+const ALIGN_OPTIONS: { value: Exclude<NoteTextAlign, "auto">; labelKey: "textAlignLeftLabel" | "textAlignCenterLabel" | "textAlignRightLabel" }[] = [
+  { value: "left", labelKey: "textAlignLeftLabel" },
+  { value: "center", labelKey: "textAlignCenterLabel" },
+  { value: "right", labelKey: "textAlignRightLabel" },
+];
+
 export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = false }: WriteThoughtFormProps) {
   const { locale, dictionary } = useLocale();
   const defaultTemplateId = getActiveNoteTemplates()[0]?.id ?? "";
@@ -78,6 +86,8 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
   const [content, setContent] = useState("");
   const [templateId, setTemplateId] = useState(defaultTemplateId);
   const [fontFamily, setFontFamily] = useState<NoteTextFontFamily>("modern");
+  // "auto" until the writer picks one — the card's own alignment, as every earlier message has.
+  const [textAlign, setTextAlign] = useState<NoteTextAlign>("auto");
   const [displayName, setDisplayName] = useState(sessionUser?.name ?? "");
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [language, setLanguage] = useState<Locale>(locale);
@@ -124,6 +134,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
     setContent(draft.content);
     setTemplateId(draft.templateId);
     setFontFamily(draft.fontFamily ?? "modern");
+    setTextAlign(toNoteTextAlign(draft.textAlign));
     setIsAnonymous(draft.isAnonymous);
     setDisplayName(draft.displayName);
     setLanguage(draft.language);
@@ -150,6 +161,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
       content,
       templateId,
       fontFamily,
+      textAlign,
       isAnonymous,
       displayName,
       language,
@@ -157,7 +169,11 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
       consentAccepted: consentChecked,
       consentVersion: CONTENT_CONSENT_VERSION,
     });
-  }, [sessionUser, content, templateId, fontFamily, isAnonymous, displayName, language, consentChecked, invitationToken]);
+  }, [sessionUser, content, templateId, fontFamily, textAlign, isAnonymous, displayName, language, consentChecked, invitationToken]);
+
+  // The football disc ignores the choice (always centered); "auto" draws left everywhere else.
+  const selectedIsFootball = getNoteTemplate(templateId).shape === "football";
+  const displayedAlign: NoteTextAlign = selectedIsFootball ? "center" : textAlign === "auto" ? "left" : textAlign;
 
   const charCount = [...content].length;
   // The selected card's limit: 150 (MESSAGE_MAX_LENGTH) for most cards, lower
@@ -186,6 +202,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
     authorImage: isAnonymous ? null : (sessionUser?.image ?? null),
     templateId,
     fontFamily,
+    textAlign,
     size: "md",
     rotation: -2,
     position: { top: "0%", left: "0%" },
@@ -229,6 +246,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
         content,
         templateId,
         fontFamily,
+        textAlign,
         authorName: displayName,
         isAnonymous,
         language,
@@ -346,6 +364,49 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
             );
           })}
         </div>
+        {/* Native radios: one Tab stop, arrow keys and screen-reader grouping
+            come from the browser. Checked shows what the card draws — "auto"
+            is left on every card, and the football disc is always centered. */}
+        <fieldset
+          className="mt-2 flex min-w-0 flex-col gap-2"
+          disabled={selectedIsFootball}
+          aria-describedby={selectedIsFootball ? "text-align-football-hint" : undefined}
+        >
+          <legend className="text-sm font-medium text-navy">{dictionary.write.textAlignLabel}</legend>
+          <div className="flex gap-2 p-0.5">
+            {ALIGN_OPTIONS.map((option) => (
+              <label key={option.value} className="shrink-0">
+                <input
+                  type="radio"
+                  name="text-align"
+                  value={option.value}
+                  checked={displayedAlign === option.value}
+                  onChange={() => {
+                    markEdited();
+                    setTextAlign(option.value);
+                  }}
+                  className="peer sr-only"
+                />
+                <span
+                  className={cn(
+                    "block cursor-pointer rounded-pill border px-4 py-1.5 text-sm transition-colors",
+                    "border-border bg-surface text-ink-soft hover:border-navy/40 hover:text-navy",
+                    "peer-checked:border-navy peer-checked:bg-navy peer-checked:text-white",
+                    "peer-focus-visible:ring-2 peer-focus-visible:ring-orange",
+                    "peer-disabled:cursor-not-allowed peer-disabled:opacity-60"
+                  )}
+                >
+                  {dictionary.write[option.labelKey]}
+                </span>
+              </label>
+            ))}
+          </div>
+          {selectedIsFootball && (
+            <p id="text-align-football-hint" className="text-xs text-ink-soft">
+              {dictionary.write.textAlignFootballHint}
+            </p>
+          )}
+        </fieldset>
       </div>
 
       <div className="order-5 flex min-w-0 flex-col gap-6 lg:order-none lg:col-start-1 lg:row-start-4">

@@ -134,6 +134,7 @@ export function ArchivePageContent({ isSignedIn, messages: initialMessages, page
                       authorImage: null,
                       templateId: message.templateId,
                       fontFamily: message.fontFamily,
+                      textAlign: message.textAlign,
                       size: "sm",
                       rotation: 0,
                       position: { top: "0%", left: "0%" },

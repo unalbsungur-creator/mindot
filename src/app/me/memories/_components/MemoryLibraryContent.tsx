@@ -120,6 +120,7 @@ export function MemoryLibraryContent({ isSignedIn, items, tokenBalance }: Memory
                       authorImage: null,
                       templateId: item.noteTemplateId,
                       fontFamily: item.noteFontFamily ?? undefined,
+                      textAlign: item.noteTextAlign ?? undefined,
                       size: "sm",
                       rotation: 0,
                       position: { top: "0%", left: "0%" },
@@ -164,9 +165,12 @@ export function MemoryLibraryContent({ isSignedIn, items, tokenBalance }: Memory
                   <span className="font-mono text-xs text-ink-soft">{item.physicalOrder.orderNumber}</span>
                 )}
                 <div className="flex flex-wrap items-center gap-3">
-                  <Link href={`/memory/${item.messageId}`} className="text-xs font-medium text-ink-soft hover:text-navy">
-                    {dictionary.memoryLibrary.viewProjectAction}
-                  </Link>
+                  {/* /memory/[messageId] only opens a currently public thought — an archived source would land on its "not available" panel. */}
+                  {item.sourceAvailable && (
+                    <Link href={`/memory/${item.messageId}`} className="text-xs font-medium text-ink-soft hover:text-navy">
+                      {dictionary.memoryLibrary.viewProjectAction}
+                    </Link>
+                  )}
                   {item.digitalStatus === "granted" && (
                     <>
                       {/* nativeLink: plain <a>, so Next never prefetches or client-fetches the PDF route. */}

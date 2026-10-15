@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { GrantTokensDialog } from "@/features/tokens/components/GrantTokensDialog";
+import { RecordShopierPurchaseDialog } from "@/features/tokens/components/RecordShopierPurchaseDialog";
+import type { TokenPackageOption } from "@/features/tokens/lib/shopierPurchaseForm";
 import { SuspendDialog } from "@/features/users/components/SuspendDialog";
 import { unsuspendUser } from "@/features/users/moderation-actions";
 import type { User } from "@/features/users/types";
@@ -30,11 +32,34 @@ interface UsersPageContentProps {
   authorized: boolean;
   items: UserRow[];
   currentUserId: string | null;
+  /** The Shopier Token packages (display data from the server's package list) for the purchase dialog. */
+  tokenPackages: TokenPackageOption[];
 }
 
-export function UsersPageContent({ authorized, items: initialItems, currentUserId }: UsersPageContentProps) {
+/**
+ * Case- and accent-insensitive "contains" over a user's email and name — a
+ * filter over the list this page already loaded, never a new query.
+ * Turkish I/İ/ı/i all fold to "i": accents are stripped first (İ → I), then
+ * a locale-independent lower-case, then dotless ı → i — a Turkish-locale
+ * lower-case would turn I into ı, so "ismail" would miss "Ismail" and
+ * "info" would miss "Info@…".
+ */
+export function matchesUserSearch(user: Pick<User, "email" | "name">, query: string): boolean {
+  const fold = (value: string) => value.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/ı/g, "i");
+  const needle = fold(query.trim());
+  if (!needle) return true;
+  return [user.email, user.name ?? ""].some((value) => fold(value).includes(needle));
+}
+
+export function UsersPageContent({ authorized, items: initialItems, currentUserId, tokenPackages }: UsersPageContentProps) {
   const { dictionary } = useLocale();
   const [items, setItems] = useState(initialItems);
+  const [search, setSearch] = useState("");
+  const searchId = useId();
+  const visibleItems = useMemo(() => items.filter((row) => matchesUserSearch(row.user, search)), [items, search]);
+  // Labels for "order already used": only users this page already lists; anything else is shown as a deleted account.
+  const labelsById = useMemo(() => new Map(items.map((row) => [row.user.id, row.user.name ?? row.user.email])), [items]);
+  const userLabelFor = (userId: string) => labelsById.get(userId) ?? null;
   // EPIC 019: the report → suspend bridge's "View user" link lands here
   // with `?highlight=<userId>` so the admin doesn't have to search the
   // list by name/email — same `useSearchParams()` pattern already used by
@@ -69,13 +94,36 @@ export function UsersPageContent({ authorized, items: initialItems, currentUserI
         <p className="text-ink-soft">{dictionary.usersAdmin.subtitle}</p>
       </div>
 
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-1.5 pb-6">
+        <label htmlFor={searchId} className="text-sm font-medium text-navy">
+          {dictionary.usersAdmin.searchLabel}
+        </label>
+        <input
+          id={searchId}
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder={dictionary.usersAdmin.searchPlaceholder}
+          autoComplete="off"
+          spellCheck={false}
+          className="w-full rounded-md border border-border bg-canvas p-2.5 text-sm text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
+        />
+      </div>
+
       <div className="flex flex-col gap-4">
-        {items.map((row) => (
+        {visibleItems.length === 0 && search.trim() !== "" && (
+          <p role="status" className="text-center text-sm text-ink-soft">
+            {dictionary.usersAdmin.searchNoResults}
+          </p>
+        )}
+        {visibleItems.map((row) => (
           <UserRowCard
             key={row.user.id}
             row={row}
             isSelf={row.user.id === currentUserId}
             isHighlighted={row.user.id === highlightId}
+            tokenPackages={tokenPackages}
+            userLabelFor={userLabelFor}
             onSuspended={(reason) => updateUser(row.user.id, { status: "suspended", statusReason: reason })}
             onUnsuspended={() => updateUser(row.user.id, { status: "active", statusReason: null })}
             onTokensGranted={(balance) => updateTokenBalance(row.user.id, balance)}
@@ -90,6 +138,8 @@ function UserRowCard({
   row,
   isSelf,
   isHighlighted,
+  tokenPackages,
+  userLabelFor,
   onSuspended,
   onUnsuspended,
   onTokensGranted,
@@ -97,6 +147,8 @@ function UserRowCard({
   row: UserRow;
   isSelf: boolean;
   isHighlighted: boolean;
+  tokenPackages: TokenPackageOption[];
+  userLabelFor: (userId: string) => string | null;
   onSuspended: (reason: string | null) => void;
   onUnsuspended: () => void;
   onTokensGranted: (balance: number) => void;
@@ -106,6 +158,7 @@ function UserRowCard({
   const [error, setError] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [grantDialogOpen, setGrantDialogOpen] = useState(false);
+  const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -185,6 +238,10 @@ function UserRowCard({
         <Button size="sm" variant="ghost" onClick={() => setGrantDialogOpen(true)}>
           {dictionary.usersAdmin.grantTokensAction}
         </Button>
+        {/* Separate from granting: a paid Shopier order, amount fixed by the package. */}
+        <Button size="sm" variant="ghost" onClick={() => setPurchaseDialogOpen(true)}>
+          {dictionary.usersAdmin.recordPurchaseAction}
+        </Button>
         {error && <span className="text-xs text-red-600">{dictionary.usersAdmin.errorGeneric}</span>}
       </div>
 
@@ -204,6 +261,17 @@ function UserRowCard({
         userLabel={user.name ?? user.email}
         onClose={() => setGrantDialogOpen(false)}
         onGranted={onTokensGranted}
+      />
+
+      <RecordShopierPurchaseDialog
+        open={purchaseDialogOpen}
+        userId={user.id}
+        userLabel={user.name ?? user.email}
+        accountEmail={user.email}
+        packages={tokenPackages}
+        userLabelFor={userLabelFor}
+        onClose={() => setPurchaseDialogOpen(false)}
+        onRecorded={onTokensGranted}
       />
     </div>
   );

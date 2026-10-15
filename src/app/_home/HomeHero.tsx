@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { DotCtaButton } from "@/components/ui/DotCtaButton";
 import { StarField } from "@/components/ui/StarField";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -89,7 +90,14 @@ export function HomeHero({ activeCount, heroNotes }: { activeCount: number; hero
           <p className="max-w-xl text-balance text-base leading-relaxed text-white/70 sm:text-lg">
             {dictionary.hero.description}
           </p>
-          <DotCtaButton href="/write">{dictionary.hero.primaryCta}</DotCtaButton>
+          {/* The write CTA stays first; "Buy Tokens" is a plain, session-free link
+              beside it, so this ISR page stays the same for every visitor. */}
+          <div className="flex flex-wrap items-center gap-3">
+            <DotCtaButton href="/write">{dictionary.hero.primaryCta}</DotCtaButton>
+            <Button href="/tokens" variant="outline" size="sm">
+              {dictionary.nav.buyTokens}
+            </Button>
+          </div>
           {/* EPIC: Ana Sayfada Gerçek Aktif Mesaj Sayacı — a genuine large
               numeral, not a small social-proof line (that framing, with
               decorative avatar circles, was explicitly what this EPIC

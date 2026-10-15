@@ -20,6 +20,7 @@ function toHeroNoteData(message: Message): NoteData {
     authorName: message.authorName,
     templateId: message.templateId,
     fontFamily: message.fontFamily,
+    textAlign: message.textAlign,
     size: "sm",
     rotation: message.rotation ?? 0,
     // Inert for variant="static" — see HeroBrandComposition/Note.

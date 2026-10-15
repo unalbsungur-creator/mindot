@@ -3,9 +3,11 @@ import { getEffectiveStatus } from "@/features/invitations/types";
 import { getModerationService } from "@/features/moderation/service";
 import type { ModerationService } from "@/features/moderation/types";
 import { getNoteTemplate, isTemplateAvailable } from "@/features/notes/config/templates";
+import { toNoteTextAlign } from "@/features/notes/lib/textAlign";
 import type { NoteTextFontFamily } from "@/features/notes/types";
 import { userRepository, type UserRepository } from "@/features/users/repository";
 import { CONTENT_CONSENT_VERSION } from "./consent";
+import { normalizeMessageContent } from "./lib/messageContent";
 import { maxMessageLength } from "./lib/messageLength";
 import { messageRepository, type MessageRepository } from "./repository";
 import { MESSAGE_MAX_LENGTH, type Message } from "./types";
@@ -32,6 +34,8 @@ export interface SubmitMessageInput {
   templateId: string;
   /** EPIC — Kart Yazı Tipi Seçenekleri: optional — an older client build simply won't send it, and the server falls back to `DEFAULT_FONT_FAMILY` ("modern") exactly like a pre-this-feature message already does. */
   fontFamily?: string;
+  /** Optional, like `fontFamily`: an older client sends nothing, and anything outside NOTE_TEXT_ALIGNS is stored as "auto" — the card's own alignment. */
+  textAlign?: string;
   authorName: string;
   isAnonymous: boolean;
   language: string;
@@ -148,7 +152,7 @@ export async function submitMessageForAuthor(
     return { ok: false, error: "consent-required" };
   }
 
-  const content = params.content.trim();
+  const content = normalizeMessageContent(params.content);
   if (!content) {
     return { ok: false, error: "empty-content" };
   }
@@ -169,6 +173,7 @@ export async function submitMessageForAuthor(
   const fontFamily: NoteTextFontFamily = VALID_FONT_FAMILIES.includes(params.fontFamily as NoteTextFontFamily)
     ? (params.fontFamily as NoteTextFontFamily)
     : DEFAULT_FONT_FAMILY;
+  const textAlign = toNoteTextAlign(params.textAlign);
 
   let invitationId: string | null = null;
   if (params.invitationToken) {
@@ -197,6 +202,7 @@ export async function submitMessageForAuthor(
     language: params.language,
     templateId: template.id,
     fontFamily,
+    textAlign,
     invitationId,
     aiModerationStatus: aiResult.decision,
     aiModerationProvider: aiResult.provider,
@@ -209,6 +215,41 @@ export async function submitMessageForAuthor(
   });
 
   return { ok: true, message };
+}
+
+export type SubmitRevisionServiceResult = { ok: true } | { ok: false; error: "empty-content" | "too-long" | "forbidden" };
+
+export interface SubmitRevisionDeps {
+  messages: Pick<MessageRepository, "getById" | "submitRevision">;
+}
+
+const defaultRevisionDeps: SubmitRevisionDeps = { messages: messageRepository };
+
+/**
+ * Validates and proposes a content change to the author's own published
+ * note (`submitMessageRevision` in features/profile/actions.ts; the caller
+ * authenticates). The same normalization and global limit as a new message,
+ * then the card's own `maxCharacters` — read from the stored message, never
+ * from the client. Someone else's (or a missing) message answers
+ * "forbidden" before the card-limit check, so the result never reveals
+ * another author's card. `messageRepository.submitRevision`'s atomic
+ * WHERE clause (author + approved + nothing pending) is the real boundary.
+ */
+export async function submitMessageRevisionForAuthor(
+  params: { messageId: string; authorId: string; content: string },
+  deps: SubmitRevisionDeps = defaultRevisionDeps
+): Promise<SubmitRevisionServiceResult> {
+  const content = normalizeMessageContent(params.content);
+  if (!content) return { ok: false, error: "empty-content" };
+  if ([...content].length > MESSAGE_MAX_LENGTH) return { ok: false, error: "too-long" };
+
+  const existing = await deps.messages.getById(params.messageId);
+  if (!existing || existing.authorId !== params.authorId) return { ok: false, error: "forbidden" };
+  if ([...content].length > maxMessageLength(existing.templateId)) return { ok: false, error: "too-long" };
+
+  const updated = await deps.messages.submitRevision(params.messageId, params.authorId, content);
+  if (!updated) return { ok: false, error: "forbidden" };
+  return { ok: true };
 }
 
 export interface LikeResult {

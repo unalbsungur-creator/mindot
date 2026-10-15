@@ -97,6 +97,16 @@ export const users = pgTable("users", {
   // other free-text column here, e.g. messages.content) — enforced
   // server-side in features/profile/actions.ts instead.
   publicWallDescription: text("public_wall_description"),
+  // The public wall's explicit consent (migration 0025): the consent text
+  // version the owner accepted and when, written together with
+  // `publicWallEnabled = true` in one UPDATE (enablePublicWallWithConsent).
+  // A wall is public only while enabled AND this version is the current
+  // PUBLIC_WALL_CONSENT_VERSION (isPublicWallEligible) — walls enabled
+  // before consent existed stay closed until their owner accepts. Turning
+  // the wall off keeps the last consent; turning it on again asks again.
+  // The CHECK keeps the two columns set or NULL together.
+  publicWallConsentVersion: text("public_wall_consent_version"),
+  publicWallConsentAt: timestamp("public_wall_consent_at", { withTimezone: true }),
   // EPIC 013: account-level submission eligibility — see
   // `userAccountStatusEnum`'s own comment for why this is a separate
   // concept from `role`. `statusReason`/`statusChangedAt`/`statusChangedBy`
@@ -148,7 +158,12 @@ export const users = pgTable("users", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  check(
+    "users_public_wall_consent_pair",
+    sql`(${table.publicWallConsentVersion} is null) = (${table.publicWallConsentAt} is null)`
+  ),
+]);
 
 export const invitations = pgTable("invitations", {
   id: text("id").primaryKey(),
@@ -215,6 +230,11 @@ export const messages = pgTable(
     // full table rewrite) — no app-level `?? "modern"` fallback needed
     // anywhere downstream.
     fontFamily: text("font_family").notNull().default("modern"),
+    // The writer's text alignment (`NoteTextAlign`). NOT NULL DEFAULT
+    // 'auto' backfills every existing row to "auto" — the card's own
+    // alignment, exactly what it drew before — in the migration itself.
+    // Fixed at writing time: a revision changes `content` only.
+    textAlign: text("text_align").notNull().default("auto"),
     invitationId: text("invitation_id").references(() => invitations.id),
     status: messageStatusEnum("status").notNull().default("pending"),
     // Null until the message is approved and placed — see placement.ts.
@@ -309,6 +329,8 @@ export const messages = pgTable(
     index("messages_author_created_idx").on(table.authorId, table.createdAt),
     // The homepage's "most liked" query: approved messages ordered by like count.
     index("messages_status_like_count_idx").on(table.status, table.likeCount),
+    // Exactly `NOTE_TEXT_ALIGNS` (features/notes/lib/textAlign.ts).
+    check("messages_text_align_check", sql`${table.textAlign} in ('auto', 'left', 'center', 'right')`),
   ]
 );
 

@@ -169,6 +169,7 @@ export async function getOpenReportQueue(): Promise<ReportQueueItem[]> {
             content: message.content,
             templateId: message.templateId,
             fontFamily: message.fontFamily,
+            textAlign: message.textAlign,
             language: message.language,
             authorName: message.authorName,
             isAnonymous: message.isAnonymous,

@@ -405,7 +405,7 @@ export function MemoryNoteCardPdf({ content, authorName, templateId, fontFamily,
     }
     const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily);
     const area = template.contentArea!;
-    const fontSize = imageBackedFontSizePx(content.length, template, fontFamily) * (width / BASELINE_WIDTH);
+    const fontSize = imageBackedFontSizePx(content, template, fontFamily) * (width / BASELINE_WIDTH);
     // Same guaranteed-fit text as the CSS-card branch below: without it a
     // word wider than `contentArea` ran past the box, and react-pdf's own
     // wrapping split ordinary words mid-character.

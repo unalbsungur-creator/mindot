@@ -67,8 +67,16 @@ export interface UserRepository {
   getByPublicId(publicId: string): Promise<User | null>;
   /** Idempotent: returns the existing publicId, or generates, persists, and returns a new one for a row that predates EPIC 009. */
   ensurePublicId(userId: string): Promise<string>;
-  /** EPIC 011: owner-only setting, toggled from features/profile/actions.ts (which re-verifies the session before calling this). */
-  setPublicWallEnabled(userId: string, enabled: boolean): Promise<User | null>;
+  /**
+   * Turns the owner's public wall on and records their consent in one
+   * UPDATE: `publicWallEnabled = true`, the accepted consent `version` and
+   * the database's `now()`. The caller (features/profile/actions.ts) has
+   * already checked the session and that `version` is the current
+   * PUBLIC_WALL_CONSENT_VERSION. The only way a wall is ever turned on.
+   */
+  enablePublicWallWithConsent(userId: string, version: string): Promise<User | null>;
+  /** Turns the owner's public wall off. Needs no consent and keeps the last one on record — turning it on again asks again. */
+  disablePublicWall(userId: string): Promise<User | null>;
   /** EPIC 011: owner-only setting; `description` is already trimmed/length-capped by the caller (features/profile/actions.ts) — this just persists it. `null` clears it. */
   setPublicWallDescription(userId: string, description: string | null): Promise<User | null>;
   /**
@@ -129,6 +137,8 @@ function toUser(row: typeof users.$inferSelect): User {
     publicId: row.publicId,
     publicWallEnabled: row.publicWallEnabled,
     publicWallDescription: row.publicWallDescription,
+    publicWallConsentVersion: row.publicWallConsentVersion,
+    publicWallConsentAt: row.publicWallConsentAt?.toISOString() ?? null,
     status: row.status,
     statusReason: row.statusReason,
     statusChangedAt: row.statusChangedAt?.toISOString() ?? null,
@@ -287,11 +297,23 @@ class DrizzleUserRepository implements UserRepository {
     throw lastError instanceof Error ? lastError : new Error("Could not generate a unique public id.");
   }
 
-  async setPublicWallEnabled(userId: string, enabled: boolean): Promise<User | null> {
+  async enablePublicWallWithConsent(userId: string, version: string): Promise<User | null> {
+    const db = getDb();
+    // One statement — the wall and its consent can't be written apart — and
+    // one clock: the timestamp is the database's, never the caller's.
+    const [row] = await db
+      .update(users)
+      .set({ publicWallEnabled: true, publicWallConsentVersion: version, publicWallConsentAt: sql`now()`, updatedAt: sql`now()` })
+      .where(and(eq(users.id, userId), isNull(users.deletedAt)))
+      .returning();
+    return row ? toUser(row) : null;
+  }
+
+  async disablePublicWall(userId: string): Promise<User | null> {
     const db = getDb();
     const [row] = await db
       .update(users)
-      .set({ publicWallEnabled: enabled, updatedAt: new Date() })
+      .set({ publicWallEnabled: false, updatedAt: new Date() })
       .where(eq(users.id, userId))
       .returning();
     return row ? toUser(row) : null;

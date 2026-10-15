@@ -1,4 +1,4 @@
-import type { NoteTextFontFamily } from "../types";
+import type { NoteTemplate, NoteTextFontFamily } from "../types";
 
 /**
  * EPIC 045: Kart Metin Uzunluğu ve Boyut Standardizasyonu. A note's card
@@ -19,16 +19,69 @@ import type { NoteTextFontFamily } from "../types";
  * message that predates this feature (or a writer who just leaves the
  * default) renders exactly as before.
  */
-export type NoteTextSizeTier = "default" | "compact" | "dense";
+export type NoteTextSizeTier = "xlarge" | "large" | "default" | "compact" | "dense";
 
+const XLARGE_THRESHOLD = 30;
+const LARGE_THRESHOLD = 60;
 const COMPACT_THRESHOLD = 90;
 const DENSE_THRESHOLD = 130;
+/**
+ * What one of the writer's own line breaks costs in `noteTextSizeTier`, on
+ * a card with no fit of its own (see `noteTextLengthTier` for the ones that
+ * have one). A fixed box — the DOM's football disc and Special Day
+ * `contentArea` — needs a full line (a standard card's 144px box holds ~18
+ * characters a line at the default size): measured with real glyph
+ * wrapping over 31 multi-line messages × 8 fonts, half a line (9) let
+ * noticeably more of them overflow those boxes than 18 did (football
+ * 26 vs. 18 of 248, Special Day 732 vs. 531 of 1984, at w-44).
+ */
+export const LINE_BREAK_WEIGHT = 18;
 
-/** `content.length` — plain UTF-16 length, matching the native `maxLength` attribute WriteThoughtForm's textarea already enforces (not the `[...content].length` code-point count `submitMessage`/the character counter use), since this only drives a visual tier and never a hard limit. */
-export function noteTextSizeTier(contentLength: number): NoteTextSizeTier {
-  if (contentLength > DENSE_THRESHOLD) return "dense";
-  if (contentLength > COMPACT_THRESHOLD) return "compact";
-  return "default";
+/**
+ * The standard card (and its board footprint, `footprint.ts`) grows with
+ * its text, so a break can't make it overflow — it only costs the room it
+ * leaves unused on average, half a line.
+ */
+export const STANDARD_LINE_BREAK_WEIGHT = 9;
+
+/**
+ * The size tier for a message on a card that has no fit of its own (the
+ * DOM's standard, Special Day and football text, and the board footprint
+ * that mirrors the standard card): its length (`content.length`, plain
+ * UTF-16 — matching the textarea's native `maxLength`; this only drives a
+ * visual tier, never a limit) plus `lineBreakWeight` per line break, so
+ * text with breaks never gets a larger tier than the same text on one
+ * line, and more breaks never a larger one. Text without a break is tiered
+ * by length alone, at the same 90/130 boundaries as before; "xlarge"
+ * (≤ 30) and "large" (≤ 60) split the old "default" for short text — only
+ * the fixed-box Standard cards (SPACIOUS_IMAGE_BACKED_TEXT_SCALE) size
+ * them up, every other table keeps its "default" size for them.
+ */
+export function noteTextSizeTier(content: string, lineBreakWeight = LINE_BREAK_WEIGHT): NoteTextSizeTier {
+  const lineBreaks = content.split("\n").length - 1;
+  const weighted = content.length + lineBreaks * lineBreakWeight;
+  if (weighted > DENSE_THRESHOLD) return "dense";
+  if (weighted > COMPACT_THRESHOLD) return "compact";
+  if (weighted > LARGE_THRESHOLD) return "default";
+  if (weighted > XLARGE_THRESHOLD) return "large";
+  return "xlarge";
+}
+
+/**
+ * The size tier by length alone, for a card with a real fit for its lines
+ * (`spaciousTextFit` for the Standard cards, `footballTextFitScale` for the
+ * share card's football disc): the fit measures what the line breaks need,
+ * so weighing them into the tier as well would shrink the text twice.
+ */
+export function noteTextLengthTier(content: string): NoteTextSizeTier {
+  return noteTextSizeTier(content, 0);
+}
+
+/** A three-tier table extended to all five tiers: the two short tiers keep the "default" size. */
+function withShortTiers<T>(table: Record<NoteTextFontFamily, Record<"default" | "compact" | "dense", T>>): Record<NoteTextFontFamily, Record<NoteTextSizeTier, T>> {
+  return Object.fromEntries(
+    Object.entries(table).map(([font, tiers]) => [font, { xlarge: tiers.default, large: tiers.default, ...tiers }])
+  ) as Record<NoteTextFontFamily, Record<NoteTextSizeTier, T>>;
 }
 
 /**
@@ -68,7 +121,7 @@ export function noteFontFamilyClass(fontFamily: NoteTextFontFamily): string {
 }
 
 /** Note.tsx's standard (non-football) content paragraph — heart shares this too, since only football renders text inside a smaller inset disc. */
-const STANDARD_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, string>> = {
+const STANDARD_TEXT_SCALE = withShortTiers<string>({
   // Byte-identical to the pre-EPIC "sans" tier — the app's default look.
   modern: {
     default: "text-[0.95rem] leading-snug",
@@ -122,7 +175,7 @@ const STANDARD_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, s
     compact: "text-[0.85rem] leading-snug",
     dense: "text-[0.75rem] leading-snug",
   },
-};
+});
 
 /**
  * EPIC: Special Day Image-Backed Cards — an image-backed template's
@@ -138,7 +191,7 @@ const STANDARD_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, s
  * scaled copy of standard's), tuned empirically against real short/medium/
  * long Turkish content in the browser rather than guessed.
  */
-const IMAGE_BACKED_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, string>> = {
+const IMAGE_BACKED_TEXT_SCALE = withShortTiers<string>({
   modern: {
     default: "text-[0.58rem] leading-tight",
     compact: "text-[0.54rem] leading-tight",
@@ -181,7 +234,7 @@ const IMAGE_BACKED_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTie
     compact: "text-[0.51rem] leading-tight",
     dense: "text-[0.43rem] leading-none",
   },
-};
+});
 
 /**
  * Image-backed templates with `contentTextSize: "spacious"` (the new
@@ -190,65 +243,108 @@ const IMAGE_BACKED_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTie
  * Special Day tiers above.
  *
  * Sized in `cqw` of the card (Note.tsx makes the spacious card's wrapper an
- * `@container`), not rem: the text box is a fixed share of a card whose
- * width changes (w-36 on a phone's world view, w-44 elsewhere), so a fixed
- * rem size that fits at 176px overflows at 144px — measured. In cqw the
- * text keeps exactly the card's proportions at every width, which is also
- * how the share card and PDF scale it (`SPACIOUS_IMAGE_BACKED_FONT_PX` in
- * features/sharing/services/noteCardSatori.tsx: the same sizes in px at the
- * 176px baseline — `cqw = px / 176 × 100`; change both together).
- * The author line is `0.85em` of these (see Note.tsx), as in the share card.
+ * `@container`, and sets this size inline — `spaciousTextSizeCqw`), not rem:
+ * the text box is a fixed share of a card whose width changes (w-36 on a
+ * phone's world view, w-44 elsewhere), so a fixed rem size that fits at
+ * 176px overflows at 144px — measured. In cqw the text keeps exactly the
+ * card's proportions at every width, which is also how the share card and
+ * PDF scale it (`spaciousTextSizePx` in
+ * features/sharing/services/noteCardSatori.tsx derives its px from these
+ * same numbers: `px = cqw × 176 / 100`). The author line is `0.85em` of
+ * these (see Note.tsx), as in the share card.
  *
- * Each value is just under the largest size at which every test message of
- * that tier — Turkish, ALL-CAPS Turkish, German, and a run of very long
- * words, up to the tier's length limit — still fits the "standard-classic"
- * text box with 5% headroom, measured in the real DOM per font (computed
- * `offsetHeight` of text + author vs. the box's `clientHeight`). Because
- * the unit is cqw, that holds at every card width.
+ * "default"/"compact"/"dense": each is just under the largest size at which
+ * every test message of that tier — Turkish, ALL-CAPS Turkish, German, and
+ * a run of very long words, up to the tier's length limit — still fits the
+ * "standard-classic" text box with 5% headroom, measured in the real DOM per
+ * font (computed `offsetHeight` of text + author vs. the box's
+ * `clientHeight`). Because the unit is cqw, that holds at every card width.
+ *
+ * "large" (≤ 60) and "xlarge" (≤ 30) scale that measured "default" up — by
+ * 1.1 / 1.45 — rather than replacing it (1.2 for "large" let 60 ALL-CAPS
+ * characters fill the whole "standard-classic" box, rendered): real-glyph measurement (fontkit, the
+ * PDF's own `pdfTextMeasure.ts`) of the same test messages over the
+ * smallest Standard box gives ≥ 1.16 / ≥ 1.5 more room at those lengths than
+ * at 90, for every font.
  */
-const SPACIOUS_IMAGE_BACKED_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, string>> = {
-  modern: {
-    default: "text-[7.1cqw] leading-snug",
-    compact: "text-[5.7cqw] leading-snug",
-    dense: "text-[5.5cqw] leading-snug",
-  },
-  classic: {
-    default: "text-[6.9cqw] leading-snug",
-    compact: "text-[5.5cqw] leading-snug",
-    dense: "text-[5.3cqw] leading-snug",
-  },
-  handwritten: {
-    default: "text-[8.0cqw] leading-tight",
-    compact: "text-[6.9cqw] leading-tight",
-    dense: "text-[6.4cqw] leading-tight",
-  },
-  typewriter: {
-    default: "text-[6.6cqw] leading-snug",
-    compact: "text-[5.55cqw] leading-snug",
-    dense: "text-[5.5cqw] leading-snug",
-  },
-  serif: {
-    default: "text-[6.7cqw] leading-snug",
-    compact: "text-[5.35cqw] leading-snug",
-    dense: "text-[5.1cqw] leading-snug",
-  },
+const SPACIOUS_IMAGE_BACKED_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, number>> = {
+  modern: { xlarge: 10.3, large: 7.81, default: 7.1, compact: 5.7, dense: 5.5 },
+  classic: { xlarge: 10, large: 7.59, default: 6.9, compact: 5.5, dense: 5.3 },
+  handwritten: { xlarge: 11.6, large: 8.8, default: 8.0, compact: 6.9, dense: 6.4 },
+  typewriter: { xlarge: 9.57, large: 7.26, default: 6.6, compact: 5.55, dense: 5.5 },
+  serif: { xlarge: 9.72, large: 7.37, default: 6.7, compact: 5.35, dense: 5.1 },
   // Geist Mono Bold keeps the regular weight's fixed advance width.
-  mono: {
-    default: "text-[6.6cqw] leading-snug",
-    compact: "text-[5.55cqw] leading-snug",
-    dense: "text-[5.5cqw] leading-snug",
-  },
-  elegant: {
-    default: "text-[6.3cqw] leading-snug",
-    compact: "text-[5cqw] leading-snug",
-    dense: "text-[4.9cqw] leading-snug",
-  },
-  bold: {
-    default: "text-[6.7cqw] leading-snug",
-    compact: "text-[5.35cqw] leading-snug",
-    dense: "text-[5.2cqw] leading-snug",
-  },
+  mono: { xlarge: 9.57, large: 7.26, default: 6.6, compact: 5.55, dense: 5.5 },
+  elegant: { xlarge: 9.14, large: 6.93, default: 6.3, compact: 5, dense: 4.9 },
+  bold: { xlarge: 9.72, large: 7.37, default: 6.7, compact: 5.35, dense: 5.2 },
 };
+
+/** Line height of a spacious card's text (and its author line): `leading-snug`, Caveat `leading-tight`. */
+export function spaciousLineHeight(fontFamily: NoteTextFontFamily): number {
+  return fontFamily === "handwritten" ? 1.25 : 1.375;
+}
+
+/**
+ * Average advance per character (em) of each font over mixed Turkish/German
+ * text, measured with the real WOFFs (fontkit) — only for the line estimate
+ * in `spaciousTextFit`, never for layout.
+ */
+const AVERAGE_CHAR_EM: Record<NoteTextFontFamily, number> = {
+  modern: 0.503,
+  classic: 0.506,
+  handwritten: 0.361,
+  typewriter: 0.6,
+  serif: 0.521,
+  mono: 0.6,
+  elegant: 0.566,
+  bold: 0.531,
+};
+
+/**
+ * Extra shrink (≤ 1) of a spacious card's length-tier size for a message
+ * with the writer's own line breaks: the largest size at which its
+ * estimated lines plus the author line fit the template's measured
+ * `contentArea` with 5% headroom. In cqw of the card, so the result is the
+ * same for the DOM, the share card and the PDF at every width. A message
+ * without a line break keeps exactly its measured tier size (1).
+ *
+ * The line estimate — average character width, capitals counted 1.3 wide,
+ * two characters a wrapped line loses to its last word — was calibrated
+ * against real glyph wrapping (fontkit, `pdfTextMeasure.ts`) of Turkish,
+ * ALL-CAPS and German multi-line messages on every Standard card and font:
+ * it never allowed a size the measured text didn't fit, and came within
+ * ~1.5% of the measured largest size on average.
+ */
+export function spaciousTextFit(content: string, fontFamily: NoteTextFontFamily, template: NoteTemplate): number {
+  const area = template.contentArea;
+  if (!content.includes("\n") || !area || !template.imageWidth || !template.imageHeight) return 1;
+  const boxWidth = parseFloat(area.width);
+  const boxHeight = ((parseFloat(area.height) * template.imageHeight) / template.imageWidth) * 0.95;
+  const lineHeight = spaciousLineHeight(fontFamily);
+  const charEm = AVERAGE_CHAR_EM[fontFamily];
+  // Each paragraph's width in average characters, capitals counted 1.3 wide.
+  const paragraphs = content.split("\n").map((p) => [...p].reduce((sum, ch) => sum + (ch !== ch.toLowerCase() ? 1.3 : 1), 0));
+  const base = SPACIOUS_IMAGE_BACKED_TEXT_SCALE[fontFamily][noteTextLengthTier(content)];
+  const fits = (size: number) => {
+    const charsPerLine = Math.max(1, Math.floor(boxWidth / (charEm * size)));
+    const lines = paragraphs.reduce((sum, chars) => sum + (chars <= charsPerLine ? 1 : Math.ceil(chars / Math.max(1, charsPerLine - 2))), 0);
+    const author = size * 0.5 + size * 0.85 * lineHeight;
+    return lines * size * lineHeight + author <= boxHeight;
+  };
+  let fit = 1;
+  // No floor that real text could hit: 150 characters can be 75 one-character lines.
+  while (fit > 0.05 && !fits(base * fit)) fit -= 0.01;
+  return Math.round(fit * 100) / 100;
+}
+
+/** A spacious card's text size in cqw of the card: its length tier's measured size, times `spaciousTextFit` for text with line breaks. */
+export function spaciousTextSizeCqw(content: string, fontFamily: NoteTextFontFamily, template: NoteTemplate): number {
+  const size = SPACIOUS_IMAGE_BACKED_TEXT_SCALE[fontFamily][noteTextLengthTier(content)] * spaciousTextFit(content, fontFamily, template);
+  return Math.round(size * 1000) / 1000;
+}
+
+/** The raw tier table, for tests. */
+export const SPACIOUS_TEXT_SIZE_CQW = SPACIOUS_IMAGE_BACKED_TEXT_SCALE;
 
 /**
  * Football's smaller inset disc — same tiering, scaled down from its own
@@ -268,7 +364,7 @@ const SPACIOUS_IMAGE_BACKED_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTe
  * pushing real DOM overflow; verified empirically (see the QA report) with
  * real 150-char content, both realistic and an unbroken-run stress string.
  */
-const FOOTBALL_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, string>> = {
+const FOOTBALL_TEXT_SCALE = withShortTiers<string>({
   modern: {
     default: "text-[0.58rem] leading-[1.25]",
     compact: "text-[0.46rem] leading-[1.2]",
@@ -309,7 +405,7 @@ const FOOTBALL_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, s
     compact: "text-[0.43rem] leading-[1.2]",
     dense: "text-[0.37rem] leading-[1.1]",
   },
-};
+});
 
 /**
  * The font-size/line-height class for this content length + font choice —
@@ -318,18 +414,20 @@ const FOOTBALL_TEXT_SCALE: Record<NoteTextFontFamily, Record<NoteTextSizeTier, s
  * functions since one depends on content length and the other doesn't.
  */
 export function noteTextScaleClass(
-  contentLength: number,
+  content: string,
   fontFamily: NoteTextFontFamily,
   context: "standard" | "football" | "imageBacked" | "imageBackedSpacious"
 ): string {
-  const tier = noteTextSizeTier(contentLength);
-  const table =
-    context === "football"
-      ? FOOTBALL_TEXT_SCALE
-      : context === "imageBacked"
-        ? IMAGE_BACKED_TEXT_SCALE
-        : context === "imageBackedSpacious"
-          ? SPACIOUS_IMAGE_BACKED_TEXT_SCALE
-          : STANDARD_TEXT_SCALE;
+  // Spacious: only the leading — the size is inline (`spaciousTextSizeCqw`),
+  // since it can be fitted below its tier for text with line breaks.
+  if (context === "imageBackedSpacious") return fontFamily === "handwritten" ? "leading-tight" : "leading-snug";
+  const tier = noteTextSizeTier(content, context === "standard" ? STANDARD_LINE_BREAK_WEIGHT : LINE_BREAK_WEIGHT);
+  const table = context === "football" ? FOOTBALL_TEXT_SCALE : context === "imageBacked" ? IMAGE_BACKED_TEXT_SCALE : STANDARD_TEXT_SCALE;
   return table[fontFamily][tier];
+}
+
+/** The football disc's message size in rem (read from FOOTBALL_TEXT_SCALE's `text-[…rem]`), for capping the author line at it. */
+export function footballTextSizeRem(content: string, fontFamily: NoteTextFontFamily): number {
+  const match = /text-\[([\d.]+)rem\]/.exec(FOOTBALL_TEXT_SCALE[fontFamily][noteTextSizeTier(content)]);
+  return match ? Number(match[1]) : 0.65;
 }

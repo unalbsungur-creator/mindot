@@ -1,0 +1,2 @@
+ALTER TABLE "messages" ADD COLUMN "text_align" text DEFAULT 'auto' NOT NULL;--> statement-breakpoint
+ALTER TABLE "messages" ADD CONSTRAINT "messages_text_align_check" CHECK ("messages"."text_align" in ('auto', 'left', 'center', 'right'));

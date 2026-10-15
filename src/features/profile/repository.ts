@@ -11,7 +11,9 @@ import {
 import { messageRepository } from "@/features/messages/repository";
 import type { Message } from "@/features/messages/types";
 import { userRepository } from "@/features/users/repository";
-import type { ArchiveMessage, ArchivePage, MemoryLibraryItem, PersonalWallNote, PublicWallResult, TimeRange } from "./types";
+import type { User } from "@/features/users/types";
+import { isPublicWallEligible } from "./lib/wallConsent";
+import type { ArchiveMessage, ArchivePage, MemoryLibraryItem, PersonalWallNote, PublicProfile, PublicWallResult, TimeRange } from "./types";
 
 const PERSONAL_WALL_LIMIT = 60;
 const ARCHIVE_LIMIT = 60;
@@ -22,6 +24,7 @@ function toPersonalWallNote(message: Message): PersonalWallNote {
     content: message.content,
     templateId: message.templateId,
     fontFamily: message.fontFamily,
+    textAlign: message.textAlign,
     rotation: message.rotation ?? 0,
     language: message.language,
     createdAt: message.createdAt,
@@ -76,6 +79,27 @@ export async function getPublicWall(
   page?: { limit: number; offset: number },
   viewerId?: string
 ): Promise<PublicWallResult> {
+  const gate = await resolvePublicWallOwner(publicId, viewerId);
+  if (gate.status !== "ok") return gate;
+  const { user, profile } = gate;
+
+  const [notes, total] = await Promise.all([
+    getPersonalWallByUserId(user.id, range, page),
+    messageRepository.countPublicByAuthorInRange(user.id, range),
+  ]);
+  return { status: "ok", profile, description: user.publicWallDescription, notes, total };
+}
+
+/**
+ * Who owns a public wall, and whether a stranger may see it — the one gate
+ * `getPublicWall` and `getPublicWallShareNotes` share, so the wall page and
+ * the wall share image can never disagree. Every non-"ok" answer returns
+ * before any message query runs.
+ */
+async function resolvePublicWallOwner(
+  publicId: string,
+  viewerId?: string
+): Promise<Exclude<PublicWallResult, { status: "ok" }> | { status: "ok"; user: User; profile: PublicProfile }> {
   const user = await userRepository.getByPublicId(publicId);
   if (!user) return { status: "not-found" };
 
@@ -86,13 +110,32 @@ export async function getPublicWall(
   if (viewerId && viewerId !== user.id && (await blockRepository.isBlocked(viewerId, user.id))) {
     return { status: "blocked", profile };
   }
-  if (!user.publicWallEnabled) return { status: "disabled", profile };
+  // Turned on AND consented to under the current text — a wall enabled
+  // before consent existed, or under an older consent version, reads as
+  // "disabled" here, so the page, its metadata, the wall share image and
+  // its OG image all close together (see lib/wallConsent.ts).
+  if (!isPublicWallEligible(user)) return { status: "disabled", profile };
+  return { status: "ok", user, profile };
+}
 
-  const [notes, total] = await Promise.all([
-    getPersonalWallByUserId(user.id, range, page),
-    messageRepository.countPublicByAuthorInRange(user.id, range),
-  ]);
-  return { status: "ok", profile, description: user.publicWallDescription, notes, total };
+/**
+ * The wall share image's default cards: the newest `limit` cards the public
+ * wall shows (newest first), behind exactly the same gate as
+ * `getPublicWall` (unknown → "not-found", not public or not consented →
+ * "disabled"; no viewer, so never "blocked" — the image is the public
+ * view). Not paged through the wall's oldest-first 60, so a wall with more
+ * cards than that still shares its latest ones.
+ */
+export async function getPublicWallShareNotes(
+  publicId: string,
+  limit: number
+): Promise<Exclude<PublicWallResult, { status: "ok" | "blocked" }> | { status: "ok"; profile: PublicProfile; notes: PersonalWallNote[] }> {
+  const gate = await resolvePublicWallOwner(publicId);
+  // Without a viewer the gate never answers "blocked"; mapped to "disabled" only to keep the type closed.
+  if (gate.status === "blocked") return { status: "disabled", profile: gate.profile };
+  if (gate.status !== "ok") return gate;
+  const messages = await messageRepository.listNewestPublicByAuthor(gate.user.id, limit);
+  return { status: "ok", profile: gate.profile, notes: messages.map(toPersonalWallNote) };
 }
 
 /**
@@ -139,6 +182,7 @@ export async function getPrivateArchive(
     content: message.content,
     templateId: message.templateId,
     fontFamily: message.fontFamily,
+    textAlign: message.textAlign,
     language: message.language,
     isAnonymous: message.isAnonymous,
     createdAt: message.createdAt,
@@ -192,6 +236,7 @@ export async function getMemoryLibrary(userId: string): Promise<MemoryLibraryIte
       noteContent: message?.content ?? null,
       noteTemplateId: message?.templateId ?? null,
       noteFontFamily: message?.fontFamily ?? null,
+      noteTextAlign: message?.textAlign ?? null,
       noteLanguage: message?.language ?? null,
       captureMode: project.captureMode,
       outputType: project.outputType,

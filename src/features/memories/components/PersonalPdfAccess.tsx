@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -46,8 +47,8 @@ const unlockErrorMessage = (dictionary: Dictionary): Record<UnlockMemoryPdfError
  * /me/memories. Three states: unlocked → View/Download (re-downloads are
  * free, the download route only reads the unlock); locked with balance ≥ 1
  * → "Unlock with 1 Token" behind a ConfirmDialog, calling the server-side
- * `unlockMemoryPdf`; locked with balance 0 → explanation only, no dead
- * button or download link. A source note that's no longer public (e.g.
+ * `unlockMemoryPdf`; locked with balance 0 → the explanation plus a link to
+ * /tokens (no dead button, no download link). A source note that's no longer public (e.g.
  * archived) overrides all three: no download, no Token action. The UI only reflects state — the server decides
  * ownership, eligibility, and whether a token is actually spent.
  *
@@ -130,7 +131,13 @@ export function PersonalPdfAccess({
           {isPending ? t.pdfUnlocking : t.pdfUnlockButton}
         </Button>
       ) : (
-        <p className="max-w-xs text-sm text-orange-ink">{t.pdfUnlockRequired}</p>
+        <>
+          <p className="max-w-xs text-sm text-orange-ink">{t.pdfUnlockRequired}</p>
+          {/* Zero balance only: the one way to get Tokens is /tokens (an "insufficient-tokens" refusal lands here too, via onBalanceChange(0)). */}
+          <Link href="/tokens" className="self-start text-xs font-medium text-orange-ink hover:underline">
+            {t.pdfBuyTokensAction}
+          </Link>
+        </>
       )}
       <p className="text-xs text-ink-soft">{balanceLabel}</p>
       {error && <p className="text-sm text-red-600">{unlockErrorMessage(dictionary)[error]}</p>}

@@ -12,6 +12,17 @@ import {
   memoryPdfUnlockIdempotencyKey,
   tokenRepository,
 } from "./repository";
+import {
+  MAX_MANUAL_REVIEW_REASON_LENGTH,
+  MAX_PURCHASE_NOTE_LENGTH,
+  SHOPIER_PROVIDER,
+  SHOPIER_PURCHASE_REFERENCE_TYPE,
+  buildShopierPurchaseNote,
+  cleanManualReviewReason,
+  normalizeEmail,
+  normalizeShopierOrderRef,
+  shopierPurchaseIdempotencyKey,
+} from "./lib/shopierPurchase";
 import { MAX_ADMIN_GRANT_AMOUNT } from "./types";
 
 // Database-free checks only. The transactional behaviour (row lock,
@@ -85,6 +96,69 @@ describe("token limits", () => {
 
   it("reports no first-share reward for an empty account id without opening a database connection", async () => {
     assert.equal(await tokenRepository.hasFirstShareReward(""), false);
+  });
+});
+
+describe("Shopier purchase rules", () => {
+  it("normalizes an order number to one canonical form, or refuses it", () => {
+    assert.equal(normalizeShopierOrderRef(" ab-12 "), "AB-12");
+    assert.equal(normalizeShopierOrderRef("123456789"), "123456789");
+    assert.equal(normalizeShopierOrderRef("A".repeat(64)), "A".repeat(64));
+    for (const value of [undefined, null, 42, "", "   ", "ab", "A".repeat(65), "12 34", "12_34", "12/34", "ŞİPARİŞ1", "12;drop", "1\n2"]) {
+      assert.equal(normalizeShopierOrderRef(value), null, JSON.stringify(value));
+    }
+  });
+
+  it("derives the idempotency key from the order alone — no account, no admin", () => {
+    assert.equal(shopierPurchaseIdempotencyKey("AB-12"), "shopier_order:AB-12");
+    assert.equal(SHOPIER_PROVIDER, "shopier");
+    assert.equal(SHOPIER_PURCHASE_REFERENCE_TYPE, "shopier_order");
+    for (const other of [memoryPdfUnlockIdempotencyKey("x"), adminGrantIdempotencyKey("a", "b"), firstShareRewardIdempotencyKey()]) {
+      assert.ok(!other.startsWith("shopier_order:"), other);
+    }
+  });
+
+  it("compares emails trimmed and case-insensitively, refusing anything that isn't one", () => {
+    assert.equal(normalizeEmail("  Buyer@Example.COM "), "buyer@example.com");
+    for (const value of [undefined, null, 1, "", "   ", "buyer", "@example.com", "buyer@", "a@b@c", "bu yer@example.com", `${"a".repeat(250)}@x.co`]) {
+      assert.equal(normalizeEmail(value), null, JSON.stringify(value));
+    }
+  });
+
+  it("treats a blank manual-review reason as none, and caps a long one", () => {
+    for (const value of [undefined, null, "", "   \n"]) assert.equal(cleanManualReviewReason(value), null, JSON.stringify(value));
+    assert.equal(cleanManualReviewReason("  checked by phone  "), "checked by phone");
+    assert.equal(cleanManualReviewReason("x".repeat(1000))?.length, MAX_MANUAL_REVIEW_REASON_LENGTH);
+  });
+
+  it("writes how the account was matched into the note, never the buyer's email", () => {
+    assert.equal(
+      buildShopierPurchaseNote({ emailCheck: "matched", manualReviewReason: null, adminNote: null, redactEmails: ["buyer@example.com"] }),
+      "email: matched"
+    );
+    const note = buildShopierPurchaseNote({
+      emailCheck: "manual_review",
+      manualReviewReason: "İletişimle doğrulandı: BUYER@example.com",
+      adminNote: "  Sipariş buyer@EXAMPLE.com ile verildi  ",
+      redactEmails: ["buyer@example.com", "owner@example.com"],
+    });
+    assert.equal(note, "email: manual review — İletişimle doğrulandı: [e-posta] | Sipariş [e-posta] ile verildi");
+    assert.doesNotMatch(note.toLowerCase(), /buyer@example\.com/);
+    // An email-like text that isn't one of the two addresses is the admin's own words, kept as written.
+    assert.match(
+      buildShopierPurchaseNote({ emailCheck: "matched", manualReviewReason: null, adminNote: "a.b+c@x.co", redactEmails: ["buyer@example.com"] }),
+      /a\.b\+c@x\.co$/
+    );
+    const capped = buildShopierPurchaseNote({ emailCheck: "matched", manualReviewReason: null, adminNote: "n".repeat(2000), redactEmails: [] });
+    assert.equal(capped.length, "email: matched | ".length + MAX_PURCHASE_NOTE_LENGTH);
+  });
+
+  it("refuses an unknown package, a bad order number or a bad email before opening a database connection", async () => {
+    const base = { userId: "user-1", adminId: "admin-1", packageId: "tokens-50", orderRef: "AB-12", buyerEmail: "buyer@example.com" };
+    assert.deepEqual(await tokenRepository.creditShopierPurchase({ ...base, packageId: "tokens-25" }), { status: "invalid_package" });
+    assert.deepEqual(await tokenRepository.creditShopierPurchase({ ...base, packageId: "TOKENS-50" }), { status: "invalid_package" });
+    assert.deepEqual(await tokenRepository.creditShopierPurchase({ ...base, orderRef: "  " }), { status: "invalid_order" });
+    assert.deepEqual(await tokenRepository.creditShopierPurchase({ ...base, buyerEmail: "not-an-email" }), { status: "invalid_email" });
   });
 });
 

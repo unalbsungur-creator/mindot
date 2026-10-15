@@ -435,6 +435,26 @@ ownership invariants below hold at the data layer, not just in the UI.
 - [ ] Order detail's PDF view/download works
 - [ ] Every `/admin/*` page independently rejects a non-admin session, not just the nav that links to it
 
+**L. Token purchase (Token Al V1) — on staging, with sales closed**
+
+No real payment, ever: Tokens are credited by hand after a Shopier order is checked (see "Token purchase" in CLAUDE.md). Use a test account and the admin account; every test order number starts with `STAGING-TEST-` (e.g. `STAGING-TEST-001`) so it's recognizable in the ledger, which is append-only — test entries stay there.
+
+- [ ] With no `SHOPIER_TOKEN_*_URL` set: `/tokens` shows the three packages (10 Tokens / 12 TL, 50 / 50, 100 / 80), "not on sale" on each and the "not on sale yet" notice — no Shopier link anywhere in the page source
+- [ ] `/tokens` signed out: packages and prices, the sign-in prompt and sign-in options; no balance, no email, no Shopier link
+- [ ] `/tokens` signed in: your Token balance and your account email, the "use your MINDOT email on Shopier" hint, the manual-crediting notice; no promised time
+- [ ] `/tokens` page source has `noindex`, and `/sitemap.xml` doesn't list it
+- [ ] Package links (only once setting them on staging is approved — still no payment): a valid `https://www.shopier.com/<product>` link shows "Buy on Shopier" for that package only, opening in a new tab; an `http://`, other-host or malformed value keeps that package "not on sale" and never appears in the page source; the other packages are unaffected
+- [ ] Header (both CTA zones, 375 / 390 / 768px and desktop) and homepage hero: "Buy Tokens" sits after the write CTA, links to `/tokens`, no horizontal overflow, visible keyboard focus
+- [ ] `/admin/users`: the search finds users by part of their email or name, case-, accent- and Turkish-I-insensitive (`ismail` finds `İsmail`, `info` finds `Info@…`); a search with no match shows "no users match"
+- [ ] "Record Shopier purchase" (separate from "Grant Tokens"): the dialog shows the account's email, three packages with prices, required order number and buyer email; there is no amount or price field
+- [ ] Record `STAGING-TEST-001` (50 Tokens) with the account's own email: success message, the row's balance grows by exactly 50, `/admin/tokens` shows a "Purchase" entry of +50 with `shopier · STAGING-TEST-001`, the recording admin and the note `email: matched` (the history view doesn't show the package id; the amount identifies it)
+- [ ] Submit the same order again for the same account and package: "already recorded", balance unchanged
+- [ ] The same order for another account, or for another package: "already used on <date> for <user>", nothing credited
+- [ ] A different buyer email without manual review: "emails don't match", nothing credited; tick manual review without a reason: "give a reason", nothing credited; with a reason: credited, and the ledger note says `email: manual review — …` without the buyer email
+- [ ] Invalid order number (`ab`, `12/34`), invalid email, unknown package: a clear error, nothing credited; double-clicking "Record" credits once
+- [ ] PDF panel (`/memory/[id]` or `/me/memories`, a locked personal PDF): with 0 Tokens a "Buy Tokens" link to `/tokens` under the explanation; with ≥ 1 Token the unlock button and no link; once unlocked, or for a source that's no longer public, no link
+- [ ] After the tests, the test account's balance equals the sum of its ledger entries in `/admin/tokens`
+
 **Resilience (any section)**
 
 - [ ] Database and OAuth failure screens are friendly and reveal no secrets

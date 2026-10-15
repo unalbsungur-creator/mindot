@@ -3,11 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/features/auth/auth";
 import { messageRepository } from "@/features/messages/repository";
-import { maxMessageLength } from "@/features/messages/lib/messageLength";
-import { MESSAGE_MAX_LENGTH } from "@/features/messages/types";
+import { submitMessageRevisionForAuthor } from "@/features/messages/service";
 import { userRepository } from "@/features/users/repository";
+import { PUBLIC_WALL_CONSENT_VERSION } from "./lib/wallConsent";
 
-export type ProfileActionError = "auth-required" | "forbidden" | "empty-content" | "too-long";
+export type ProfileActionError = "auth-required" | "forbidden" | "empty-content" | "too-long" | "consent-required";
 
 export interface ProfileActionResult<T = undefined> {
   ok: boolean;
@@ -23,12 +23,25 @@ const WALL_DESCRIPTION_MAX_LENGTH = 200;
  * file re-derives the acting user from the session itself — never trusts
  * a userId passed in from the client — so one person can never change
  * another's visibility, description, or wall curation.
+ *
+ * Turning it on needs the owner's explicit consent every time:
+ * `consentVersion` must be exactly PUBLIC_WALL_CONSENT_VERSION, or nothing
+ * is written. This check — not the dialog's checkbox — is the boundary: a
+ * Server Function can be called without the UI. The wall and its consent
+ * (version + the database's clock) are then written in one UPDATE.
+ * Turning it off needs no consent and keeps the last one on record.
  */
-export async function setWallVisibility(enabled: boolean): Promise<ProfileActionResult> {
+export async function setWallVisibility(enabled: boolean, consentVersion?: string): Promise<ProfileActionResult> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "auth-required" };
 
-  await userRepository.setPublicWallEnabled(session.user.id, enabled);
+  if (enabled === true) {
+    if (consentVersion !== PUBLIC_WALL_CONSENT_VERSION) return { ok: false, error: "consent-required" };
+    const updated = await userRepository.enablePublicWallWithConsent(session.user.id, PUBLIC_WALL_CONSENT_VERSION);
+    if (!updated) return { ok: false, error: "auth-required" };
+  } else {
+    await userRepository.disablePublicWall(session.user.id);
+  }
   revalidatePath("/me");
   return { ok: true };
 }
@@ -72,28 +85,18 @@ export async function setMessageWallVisibility(messageId: string, show: boolean)
  * comment for the atomic ownership/eligibility boundary this stands on
  * (author + approved + no revision already pending, all in one WHERE
  * clause). `empty-content`/`too-long` mirror `submitMessage`'s own
- * validation exactly (same trim + Unicode-aware length check against the
- * same `MESSAGE_MAX_LENGTH`), so an edited note is held to the identical
- * bar a brand-new one already is — including its card's own, stricter
- * `maxCharacters` (read from the stored message, never from the client).
+ * validation exactly (same normalization + Unicode-aware length check
+ * against the same `MESSAGE_MAX_LENGTH`), so an edited note is held to the
+ * identical bar a brand-new one already is — including its card's own,
+ * stricter `maxCharacters` (read from the stored message, never from the
+ * client). See `submitMessageRevisionForAuthor`.
  */
 export async function submitMessageRevision(messageId: string, content: string): Promise<ProfileActionResult> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "auth-required" };
 
-  const trimmed = content.trim();
-  if (!trimmed) return { ok: false, error: "empty-content" };
-  if ([...trimmed].length > MESSAGE_MAX_LENGTH) return { ok: false, error: "too-long" };
-
-  // The card's own limit comes from the stored message's template. Someone
-  // else's (or a missing) message answers "forbidden" before any length
-  // check, so the result never reveals another author's card.
-  const existing = await messageRepository.getById(messageId);
-  if (!existing || existing.authorId !== session.user.id) return { ok: false, error: "forbidden" };
-  if ([...trimmed].length > maxMessageLength(existing.templateId)) return { ok: false, error: "too-long" };
-
-  const updated = await messageRepository.submitRevision(messageId, session.user.id, trimmed);
-  if (!updated) return { ok: false, error: "forbidden" };
+  const result = await submitMessageRevisionForAuthor({ messageId, authorId: session.user.id, content });
+  if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath("/me/archive");
   return { ok: true };
