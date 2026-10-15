@@ -854,5 +854,9 @@ export const tokenRefunds = pgTable(
       "token_refunds_confirmation_pair",
       sql`(${table.status} = 'external_refund_confirmed') = (${table.confirmedAt} is not null)`
     ),
+    check(
+      "token_refunds_external_reference_pair",
+      sql`(${table.status} = 'external_refund_confirmed') = (${table.externalRefundReference} is not null)`
+    ),
   ]
 );
