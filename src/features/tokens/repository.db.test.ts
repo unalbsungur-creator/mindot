@@ -133,6 +133,27 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
       await assertConsistent(userId, 1);
     });
 
+    it("allocates a PDF unlock to its exact Shopier purchase lot", async () => {
+      const orderRef = `T-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+      const purchase = await tokenRepository.creditShopierPurchase({
+        userId, adminId, packageId: "tokens-10", orderRef, buyerEmail: emailOf(userId),
+      });
+      assert.equal(purchase.status, "credited");
+      const projectId = await createProject(userId);
+      const result = await tokenRepository.consumeForMemoryPdfUnlock({ userId, memoryProjectId: projectId });
+      assert.equal(result.status, "newly_unlocked");
+      const rows = await sql<{ source_type: string; amount: number; purchase_lot_id: string | null; source_ledger_entry_id: string }[]>
+        `select a.source_type, a.amount, a.purchase_lot_id, a.source_ledger_entry_id
+         from token_purchase_allocations a
+         join token_purchase_lots l on l.id = a.purchase_lot_id
+         where a.user_id = ${userId} and l.external_order_reference = ${orderRef}`;
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].source_type, "purchase");
+      assert.equal(rows[0].amount, 1);
+      assert.equal(rows[0].source_ledger_entry_id, purchase.status === "credited" ? purchase.entry.id : "");
+      await assertConsistent(userId, 9);
+    });
+
     it("refuses an unlock without balance and changes neither the balance nor the ledger", async () => {
       const projectId = await createProject(userId);
 
