@@ -602,6 +602,8 @@ export const es: Dictionary = {
     purchasesIntro: "Esta lista muestra registros de origen para revisar posibles reembolsos; no significa que una compra sea reembolsable. Si se desconoce la hora de aprobación del pago, debe verificarse por separado. Aquí no se propone ningún importe de reembolso ni reversión de Tokens.",
     package: "Paquete",
     tokens: "Tokens",
+    allocatedTokens: "Asignados",
+    remainingRecordedTokens: "Restantes registrados",
     paidAmount: "Importe pagado",
     paymentApprovedAt: "Aprobación del pago",
     purchaseCreatedAt: "Fecha de registro",
