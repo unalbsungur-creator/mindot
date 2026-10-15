@@ -183,6 +183,13 @@
       "when": 1791989814430,
       "tag": "0025_public_wall_consent",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792032000000,
+      "tag": "0026_token_refund_foundation",
+      "breakpoints": true
     }
   ]
 }
