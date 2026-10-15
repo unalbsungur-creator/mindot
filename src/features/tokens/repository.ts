@@ -1,6 +1,13 @@
 import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { memoryPdfUnlocks, tokenLedger, tokenWallets, users } from "@/lib/db/schema";
+import {
+  memoryPdfUnlocks,
+  tokenLedger,
+  tokenWallets,
+  tokenPurchaseLots,
+  tokenPurchaseAllocations,
+  users,
+} from "@/lib/db/schema";
 import { memoryPdfUnlockRepository, toMemoryPdfUnlock } from "@/features/memories/repository";
 import type { MemoryPdfUnlock } from "@/features/memories/types";
 import { getTokenPackage, isTokenPackageId, type TokenPackage } from "./config/tokenPackages";
@@ -409,6 +416,19 @@ class DrizzleTokenRepository implements TokenRepository {
             }),
           })
           .returning();
+
+        // Create a source lot in the same transaction as the credit. A failed
+        // lot insert rolls back both the wallet increment and the ledger entry.
+        await tx.insert(tokenPurchaseLots).values({
+          id: crypto.randomUUID(),
+          userId,
+          provider: SHOPIER_PROVIDER,
+          externalOrderReference: orderRef,
+          packageId: pkg.id,
+          packageTokens: pkg.tokens,
+          paidAmountKurus: pkg.priceTry * 100,
+          creditedLedgerEntryId: entry.id,
+        });
 
         return { status: "credited", entry: toTokenLedgerEntry(entry), balance: credited.balance, emailCheck };
       });
