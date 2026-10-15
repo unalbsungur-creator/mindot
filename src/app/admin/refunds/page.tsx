@@ -72,7 +72,7 @@ export default async function AdminRefundsPage() {
       purchases={purchaseRows.map((row) => ({
         ...row,
         allocatedTokens: allocatedByLot.get(row.id) ?? 0,
-        remainingRecordedTokens: row.packageTokens - (allocatedByLot.get(row.id) ?? 0),
+        remainingRecordedTokens: row.packageTokens >= (allocatedByLot.get(row.id) ?? 0) ? row.packageTokens - (allocatedByLot.get(row.id) ?? 0) : null,
         paymentApprovedAt: row.paymentApprovedAt?.toISOString() ?? null,
         createdAt: row.createdAt.toISOString(),
       }))}
