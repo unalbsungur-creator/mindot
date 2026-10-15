@@ -1810,4 +1810,30 @@ describe("token ledger guard on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_T
     const id = await grant(userId, 1);
     await assert.rejects(sql`delete from token_ledger where id = ${id}`, REJECTED);
   });
+  it("enforces refund external-reference consistency in PostgreSQL", async () => {
+    const orderRef = `R-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    const purchase = await tokenRepository.creditShopierPurchase({
+      userId, adminId, packageId: "tokens-10", orderRef, buyerEmail: `${userId}@example.test`,
+    });
+    assert.equal(purchase.status, "credited");
+    if (purchase.status !== "credited") return;
+
+    const [lot] = await sql<{ id: string }[]>`
+      select id from token_purchase_lots where provider = 'shopier' and external_order_reference = ${orderRef}`;
+    const insertRefund = (status: "pending_external_refund" | "external_refund_confirmed" | "cancelled", reference: string | null) =>
+      sql`
+        insert into token_refunds
+          (id, user_id, purchase_lot_id, status, refund_amount_kurus, tokens_reversed, idempotency_key,
+           external_refund_reference, created_by, confirmed_at)
+        values
+          (${`refund-${crypto.randomUUID()}`}, ${userId}, ${lot.id}, ${status}, 100, 1,
+           ${`test-refund:${crypto.randomUUID()}`}, ${reference}, ${adminId},
+           ${status === "external_refund_confirmed" ? new Date() : null})`;
+
+    await assert.rejects(insertRefund("external_refund_confirmed", null), /token_refunds_external_reference_pair|check constraint/i);
+    await assert.rejects(insertRefund("pending_external_refund", "SHOPIER-REFUND-123"), /token_refunds_external_reference_pair|check constraint/i);
+    await insertRefund("pending_external_refund", null);
+    await insertRefund("external_refund_confirmed", "SHOPIER-REFUND-456");
+    await insertRefund("cancelled", null);
+  });
 });
