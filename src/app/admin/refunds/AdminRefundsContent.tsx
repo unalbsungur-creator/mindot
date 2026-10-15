@@ -9,7 +9,7 @@ type RefundRow = {
   orderReference: string; packageId: string; userEmail: string | null;
 };
 type PurchaseRow = {
-  id: string; orderReference: string; packageId: string; packageTokens: number;
+  id: string; orderReference: string; packageId: string; packageTokens: number; allocatedTokens: number; remainingRecordedTokens: number;
   paidAmountKurus: number; paymentApprovedAt: string | null; createdAt: string; userEmail: string | null;
 };
 
@@ -60,20 +60,22 @@ export function AdminRefundsContent({ refunds, purchases, authorized }: { refund
         <h2 className="text-xl font-semibold text-ink">{labels.purchasesTitle}</h2>
         <p className="mt-2 max-w-3xl text-sm text-ink-soft">{labels.purchasesIntro}</p>
         <div className="mt-4 overflow-x-auto rounded-xl border border-border">
-          <table className="w-full min-w-[780px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[980px] border-collapse text-left text-sm">
             <thead className="bg-canvas text-ink-soft"><tr>
-              {[labels.orderUser, labels.package, labels.tokens, labels.paidAmount, labels.paymentApprovedAt, labels.purchaseCreatedAt].map((label) => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}
+              {[labels.orderUser, labels.package, labels.tokens, labels.allocatedTokens, labels.remainingRecordedTokens, labels.paidAmount, labels.paymentApprovedAt, labels.purchaseCreatedAt].map((label) => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}
             </tr></thead>
             <tbody className="divide-y divide-border">
               {purchases.map((purchase) => <tr key={purchase.id} className="align-top">
                 <td className="px-4 py-3"><div className="font-medium text-ink">{purchase.orderReference}</div><div className="mt-1 text-xs text-ink-soft">{purchase.userEmail}</div></td>
                 <td className="px-4 py-3">{purchase.packageId}</td>
                 <td className="px-4 py-3 tabular-nums">{purchase.packageTokens}</td>
+                <td className="px-4 py-3 tabular-nums">{purchase.allocatedTokens}</td>
+                <td className="px-4 py-3 tabular-nums">{purchase.remainingRecordedTokens}</td>
                 <td className="px-4 py-3 tabular-nums">{money(purchase.paidAmountKurus, locale)}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{date(purchase.paymentApprovedAt, locale)}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{date(purchase.createdAt, locale)}</td>
               </tr>)}
-              {purchases.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-ink-soft">{labels.noPurchases}</td></tr>}
+              {purchases.length === 0 && <tr><td colSpan={8} className="px-4 py-10 text-center text-ink-soft">{labels.noPurchases}</td></tr>}
             </tbody>
           </table>
         </div>
