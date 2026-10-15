@@ -794,14 +794,17 @@ export const tokenPurchaseAllocations = pgTable(
     id: text("id").primaryKey(),
     userId: text("user_id").notNull().references(() => users.id),
     consumeLedgerEntryId: text("consume_ledger_entry_id").notNull().references(() => tokenLedger.id),
+    sourceLedgerEntryId: text("source_ledger_entry_id").notNull().references(() => tokenLedger.id),
     purchaseLotId: text("purchase_lot_id").references(() => tokenPurchaseLots.id),
     sourceType: text("source_type").notNull(),
     amount: integer("amount").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("token_purchase_allocations_consume_lot_source_idx")
-      .on(table.consumeLedgerEntryId, table.purchaseLotId, table.sourceType),
+    uniqueIndex("token_purchase_allocations_consume_source_ledger_idx")
+      .on(table.consumeLedgerEntryId, table.sourceLedgerEntryId),
+    index("token_purchase_allocations_source_ledger_idx").on(table.sourceLedgerEntryId),
+    index("token_purchase_allocations_consume_idx").on(table.consumeLedgerEntryId),
     index("token_purchase_allocations_lot_created_idx").on(table.purchaseLotId, table.createdAt),
     check("token_purchase_allocations_amount_positive", sql`${table.amount} > 0`),
     check(
