@@ -602,6 +602,8 @@ export const fr: Dictionary = {
     purchasesIntro: "Cette liste présente les enregistrements sources pour examiner une éventuelle demande de remboursement ; elle ne signifie pas que l’achat est éligible. Si l’heure d’approbation du paiement est inconnue, elle doit être vérifiée séparément. Aucun montant de remboursement ni retrait de Tokens n’est proposé ici.",
     package: "Forfait",
     tokens: "Tokens",
+    allocatedTokens: "Affectés",
+    remainingRecordedTokens: "Restant enregistré",
     paidAmount: "Montant payé",
     paymentApprovedAt: "Approbation du paiement",
     purchaseCreatedAt: "Date d’enregistrement",
