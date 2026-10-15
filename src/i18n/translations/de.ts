@@ -586,7 +586,7 @@ export const de: Dictionary = {
     revoking: "Wird widerrufen…",
   },
   adminRefunds: {
-    title: "Rückerstattattungen",
+    title: "Rückerstattungen",
     unauthorized: "Du bist nicht berechtigt, diese Seite aufzurufen.",
     intro: "Diese Seite listet nur vorhandene Einträge. Sie erstellt, storniert oder bestätigt keine Rückerstattungen. Eine Rückerstattung gilt erst als abgeschlossen, wenn sie über Shopier ausgeführt und ihre externe Referenz überprüft wurde.",
     orderUser: "Bestellung / Nutzer",
