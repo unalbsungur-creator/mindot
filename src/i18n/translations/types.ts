@@ -903,6 +903,8 @@ export interface Dictionary {
     howItWorksTitle: string;
     howItWorksSteps: [string, string, string];
     manualNotice: string;
+    /** Support line under the manual-crediting notice; `{email}` is rendered as a mailto link. */
+    supportHint: string;
   };
   memoryLibrary: {
     pageTitle: string;

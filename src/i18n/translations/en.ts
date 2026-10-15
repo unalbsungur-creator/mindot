@@ -497,8 +497,8 @@ export const en: Dictionary = {
     downloadReadyBody: "Download your MINDOT PDF below.",
     downloadButton: "Download your MINDOT PDF",
     digitalHeading: "Unlock your digital frame",
-    digitalInstructions: "Purchase the digital frame on Shoppier, then enter the code you receive below.",
-    shoppierButton: "Continue to Shoppier",
+    digitalInstructions: "Purchase the digital frame on Shopier, then enter the code you receive below.",
+    shoppierButton: "Continue to Shopier",
     shoppierUnavailable: "Digital frame purchases aren't open yet — check back soon, or use a code someone already issued you.",
     codeLabel: "Access code",
     codePlaceholder: "XXXX-XXXX-XXXX-XXXX",
@@ -564,7 +564,7 @@ export const en: Dictionary = {
     subtitle: "Issue and manage codes for digital frame purchases.",
     createHeading: "Issue a new code",
     referenceLabel: "Reference (optional)",
-    referencePlaceholder: "e.g. Shoppier order #1234",
+    referencePlaceholder: "e.g. Shopier order #1234",
     createButton: "Issue code",
     creating: "Issuing…",
     createError: "Couldn't issue a code. Please try again.",
@@ -684,7 +684,7 @@ export const en: Dictionary = {
     premiumHeading: "High-quality Memory Print",
     premiumBody: "Save this moment in high resolution, or purchase a framing-ready print.",
     premiumDownloadButton: "Get high-quality download",
-    premiumDownloadHint: "You'll need to sign in and enter the access code from your Shoppier purchase.",
+    premiumDownloadHint: "You'll need to sign in and enter the access code from your Shopier purchase.",
     formatNames: {
       square: "Square",
       story: "Story",
@@ -852,6 +852,7 @@ export const en: Dictionary = {
       "The Tokens are added to your MINDOT account by hand.",
     ],
     manualNotice: "Crediting isn't automatic — it happens after your order is checked.",
+    supportHint: "For questions about an order, a payment or Token crediting, write to {email} with your order number.",
   },
   memoryLibrary: {
     pageTitle: "Memories",
@@ -953,7 +954,7 @@ export const en: Dictionary = {
       },
       {
         title: "Tokens, digital products and physical orders",
-        body: "MINDOT keeps a record of Token movements (for example, Tokens added to your balance and Tokens used to unlock a memory PDF) and of the PDFs you have unlocked. Where offered, digital frames are purchased on Shoppier; MINDOT stores the access code and which memory project it was redeemed for. Physical gifts are matched by an order number; box selection, payment and delivery take place on DilekKutum, and MINDOT does not store your delivery address. MINDOT does not process your payment card details; purchases made on these platforms are also subject to their own terms and privacy policies.",
+        body: "MINDOT keeps a record of Token movements (for example, Tokens added to your balance and Tokens used to unlock a memory PDF) and of the PDFs you have unlocked. Where offered, digital frames are purchased on Shopier; MINDOT stores the access code and which memory project it was redeemed for. Physical gifts are matched by an order number; box selection, payment and delivery take place on DilekKutum, and MINDOT does not store your delivery address. MINDOT does not process your payment card details; purchases made on these platforms are also subject to their own terms and privacy policies.",
       },
       {
         title: "Token purchase records",
@@ -1025,12 +1026,12 @@ export const en: Dictionary = {
       },
       {
         title: "Tokens, digital content and physical products",
-        body: "Tokens are a MINDOT in-service unit used to unlock a memory PDF: unlocking one PDF uses 1 Token once, and the PDF can then be downloaded again without using another Token. Tokens can only be used within MINDOT; there is no feature to transfer them to another account or withdraw them. Digital frames are, where offered, purchased on Shoppier and activated in MINDOT with a single-use access code tied to one memory project. Physical gifts are a separate product: MINDOT prepares the print, while box selection, payment and delivery take place on DilekKutum, and the two orders are matched by an order number. Purchases made on Shoppier or DilekKutum are also subject to that platform's own terms.",
+        body: "Tokens are a MINDOT in-service unit used to unlock a memory PDF: unlocking one PDF uses 1 Token once, and the PDF can then be downloaded again without using another Token. Tokens can only be used within MINDOT; there is no feature to transfer them to another account or withdraw them. Digital frames are, where offered, purchased on Shopier and activated in MINDOT with a single-use access code tied to one memory project. Physical gifts are a separate product: MINDOT prepares the print, while box selection, payment and delivery take place on DilekKutum, and the two orders are matched by an order number. Purchases made on Shopier or DilekKutum are also subject to that platform's own terms.",
         // LEGAL REVIEW REQUIRED: refund / right-of-withdrawal rules for Tokens, digital content and physical gifts, and whether Tokens carry any cash value, are deliberately not stated.
       },
       {
         title: "Buying Tokens (Shopier)",
-        body: "Where offered, Token packages can be bought on Shopier. Payment is made on Shopier and is also subject to Shopier's own terms. Tokens are not credited automatically: after the order and payment are checked, an administrator adds them to your MINDOT account by hand. Please use your MINDOT account's email address for the order; if the addresses differ, crediting waits for a manual review. Purchased Tokens can only be used within MINDOT, for the purposes described in these terms. Each order is credited only once. If you notice a wrong, incomplete or duplicate payment or credit, you can contact MINDOT with your order number through the contact channel stated in the current version of these terms.",
+        body: "Where offered, Token packages can be bought on Shopier. Payment is made on Shopier and is also subject to Shopier's own terms. Tokens are not credited automatically: after the order and payment are checked, an administrator adds them to your MINDOT account by hand. Please use your MINDOT account's email address for the order; if the addresses differ, crediting waits for a manual review. Purchased Tokens can only be used within MINDOT, for the purposes described in these terms. Each order is credited only once. If you notice a wrong, incomplete or duplicate payment or credit, you can write to destek@mind-ot.com with your order number.",
         // LEGAL REVIEW REQUIRED: draft for Token Al V1 (manual Shopier purchases). Deliberately not stated, to be decided: whether purchased Tokens have any cash value or can be refunded; the right of withdrawal for digital content (and any consent to immediate performance); how wrong / duplicate payments and mis-credits are refunded or corrected; what happens to an unused purchased balance on account deletion or service closure; the support channel and response time; invoicing; and the seller identity/contact details required for distance sales.
       },
       {
@@ -1048,7 +1049,7 @@ export const en: Dictionary = {
       },
       {
         title: "Contact and changes",
-        body: "If a material change is made to these terms, the updated text will be published on MINDOT. You can send your questions through the contact channel stated in the current version.",
+        body: "If a material change is made to these terms, the updated text will be published on MINDOT. You can send general questions to contact@mind-ot.com; for questions about an order, a payment or Token crediting, please write to destek@mind-ot.com.",
       },
     ],
     guidelinesTitle: "Community Guidelines",

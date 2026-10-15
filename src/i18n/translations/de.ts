@@ -495,8 +495,8 @@ export const de: Dictionary = {
     downloadReadyBody: "Lade dein MINDOT-PDF unten herunter.",
     downloadButton: "MINDOT-PDF herunterladen",
     digitalHeading: "Deinen digitalen Rahmen freischalten",
-    digitalInstructions: "Kaufe den digitalen Rahmen bei Shoppier und gib dann den erhaltenen Code unten ein.",
-    shoppierButton: "Weiter zu Shoppier",
+    digitalInstructions: "Kaufe den digitalen Rahmen bei Shopier und gib dann den erhaltenen Code unten ein.",
+    shoppierButton: "Weiter zu Shopier",
     shoppierUnavailable: "Der Kauf digitaler Rahmen ist noch nicht möglich — schau später wieder vorbei oder verwende einen bereits erhaltenen Code.",
     codeLabel: "Zugangscode",
     codePlaceholder: "XXXX-XXXX-XXXX-XXXX",
@@ -562,7 +562,7 @@ export const de: Dictionary = {
     subtitle: "Codes für den Kauf digitaler Rahmen ausstellen und verwalten.",
     createHeading: "Neuen Code ausstellen",
     referenceLabel: "Referenz (optional)",
-    referencePlaceholder: "z. B. Shoppier-Bestellung #1234",
+    referencePlaceholder: "z. B. Shopier-Bestellung #1234",
     createButton: "Code ausstellen",
     creating: "Wird ausgestellt…",
     createError: "Code konnte nicht ausgestellt werden. Bitte versuch es erneut.",
@@ -682,7 +682,7 @@ export const de: Dictionary = {
     premiumHeading: "Hochwertiger Memory Print",
     premiumBody: "Sichere diesen Moment in hoher Auflösung oder kaufe einen rahmenfertigen Druck.",
     premiumDownloadButton: "Hochwertigen Download erhalten",
-    premiumDownloadHint: "Du musst dich anmelden und den Zugangscode aus deinem Shoppier-Kauf eingeben.",
+    premiumDownloadHint: "Du musst dich anmelden und den Zugangscode aus deinem Shopier-Kauf eingeben.",
     formatNames: {
       square: "Quadrat",
       story: "Story",
@@ -850,6 +850,7 @@ export const de: Dictionary = {
       "Die Tokens werden deinem MINDOT-Konto manuell gutgeschrieben.",
     ],
     manualNotice: "Die Gutschrift erfolgt nicht automatisch, sondern nach Prüfung deiner Bestellung.",
+    supportHint: "Bei Fragen zu Bestellung, Zahlung oder Token-Gutschrift schreib uns mit deiner Bestellnummer an {email}.",
   },
   memoryLibrary: {
     pageTitle: "Erinnerungen",
@@ -899,7 +900,7 @@ export const de: Dictionary = {
       },
       {
         title: "Tokens, digitale Produkte und physische Bestellungen",
-        body: "MINDOT protokolliert Token-Bewegungen (zum Beispiel Ihrem Guthaben hinzugefügte Tokens und Tokens, die zum Freischalten eines Erinnerungs-PDFs verwendet wurden) sowie die von Ihnen freigeschalteten PDFs. Digitale Rahmen werden, sofern angeboten, über Shoppier gekauft; MINDOT speichert den Zugangscode und für welches Erinnerungsprojekt er eingelöst wurde. Physische Geschenke werden über eine Bestellnummer zugeordnet; Auswahl der Box, Bezahlung und Lieferung erfolgen bei DilekKutum, und MINDOT speichert Ihre Lieferadresse nicht. MINDOT verarbeitet keine Zahlungskartendaten; Käufe auf diesen Plattformen unterliegen zusätzlich deren eigenen Bedingungen und Datenschutzhinweisen.",
+        body: "MINDOT protokolliert Token-Bewegungen (zum Beispiel Ihrem Guthaben hinzugefügte Tokens und Tokens, die zum Freischalten eines Erinnerungs-PDFs verwendet wurden) sowie die von Ihnen freigeschalteten PDFs. Digitale Rahmen werden, sofern angeboten, über Shopier gekauft; MINDOT speichert den Zugangscode und für welches Erinnerungsprojekt er eingelöst wurde. Physische Geschenke werden über eine Bestellnummer zugeordnet; Auswahl der Box, Bezahlung und Lieferung erfolgen bei DilekKutum, und MINDOT speichert Ihre Lieferadresse nicht. MINDOT verarbeitet keine Zahlungskartendaten; Käufe auf diesen Plattformen unterliegen zusätzlich deren eigenen Bedingungen und Datenschutzhinweisen.",
       },
       {
         title: "Aufzeichnungen über Token-Käufe",
@@ -971,12 +972,12 @@ export const de: Dictionary = {
       },
       {
         title: "Tokens, digitale Inhalte und physische Produkte",
-        body: "Tokens sind eine MINDOT-interne Einheit zum Freischalten eines Erinnerungs-PDFs: Das Freischalten eines PDFs verbraucht einmalig 1 Token, danach kann das PDF ohne weiteren Token erneut heruntergeladen werden. Tokens können nur innerhalb von MINDOT verwendet werden; es gibt keine Funktion, sie auf ein anderes Konto zu übertragen oder auszuzahlen. Digitale Rahmen werden, sofern angeboten, über Shoppier gekauft und in MINDOT mit einem einmalig verwendbaren Zugangscode aktiviert, der an ein Erinnerungsprojekt gebunden wird. Physische Geschenke sind ein separates Produkt: MINDOT bereitet den Druck vor, während Auswahl der Box, Bezahlung und Lieferung bei DilekKutum erfolgen; beide Bestellungen werden über eine Bestellnummer zugeordnet. Käufe bei Shoppier oder DilekKutum unterliegen zusätzlich den eigenen Bedingungen der jeweiligen Plattform.",
+        body: "Tokens sind eine MINDOT-interne Einheit zum Freischalten eines Erinnerungs-PDFs: Das Freischalten eines PDFs verbraucht einmalig 1 Token, danach kann das PDF ohne weiteren Token erneut heruntergeladen werden. Tokens können nur innerhalb von MINDOT verwendet werden; es gibt keine Funktion, sie auf ein anderes Konto zu übertragen oder auszuzahlen. Digitale Rahmen werden, sofern angeboten, über Shopier gekauft und in MINDOT mit einem einmalig verwendbaren Zugangscode aktiviert, der an ein Erinnerungsprojekt gebunden wird. Physische Geschenke sind ein separates Produkt: MINDOT bereitet den Druck vor, während Auswahl der Box, Bezahlung und Lieferung bei DilekKutum erfolgen; beide Bestellungen werden über eine Bestellnummer zugeordnet. Käufe bei Shopier oder DilekKutum unterliegen zusätzlich den eigenen Bedingungen der jeweiligen Plattform.",
         // LEGAL REVIEW REQUIRED: refund / right-of-withdrawal rules for Tokens, digital content and physical gifts, and whether Tokens carry any cash value, are deliberately not stated.
       },
       {
         title: "Tokens kaufen (Shopier)",
-        body: "Token-Pakete können, sofern angeboten, über Shopier gekauft werden. Die Zahlung erfolgt bei Shopier und unterliegt zusätzlich den eigenen Bedingungen von Shopier. Tokens werden nicht automatisch gutgeschrieben: Nachdem Bestellung und Zahlung geprüft wurden, schreibt ein Administrator sie Ihrem MINDOT-Konto manuell gut. Bitte verwenden Sie für die Bestellung die E-Mail-Adresse Ihres MINDOT-Kontos; weichen die Adressen ab, wartet die Gutschrift auf eine manuelle Prüfung. Gekaufte Tokens können nur innerhalb von MINDOT für die in diesen Bedingungen beschriebenen Zwecke verwendet werden. Jede Bestellung wird nur einmal gutgeschrieben. Wenn Sie eine falsche, unvollständige oder doppelte Zahlung oder Gutschrift bemerken, können Sie sich mit Ihrer Bestellnummer über den in der aktuellen Fassung dieser Bedingungen genannten Kontaktweg an MINDOT wenden.",
+        body: "Token-Pakete können, sofern angeboten, über Shopier gekauft werden. Die Zahlung erfolgt bei Shopier und unterliegt zusätzlich den eigenen Bedingungen von Shopier. Tokens werden nicht automatisch gutgeschrieben: Nachdem Bestellung und Zahlung geprüft wurden, schreibt ein Administrator sie Ihrem MINDOT-Konto manuell gut. Bitte verwenden Sie für die Bestellung die E-Mail-Adresse Ihres MINDOT-Kontos; weichen die Adressen ab, wartet die Gutschrift auf eine manuelle Prüfung. Gekaufte Tokens können nur innerhalb von MINDOT für die in diesen Bedingungen beschriebenen Zwecke verwendet werden. Jede Bestellung wird nur einmal gutgeschrieben. Wenn Sie eine falsche, unvollständige oder doppelte Zahlung oder Gutschrift bemerken, können Sie sich mit Ihrer Bestellnummer an destek@mind-ot.com wenden.",
         // LEGAL REVIEW REQUIRED: draft for Token Al V1 (manual Shopier purchases). Deliberately not stated, to be decided: whether purchased Tokens have any cash value or can be refunded; the right of withdrawal for digital content (and any consent to immediate performance); how wrong / duplicate payments and mis-credits are refunded or corrected; what happens to an unused purchased balance on account deletion or service closure; the support channel and response time; invoicing; and the seller identity/contact details required for distance sales.
       },
       {
@@ -994,7 +995,7 @@ export const de: Dictionary = {
       },
       {
         title: "Kontakt und Änderungen",
-        body: "Wird an diesen Bedingungen eine wesentliche Änderung vorgenommen, wird der aktualisierte Text auf MINDOT veröffentlicht. Ihre Fragen können Sie über den in der jeweils aktuellen Fassung genannten Kontaktweg stellen.",
+        body: "Wird an diesen Bedingungen eine wesentliche Änderung vorgenommen, wird der aktualisierte Text auf MINDOT veröffentlicht. Allgemeine Fragen können Sie an contact@mind-ot.com richten; für Fragen zu Bestellungen, Zahlungen oder Token-Gutschriften wenden Sie sich bitte an destek@mind-ot.com.",
       },
     ],
     guidelinesTitle: "Community-Richtlinien",

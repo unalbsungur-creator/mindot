@@ -497,8 +497,8 @@ export const tr: Dictionary = {
     downloadReadyBody: "MINDOT PDF'ini aşağıdan indir.",
     downloadButton: "MINDOT PDF'ini indir",
     digitalHeading: "Dijital çerçeveni aç",
-    digitalInstructions: "Dijital çerçeveyi Shoppier üzerinden satın al, ardından aldığın kodu aşağıya gir.",
-    shoppierButton: "Shoppier'a devam et",
+    digitalInstructions: "Dijital çerçeveyi Shopier üzerinden satın al, ardından aldığın kodu aşağıya gir.",
+    shoppierButton: "Shopier'a devam et",
     shoppierUnavailable: "Dijital çerçeve satışı henüz açık değil — yakında tekrar kontrol et ya da sana verilmiş bir kodu kullan.",
     codeLabel: "Erişim kodu",
     codePlaceholder: "XXXX-XXXX-XXXX-XXXX",
@@ -564,7 +564,7 @@ export const tr: Dictionary = {
     subtitle: "Dijital çerçeve satın alımları için kod oluştur ve yönet.",
     createHeading: "Yeni kod oluştur",
     referenceLabel: "Referans (isteğe bağlı)",
-    referencePlaceholder: "örn. Shoppier sipariş #1234",
+    referencePlaceholder: "örn. Shopier sipariş #1234",
     createButton: "Kod oluştur",
     creating: "Oluşturuluyor…",
     createError: "Kod oluşturulamadı. Lütfen tekrar dene.",
@@ -852,6 +852,7 @@ export const tr: Dictionary = {
       "Token'lar MINDOT hesabına elle yüklenir.",
     ],
     manualNotice: "Token yüklemesi otomatik değildir; siparişin kontrol edildikten sonra yapılır.",
+    supportHint: "Sipariş, ödeme veya Token yüklemesiyle ilgili sorular için sipariş numaranla birlikte {email} adresine yazabilirsin.",
   },
   memoryLibrary: {
     pageTitle: "Anılar",
@@ -901,7 +902,7 @@ export const tr: Dictionary = {
       },
       {
         title: "Token’lar, dijital ürünler ve fiziksel siparişler",
-        body: "MINDOT, Token hareketlerinin (örneğin bakiyenize eklenen Token’lar ve bir anı PDF’inin kilidini açmak için kullanılan Token’lar) ve kilidini açtığınız PDF’lerin kaydını tutar. Sunulduğu durumlarda dijital çerçeveler Shoppier üzerinden satın alınır; MINDOT erişim kodunu ve kodun hangi anı projesi için kullanıldığını saklar. Fiziksel hediyeler bir sipariş numarasıyla eşleştirilir; kutu seçimi, ödeme ve teslimat DilekKutum üzerinde gerçekleşir ve MINDOT teslimat adresinizi saklamaz. MINDOT ödeme kartı bilgilerinizi işlemez; bu platformlarda yapılan satın alımlar ayrıca o platformların kendi koşullarına ve gizlilik politikalarına tabidir.",
+        body: "MINDOT, Token hareketlerinin (örneğin bakiyenize eklenen Token’lar ve bir anı PDF’inin kilidini açmak için kullanılan Token’lar) ve kilidini açtığınız PDF’lerin kaydını tutar. Sunulduğu durumlarda dijital çerçeveler Shopier üzerinden satın alınır; MINDOT erişim kodunu ve kodun hangi anı projesi için kullanıldığını saklar. Fiziksel hediyeler bir sipariş numarasıyla eşleştirilir; kutu seçimi, ödeme ve teslimat DilekKutum üzerinde gerçekleşir ve MINDOT teslimat adresinizi saklamaz. MINDOT ödeme kartı bilgilerinizi işlemez; bu platformlarda yapılan satın alımlar ayrıca o platformların kendi koşullarına ve gizlilik politikalarına tabidir.",
       },
       {
         title: "Token satın alma kayıtları",
@@ -973,12 +974,12 @@ export const tr: Dictionary = {
       },
       {
         title: "Token’lar, dijital içerik ve fiziksel ürünler",
-        body: "Token’lar, bir anı PDF’inin kilidini açmak için kullanılan MINDOT içi bir birimdir: bir PDF’in kilidini açmak bir kez 1 Token kullanır, ardından PDF yeniden Token harcanmadan indirilebilir. Token’lar yalnızca MINDOT içinde kullanılabilir; başka bir hesaba aktarılmalarını veya çekilmelerini sağlayan bir özellik yoktur. Dijital çerçeveler, sunulduğu durumlarda Shoppier üzerinden satın alınır ve MINDOT’ta tek bir anı projesine bağlanan, tek kullanımlık bir erişim koduyla etkinleştirilir. Fiziksel hediyeler ayrı bir üründür: baskıyı MINDOT hazırlar; kutu seçimi, ödeme ve teslimat DilekKutum üzerinde gerçekleşir ve iki sipariş bir sipariş numarasıyla eşleştirilir. Shoppier veya DilekKutum üzerinde yapılan satın alımlar ayrıca o platformun kendi koşullarına tabidir.",
+        body: "Token’lar, bir anı PDF’inin kilidini açmak için kullanılan MINDOT içi bir birimdir: bir PDF’in kilidini açmak bir kez 1 Token kullanır, ardından PDF yeniden Token harcanmadan indirilebilir. Token’lar yalnızca MINDOT içinde kullanılabilir; başka bir hesaba aktarılmalarını veya çekilmelerini sağlayan bir özellik yoktur. Dijital çerçeveler, sunulduğu durumlarda Shopier üzerinden satın alınır ve MINDOT’ta tek bir anı projesine bağlanan, tek kullanımlık bir erişim koduyla etkinleştirilir. Fiziksel hediyeler ayrı bir üründür: baskıyı MINDOT hazırlar; kutu seçimi, ödeme ve teslimat DilekKutum üzerinde gerçekleşir ve iki sipariş bir sipariş numarasıyla eşleştirilir. Shopier veya DilekKutum üzerinde yapılan satın alımlar ayrıca o platformun kendi koşullarına tabidir.",
         // LEGAL REVIEW REQUIRED: refund / right-of-withdrawal rules for Tokens, digital content and physical gifts, and whether Tokens carry any cash value, are deliberately not stated.
       },
       {
         title: "Token satın alma (Shopier)",
-        body: "Token paketleri, sunulduğu durumlarda Shopier üzerinden satın alınabilir. Ödeme Shopier’de yapılır ve ayrıca Shopier’in kendi koşullarına tabidir. Token’lar otomatik olarak yüklenmez: sipariş ve ödeme kontrol edildikten sonra bir yönetici tarafından MINDOT hesabınıza elle tanımlanır. Siparişte MINDOT hesabınızın e-posta adresini kullanmanız gerekir; adresler farklıysa yükleme manuel incelemeye kalır. Satın alınan Token’lar yalnızca MINDOT içinde, bu koşullarda açıklanan amaçlarla kullanılabilir. Her sipariş yalnızca bir kez Token’a dönüştürülür. Yanlış, eksik veya mükerrer bir ödeme ya da yükleme fark ederseniz, sipariş numaranızla birlikte bu koşulların güncel sürümünde belirtilen iletişim kanalı üzerinden MINDOT’a başvurabilirsiniz.",
+        body: "Token paketleri, sunulduğu durumlarda Shopier üzerinden satın alınabilir. Ödeme Shopier’de yapılır ve ayrıca Shopier’in kendi koşullarına tabidir. Token’lar otomatik olarak yüklenmez: sipariş ve ödeme kontrol edildikten sonra bir yönetici tarafından MINDOT hesabınıza elle tanımlanır. Siparişte MINDOT hesabınızın e-posta adresini kullanmanız gerekir; adresler farklıysa yükleme manuel incelemeye kalır. Satın alınan Token’lar yalnızca MINDOT içinde, bu koşullarda açıklanan amaçlarla kullanılabilir. Her sipariş yalnızca bir kez Token’a dönüştürülür. Yanlış, eksik veya mükerrer bir ödeme ya da yükleme fark ederseniz, sipariş numaranızla birlikte destek@mind-ot.com adresine yazabilirsiniz.",
         // LEGAL REVIEW REQUIRED: draft for Token Al V1 (manual Shopier purchases). Deliberately not stated, to be decided: whether purchased Tokens have any cash value or can be refunded; the right of withdrawal for digital content (and any consent to immediate performance); how wrong / duplicate payments and mis-credits are refunded or corrected; what happens to an unused purchased balance on account deletion or service closure; the support channel and response time; invoicing; and the seller identity/contact details required for distance sales.
       },
       {
@@ -996,7 +997,7 @@ export const tr: Dictionary = {
       },
       {
         title: "İletişim ve değişiklikler",
-        body: "Bu koşullarda önemli bir değişiklik yapılması halinde güncel metin MINDOT üzerinde yayımlanır. Güncel sürümde belirtilen iletişim kanalı üzerinden sorularınızı iletebilirsiniz.",
+        body: "Bu koşullarda önemli bir değişiklik yapılması halinde güncel metin MINDOT üzerinde yayımlanır. Genel sorularınızı contact@mind-ot.com adresine iletebilirsiniz; sipariş, ödeme ve Token yüklemesiyle ilgili sorular için destek@mind-ot.com adresini kullanabilirsiniz.",
       },
     ],
     guidelinesTitle: "Topluluk İlkeleri",

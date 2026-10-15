@@ -124,6 +124,23 @@ describe("/tokens", () => {
     assert.ok(html.includes(escapeHtml(t.manualNotice)));
   });
 
+  // The support line: the dictionary text with its {email} placeholder rendered as a mailto link, after the
+  // manual-crediting notice, for a guest and for a signed-in account alike.
+  for (const [label, setup] of [["a guest", () => {}], ["a signed-in account", signedIn]] as const) {
+    it(`shows ${label} the support address as a mailto link under the manual notice`, async () => {
+      setup();
+      const html = await render();
+      const [before, after] = t.supportHint.split("{email}");
+      assert.ok(t.supportHint.includes("{email}"), "the dictionary keeps the placeholder");
+      const link = `<a href="mailto:destek@mind-ot.com"`;
+      assert.equal(html.split(link).length - 1, 1, "exactly one support link");
+      assert.ok(html.includes(`${escapeHtml(before)}${link}`), "text before the address");
+      assert.ok(html.includes(`>destek@mind-ot.com</a>${escapeHtml(after)}`), "the address as link text, then the rest");
+      assert.ok(html.indexOf(escapeHtml(t.manualNotice)) < html.indexOf(link), "below the manual-crediting notice");
+      assert.ok(!html.includes("{email}"), "no raw placeholder reaches the page");
+    });
+  }
+
   it("shows every package closed when no link is configured — sales start closed", async () => {
     for (const name of VARIABLES) delete process.env[name];
     signedIn();

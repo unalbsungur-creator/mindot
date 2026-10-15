@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/Button";
 import { formatTryPrice } from "@/features/tokens/lib/shopierPurchaseForm";
 import { useLocale } from "@/i18n/LocaleProvider";
 
+/** Where order, payment and Token-crediting questions go (the same address the Shopier listings name). */
+const SUPPORT_EMAIL = "destek@mind-ot.com";
+
 /** One package as the server hands it over: display data, whether it's on sale, and — for a signed-in account only — its checked Shopier link. */
 export interface TokenPackageListing {
   id: string;
@@ -31,6 +34,7 @@ export function TokensPageContent({
   const { dictionary, locale } = useLocale();
   const t = dictionary.tokenPurchase;
   const noneOnSale = packages.every((pkg) => !pkg.onSale);
+  const [supportBefore, supportAfter = ""] = t.supportHint.split("{email}");
 
   return (
     <PageContainer className="mx-auto flex w-full max-w-3xl flex-col gap-8 py-16">
@@ -83,6 +87,13 @@ export function TokensPageContent({
           ))}
         </ol>
         <p className="text-sm text-ink-soft">{t.manualNotice}</p>
+        <p className="text-sm text-ink-soft">
+          {supportBefore}
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="font-medium text-navy underline underline-offset-2 hover:text-orange-ink">
+            {SUPPORT_EMAIL}
+          </a>
+          {supportAfter}
+        </p>
       </section>
     </PageContainer>
   );

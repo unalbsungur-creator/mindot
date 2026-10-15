@@ -495,8 +495,8 @@ export const fr: Dictionary = {
     downloadReadyBody: "Téléchargez votre PDF MINDOT ci-dessous.",
     downloadButton: "Télécharger votre PDF MINDOT",
     digitalHeading: "Débloquez votre cadre numérique",
-    digitalInstructions: "Achetez le cadre numérique sur Shoppier, puis entrez le code reçu ci-dessous.",
-    shoppierButton: "Continuer vers Shoppier",
+    digitalInstructions: "Achetez le cadre numérique sur Shopier, puis entrez le code reçu ci-dessous.",
+    shoppierButton: "Continuer vers Shopier",
     shoppierUnavailable: "L'achat du cadre numérique n'est pas encore ouvert — revenez bientôt, ou utilisez un code déjà reçu.",
     codeLabel: "Code d'accès",
     codePlaceholder: "XXXX-XXXX-XXXX-XXXX",
@@ -562,7 +562,7 @@ export const fr: Dictionary = {
     subtitle: "Émettez et gérez les codes pour les achats de cadres numériques.",
     createHeading: "Émettre un nouveau code",
     referenceLabel: "Référence (facultatif)",
-    referencePlaceholder: "ex. commande Shoppier n°1234",
+    referencePlaceholder: "ex. commande Shopier n°1234",
     createButton: "Émettre le code",
     creating: "Émission…",
     createError: "Impossible d'émettre un code. Veuillez réessayer.",
@@ -682,7 +682,7 @@ export const fr: Dictionary = {
     premiumHeading: "Memory Print haute qualité",
     premiumBody: "Conserve ce moment en haute résolution ou achète un tirage prêt à encadrer.",
     premiumDownloadButton: "Obtenir le téléchargement haute qualité",
-    premiumDownloadHint: "Tu devras te connecter et saisir le code d'accès obtenu via ton achat Shoppier.",
+    premiumDownloadHint: "Tu devras te connecter et saisir le code d'accès obtenu via ton achat Shopier.",
     formatNames: {
       square: "Carré",
       story: "Story",
@@ -850,6 +850,7 @@ export const fr: Dictionary = {
       "Les Tokens sont crédités manuellement sur votre compte MINDOT.",
     ],
     manualNotice: "Le crédit n'est pas automatique : il a lieu après la vérification de votre commande.",
+    supportHint: "Pour toute question concernant une commande, un paiement ou un crédit de Tokens, écrivez à {email} en indiquant votre numéro de commande.",
   },
   memoryLibrary: {
     pageTitle: "Souvenirs",
@@ -899,7 +900,7 @@ export const fr: Dictionary = {
       },
       {
         title: "Tokens, produits numériques et commandes physiques",
-        body: "MINDOT enregistre les mouvements de Tokens (par exemple les Tokens ajoutés à votre solde et ceux utilisés pour débloquer un PDF souvenir) ainsi que les PDF que vous avez débloqués. Lorsqu'ils sont proposés, les cadres numériques sont achetés sur Shoppier ; MINDOT conserve le code d'accès et le projet souvenir pour lequel il a été utilisé. Les cadeaux physiques sont rapprochés grâce à un numéro de commande ; le choix de la boîte, le paiement et la livraison ont lieu sur DilekKutum, et MINDOT ne conserve pas votre adresse de livraison. MINDOT ne traite pas les données de votre carte de paiement ; les achats effectués sur ces plateformes sont également soumis à leurs propres conditions et politiques de confidentialité.",
+        body: "MINDOT enregistre les mouvements de Tokens (par exemple les Tokens ajoutés à votre solde et ceux utilisés pour débloquer un PDF souvenir) ainsi que les PDF que vous avez débloqués. Lorsqu'ils sont proposés, les cadres numériques sont achetés sur Shopier ; MINDOT conserve le code d'accès et le projet souvenir pour lequel il a été utilisé. Les cadeaux physiques sont rapprochés grâce à un numéro de commande ; le choix de la boîte, le paiement et la livraison ont lieu sur DilekKutum, et MINDOT ne conserve pas votre adresse de livraison. MINDOT ne traite pas les données de votre carte de paiement ; les achats effectués sur ces plateformes sont également soumis à leurs propres conditions et politiques de confidentialité.",
       },
       {
         title: "Enregistrements des achats de Tokens",
@@ -971,12 +972,12 @@ export const fr: Dictionary = {
       },
       {
         title: "Tokens, contenu numérique et produits physiques",
-        body: "Les Tokens sont une unité interne à MINDOT servant à débloquer un PDF souvenir : débloquer un PDF utilise 1 Token une seule fois, puis le PDF peut être téléchargé à nouveau sans utiliser d'autre Token. Les Tokens ne peuvent être utilisés qu'au sein de MINDOT ; aucune fonctionnalité ne permet de les transférer vers un autre compte ni de les retirer. Les cadres numériques sont, lorsqu'ils sont proposés, achetés sur Shoppier et activés dans MINDOT avec un code d'accès à usage unique lié à un projet souvenir. Les cadeaux physiques sont un produit distinct : MINDOT prépare l'impression, tandis que le choix de la boîte, le paiement et la livraison ont lieu sur DilekKutum, les deux commandes étant rapprochées grâce à un numéro de commande. Les achats effectués sur Shoppier ou DilekKutum sont également soumis aux conditions propres à ces plateformes.",
+        body: "Les Tokens sont une unité interne à MINDOT servant à débloquer un PDF souvenir : débloquer un PDF utilise 1 Token une seule fois, puis le PDF peut être téléchargé à nouveau sans utiliser d'autre Token. Les Tokens ne peuvent être utilisés qu'au sein de MINDOT ; aucune fonctionnalité ne permet de les transférer vers un autre compte ni de les retirer. Les cadres numériques sont, lorsqu'ils sont proposés, achetés sur Shopier et activés dans MINDOT avec un code d'accès à usage unique lié à un projet souvenir. Les cadeaux physiques sont un produit distinct : MINDOT prépare l'impression, tandis que le choix de la boîte, le paiement et la livraison ont lieu sur DilekKutum, les deux commandes étant rapprochées grâce à un numéro de commande. Les achats effectués sur Shopier ou DilekKutum sont également soumis aux conditions propres à ces plateformes.",
         // LEGAL REVIEW REQUIRED: refund / right-of-withdrawal rules for Tokens, digital content and physical gifts, and whether Tokens carry any cash value, are deliberately not stated.
       },
       {
         title: "Acheter des Tokens (Shopier)",
-        body: "Lorsqu'ils sont proposés, les packs de Tokens peuvent être achetés sur Shopier. Le paiement s'effectue sur Shopier et est également soumis aux conditions propres à Shopier. Les Tokens ne sont pas crédités automatiquement : après vérification de la commande et du paiement, un administrateur les ajoute manuellement à votre compte MINDOT. Veuillez utiliser l'adresse e-mail de votre compte MINDOT pour la commande ; si les adresses diffèrent, le crédit attend une vérification manuelle. Les Tokens achetés ne peuvent être utilisés qu'au sein de MINDOT, pour les usages décrits dans les présentes conditions. Chaque commande n'est créditée qu'une seule fois. Si vous constatez un paiement ou un crédit erroné, incomplet ou en double, vous pouvez contacter MINDOT avec votre numéro de commande via le canal de contact indiqué dans la version en vigueur des présentes conditions.",
+        body: "Lorsqu'ils sont proposés, les packs de Tokens peuvent être achetés sur Shopier. Le paiement s'effectue sur Shopier et est également soumis aux conditions propres à Shopier. Les Tokens ne sont pas crédités automatiquement : après vérification de la commande et du paiement, un administrateur les ajoute manuellement à votre compte MINDOT. Veuillez utiliser l'adresse e-mail de votre compte MINDOT pour la commande ; si les adresses diffèrent, le crédit attend une vérification manuelle. Les Tokens achetés ne peuvent être utilisés qu'au sein de MINDOT, pour les usages décrits dans les présentes conditions. Chaque commande n'est créditée qu'une seule fois. Si vous constatez un paiement ou un crédit erroné, incomplet ou en double, vous pouvez écrire à destek@mind-ot.com en indiquant votre numéro de commande.",
         // LEGAL REVIEW REQUIRED: draft for Token Al V1 (manual Shopier purchases). Deliberately not stated, to be decided: whether purchased Tokens have any cash value or can be refunded; the right of withdrawal for digital content (and any consent to immediate performance); how wrong / duplicate payments and mis-credits are refunded or corrected; what happens to an unused purchased balance on account deletion or service closure; the support channel and response time; invoicing; and the seller identity/contact details required for distance sales.
       },
       {
@@ -994,7 +995,7 @@ export const fr: Dictionary = {
       },
       {
         title: "Contact et modifications",
-        body: "En cas de modification substantielle de ces conditions, le texte mis à jour sera publié sur MINDOT. Vous pouvez adresser vos questions via le canal de contact indiqué dans la version en vigueur.",
+        body: "En cas de modification substantielle de ces conditions, le texte mis à jour sera publié sur MINDOT. Vous pouvez adresser vos questions générales à contact@mind-ot.com ; pour toute question concernant une commande, un paiement ou un crédit de Tokens, écrivez à destek@mind-ot.com.",
       },
     ],
     guidelinesTitle: "Règles de la communauté",
