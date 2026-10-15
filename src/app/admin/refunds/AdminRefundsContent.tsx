@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useLocale } from "@/i18n/LocaleProvider";
+import { cancelTokenRefund, confirmTokenRefund, createTokenRefund } from "@/features/tokens/refund-actions";
 
 type RefundStatus = "pending_external_refund" | "external_refund_confirmed" | "cancelled";
 type RefundRow = {
@@ -23,11 +25,64 @@ function date(value: string | null, locale: string): string {
 export function AdminRefundsContent({ refunds, purchases, authorized }: { refunds: RefundRow[]; purchases: PurchaseRow[]; authorized: boolean }) {
   const { dictionary, locale } = useLocale();
   const labels = dictionary.adminRefunds;
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const statusLabels: Record<RefundStatus, string> = {
     pending_external_refund: labels.pending,
     external_refund_confirmed: labels.confirmed,
     cancelled: labels.cancelled,
   };
+
+  async function createRefund(event: React.FormEvent<HTMLFormElement>, purchaseLotId: string) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setBusy(true);
+    setNotice(null);
+    try {
+      const result = await createTokenRefund({
+        purchaseLotId,
+        refundAmountKurus: Number(form.get("refundAmountKurus")),
+        tokensReversed: Number(form.get("tokensReversed")),
+        requestId: crypto.randomUUID(),
+      });
+      setNotice(result.ok ? labels.actionSuccess : labels.actionError);
+    } catch {
+      setNotice(labels.actionError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmRefund(event: React.FormEvent<HTMLFormElement>, refundId: string) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setBusy(true);
+    setNotice(null);
+    try {
+      const result = await confirmTokenRefund({
+        refundId,
+        externalRefundReference: String(form.get("externalRefundReference") ?? ""),
+      });
+      setNotice(result.ok ? labels.actionSuccess : labels.actionError);
+    } catch {
+      setNotice(labels.actionError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelRefund(refundId: string) {
+    setBusy(true);
+    setNotice(null);
+    try {
+      const result = await cancelTokenRefund({ refundId });
+      setNotice(result.ok ? labels.actionSuccess : labels.actionError);
+    } catch {
+      setNotice(labels.actionError);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if (!authorized) return <main className="mx-auto max-w-5xl px-4 py-10"><h1 className="text-2xl font-semibold">{labels.title}</h1><p className="mt-3">{labels.unauthorized}</p></main>;
 
@@ -35,6 +90,7 @@ export function AdminRefundsContent({ refunds, purchases, authorized }: { refund
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-semibold text-ink">{labels.title}</h1>
       <p className="mt-2 max-w-3xl text-sm text-ink-soft">{labels.intro}</p>
+      {notice && <p role="status" className="mt-4 rounded-lg border border-border p-3 text-sm">{notice}</p>}
       <div className="mt-6 overflow-x-auto rounded-xl border border-border">
         <table className="w-full min-w-[900px] border-collapse text-left text-sm">
           <thead className="bg-canvas text-ink-soft"><tr>
@@ -48,7 +104,18 @@ export function AdminRefundsContent({ refunds, purchases, authorized }: { refund
               <td className="px-4 py-3 tabular-nums">{row.tokensReversed}</td>
               <td className="px-4 py-3 break-all">{row.externalReference ?? "—"}</td>
               <td className="px-4 py-3 whitespace-nowrap">{date(row.createdAt, locale)}</td>
-              <td className="px-4 py-3 whitespace-nowrap">{date(row.confirmedAt, locale)}</td>
+              <td className="px-4 py-3 whitespace-nowrap">
+                {date(row.confirmedAt, locale)}
+                {row.status === "pending_external_refund" && <div className="mt-3 min-w-56 space-y-2">
+                  <form onSubmit={(event) => confirmRefund(event, row.id)} className="space-y-2">
+                    <label className="block text-xs">{labels.externalReferenceInput}
+                      <input name="externalRefundReference" required maxLength={200} className="mt-1 w-full rounded border border-border bg-canvas px-2 py-1" />
+                    </label>
+                    <button disabled={busy} className="rounded bg-navy px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">{labels.confirmRefund}</button>
+                  </form>
+                  <button type="button" disabled={busy} onClick={() => void cancelRefund(row.id)} className="rounded border border-border px-3 py-1.5 text-xs disabled:opacity-50">{labels.cancelRefund}</button>
+                </div>}
+              </td>
             </tr>)}
             {refunds.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-ink-soft">{labels.noRefunds}</td></tr>}
           </tbody>
@@ -60,9 +127,9 @@ export function AdminRefundsContent({ refunds, purchases, authorized }: { refund
         <h2 className="text-xl font-semibold text-ink">{labels.purchasesTitle}</h2>
         <p className="mt-2 max-w-3xl text-sm text-ink-soft">{labels.purchasesIntro}</p>
         <div className="mt-4 overflow-x-auto rounded-xl border border-border">
-          <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[1220px] border-collapse text-left text-sm">
             <thead className="bg-canvas text-ink-soft"><tr>
-              {[labels.orderUser, labels.package, labels.tokens, labels.allocatedTokens, labels.remainingRecordedTokens, labels.paidAmount, labels.paymentApprovedAt, labels.purchaseCreatedAt].map((label) => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}
+              {[labels.orderUser, labels.package, labels.tokens, labels.allocatedTokens, labels.remainingRecordedTokens, labels.paidAmount, labels.paymentApprovedAt, labels.purchaseCreatedAt, labels.createRefund].map((label) => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}
             </tr></thead>
             <tbody className="divide-y divide-border">
               {purchases.map((purchase) => <tr key={purchase.id} className="align-top">
@@ -74,8 +141,19 @@ export function AdminRefundsContent({ refunds, purchases, authorized }: { refund
                 <td className="px-4 py-3 tabular-nums">{money(purchase.paidAmountKurus, locale)}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{date(purchase.paymentApprovedAt, locale)}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{date(purchase.createdAt, locale)}</td>
+                <td className="px-4 py-3">
+                  <form onSubmit={(event) => createRefund(event, purchase.id)} className="min-w-56 space-y-2">
+                    <label className="block text-xs">{labels.refundAmountInput}
+                      <input name="refundAmountKurus" type="number" min="1" max={purchase.paidAmountKurus} step="1" required className="mt-1 w-full rounded border border-border bg-canvas px-2 py-1" />
+                    </label>
+                    <label className="block text-xs">{labels.tokensToReverseInput}
+                      <input name="tokensReversed" type="number" min="1" max={purchase.remainingRecordedTokens ?? 0} step="1" required disabled={purchase.remainingRecordedTokens === null || purchase.remainingRecordedTokens <= 0} className="mt-1 w-full rounded border border-border bg-canvas px-2 py-1" />
+                    </label>
+                    <button disabled={busy || purchase.remainingRecordedTokens === null || purchase.remainingRecordedTokens <= 0} className="rounded bg-navy px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">{labels.createRefund}</button>
+                  </form>
+                </td>
               </tr>)}
-              {purchases.length === 0 && <tr><td colSpan={8} className="px-4 py-10 text-center text-ink-soft">{labels.noPurchases}</td></tr>}
+              {purchases.length === 0 && <tr><td colSpan={9} className="px-4 py-10 text-center text-ink-soft">{labels.noPurchases}</td></tr>}
             </tbody>
           </table>
         </div>
