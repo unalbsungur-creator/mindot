@@ -57,3 +57,19 @@ export function planTokenConsumption(
   }
   return allocations;
 }
+
+/**
+ * Existing purchase ledger entries have no purchase lot until they are
+ * explicitly reconciled. They must not be treated as refundable purchases
+ * merely because their ledger type is "purchase".
+ */
+export function classifyTokenSource(input: {
+  ledgerType: string;
+  purchaseLotId: string | null;
+  referenceType?: string | null;
+}): TokenSourceType {
+  if (input.ledgerType === "purchase" && input.purchaseLotId) return "purchase";
+  if (input.referenceType === "first_share_reward") return "reward";
+  if (input.ledgerType === "grant") return "admin_grant";
+  return "other";
+}
