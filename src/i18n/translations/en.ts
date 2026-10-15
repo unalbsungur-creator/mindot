@@ -611,7 +611,7 @@ export const en: Dictionary = {
     paymentApprovedAt: "Payment approval",
     purchaseCreatedAt: "Record date",
     noPurchases: "No Token purchase records yet.",
-    purchaseFooter: "Showing the latest 100 purchases. Read-only list.",
+    purchaseFooter: "Showing the latest 100 purchases. The admin enters refund amount and Token count; the server validates recorded limits.",
     pending: "Awaiting Shopier refund",
     confirmed: "External refund confirmed",
     cancelled: "Cancelled",
