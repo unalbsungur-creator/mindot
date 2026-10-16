@@ -21,11 +21,19 @@ Status: implementation is in PR #10 and automated CI is green. Staging deploymen
 
 ## Refund policy calculation
 
-Do not calculate usage as a percentage of the user's current total wallet: rewards and multiple purchases make that ambiguous. Calculate only the unused Tokens attributable to the specific purchase lot.
+The agreed operational rule is applied per verified purchase lot, not to the user's combined wallet:
 
-The previously drafted threshold (full package refund when usage is at most 10%, otherwise refund the unused Token value) is a proposed business rule, not a confirmed legal rule. Before release, the Turkish policy text, translations, and Shopier product descriptions must agree, and statutory consumer rights must remain unaffected. If the policy cannot be implemented faithfully against lot allocations, do not publish it.
+- If at most 10% of that package was consumed, refund the full package price.
+- If usage is above 10%, refund the proportional value of the unused Tokens.
+- The server calculates the amount and Token quantity from persisted purchase and source-allocation rows while the lot and wallet are locked; browser inputs cannot override the policy.
+- Prices are integer kuruş. Partial refunds round down to the nearest kuruş.
+- This operational calculation does not remove statutory consumer rights; user-facing Terms and Shopier descriptions should remain aligned with applicable consumer law.
 
-For package prices, store integer kuruş rather than floating-point TL. Any partial refund rounding rule must be deterministic and documented.
+## Historical purchase backfill
+
+Migration `0028_token_purchase_history_backfill` adds purchase lots only for known Shopier packages whose recorded Token count matches the package. It reconstructs historical consumes FIFO from the append-only ledger, for users without existing allocation rows. Existing wallet and Token ledger rows are never updated or deleted. Unknown or ambiguous purchases remain unattributed and should be reviewed manually.
+
+The migration fails transactionally if a historical consume cannot be attributed to earlier credits. Run the guarded production migration only after verifying a Neon restore point; it checks the direct production host/database and wallet-to-ledger balance invariant before and after migrations.
 
 ## Migration / legacy handling
 

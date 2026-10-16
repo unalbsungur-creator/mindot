@@ -29,6 +29,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:staging": "tsx src/lib/db/migrateStaging.ts",
+    "db:migrate:production:guarded": "tsx src/lib/db/migrateProduction.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/lib/db/seed.ts",

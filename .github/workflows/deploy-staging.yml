@@ -13,6 +13,13 @@ on:
       - "src/components/layout/SiteHeader.tsx"
       - "src/styles/tokens.css"
       - "src/app/globals.css"
+      - "src/app/admin/refunds/**"
+      - "src/features/tokens/**"
+      - "src/i18n/translations/**"
+      - "src/lib/db/migrateProduction.ts"
+      - "drizzle/**"
+      - "package.json"
+      - "docs/token-refunds-implementation-design.md"
   workflow_dispatch:
 
 permissions:

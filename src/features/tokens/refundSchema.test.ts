@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/schema";
 
 const MIGRATION = readFileSync("drizzle/0026_token_refund_foundation.sql", "utf8");
+const BACKFILL_MIGRATION = readFileSync("drizzle/0028_token_purchase_history_backfill.sql", "utf8");
 
 describe("token refund schema foundation", () => {
   it("defines the purchase-lot table and protects order/ledger uniqueness", () => {
@@ -42,6 +43,16 @@ describe("token refund schema foundation", () => {
     }
     assert.doesNotMatch(MIGRATION, /UPDATE\s+"?token_ledger"?|DELETE\s+FROM\s+"?token_ledger"?/i);
   });
+  it("backfills verified Shopier purchases and allocations without rewriting the ledger", () => {
+    assert.match(BACKFILL_MIGRATION, /INSERT INTO public\.token_purchase_lots/);
+    assert.match(BACKFILL_MIGRATION, /WHEN 'tokens-10' THEN 1200/);
+    assert.match(BACKFILL_MIGRATION, /WHEN 'tokens-50' THEN 5000/);
+    assert.match(BACKFILL_MIGRATION, /WHEN 'tokens-100' THEN 8000/);
+    assert.match(BACKFILL_MIGRATION, /INSERT INTO public\.token_purchase_allocations/);
+    assert.match(BACKFILL_MIGRATION, /RAISE EXCEPTION/);
+    assert.doesNotMatch(BACKFILL_MIGRATION, /UPDATE\s+public\.token_ledger|DELETE\s+FROM\s+public\.token_ledger/i);
+  });
+
   it("requires an external reference exactly when a refund is confirmed", () => {
     const config = getTableConfig(tokenRefunds);
     assert.ok(config.checks.some((item) => item.name === "token_refunds_external_reference_pair"));
