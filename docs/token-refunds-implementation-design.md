@@ -1,6 +1,6 @@
 # Token refund implementation design
 
-Status: design only; not production-ready. Implement and test on `mindot-staging-build` before any release.
+Status: implementation is in PR #10 and automated CI is green. Staging deployment and browser walkthrough are still pending because the GitHub `staging` environment lacks its required secrets/variables; see [staging deployment setup](./staging-deployment-setup.md). The PR remains a draft, production is untouched, and no refund formula/eligibility threshold has been approved.
 
 ## Existing invariants
 
