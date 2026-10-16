@@ -133,6 +133,9 @@ export function SiteHeader() {
   // know whether to show an avatar — see app/api/session/summary.
   const [user, setUser] = useState<HeaderUser>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
+  const headerTone = user?.isAdmin
+    ? "bg-admin-green/95 supports-[backdrop-filter]:bg-admin-green/90"
+    : "bg-navy/95 supports-[backdrop-filter]:bg-navy/90";
 
   // Re-read on every navigation, not just on mount: this header lives in
   // the root layout and is never remounted by a client-side navigation,
@@ -160,7 +163,7 @@ export function SiteHeader() {
   return (
     // pt-[var(--safe-top)]: the navy bar extends under the status bar /
     // notch / Dynamic Island (viewport-fit=cover), its content starts below it.
-    <header className="sticky top-0 z-[var(--z-header)] border-b border-white/10 bg-navy/95 pt-[var(--safe-top)] backdrop-blur supports-[backdrop-filter]:bg-navy/90">
+    <header className={`sticky top-0 z-[var(--z-header)] border-b border-white/10 ${headerTone} pt-[var(--safe-top)] backdrop-blur`}>
       <PageContainer className="flex h-16 items-center justify-between gap-1 sm:gap-4 lg:h-20">
         <nav aria-label={dictionary.common.primaryNavLabel} className="flex items-center gap-1 sm:gap-3 lg:gap-6">
           {showHomeButton && <HomeLink label={dictionary.states.home} />}
