@@ -6,6 +6,8 @@
   /* Brand — Master Brand system: MIND + DOT, official values */
   --mindot-navy: #0d1b2a;
   --mindot-navy-soft: #1c324a;
+  /* Admin session indicator — calm, high-contrast forest green. */
+  --mindot-admin-green: #245a45;
   --mindot-orange: #ff6a00;
   --mindot-orange-soft: #ff8c3d;
   --mindot-orange-ink: #9a4400;

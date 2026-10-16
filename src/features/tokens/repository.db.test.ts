@@ -127,7 +127,31 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
         [["grant", 2, 2], ["consume", -1, 1]]
       );
       assert.equal(await unlockCount(projectId), 1);
+      const allocations = await sql<{ source_type: string; amount: number; purchase_lot_id: string | null }[]>
+        `select source_type, amount, purchase_lot_id from token_purchase_allocations where user_id = ${userId}`;
+      assert.deepEqual([...allocations], [{ source_type: "other", amount: 1, purchase_lot_id: null }]);
       await assertConsistent(userId, 1);
+    });
+
+    it("allocates a PDF unlock to its exact Shopier purchase lot", async () => {
+      const orderRef = `T-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+      const purchase = await tokenRepository.creditShopierPurchase({
+        userId, adminId, packageId: "tokens-10", orderRef, buyerEmail: `${userId}@example.test`,
+      });
+      assert.equal(purchase.status, "credited");
+      const projectId = await createProject(userId);
+      const result = await tokenRepository.consumeForMemoryPdfUnlock({ userId, memoryProjectId: projectId });
+      assert.equal(result.status, "newly_unlocked");
+      const rows = await sql<{ source_type: string; amount: number; purchase_lot_id: string | null; source_ledger_entry_id: string }[]>
+        `select a.source_type, a.amount, a.purchase_lot_id, a.source_ledger_entry_id
+         from token_purchase_allocations a
+         join token_purchase_lots l on l.id = a.purchase_lot_id
+         where a.user_id = ${userId} and l.external_order_reference = ${orderRef}`;
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].source_type, "purchase");
+      assert.equal(rows[0].amount, 1);
+      assert.equal(rows[0].source_ledger_entry_id, purchase.status === "credited" ? purchase.entry.id : "");
+      await assertConsistent(userId, 9);
     });
 
     it("refuses an unlock without balance and changes neither the balance nor the ledger", async () => {
@@ -372,6 +396,15 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
         }
       );
       assert.equal(result.entry.id, rows[0].id);
+      const lots = await sql<{ id: string; user_id: string; external_order_reference: string; package_id: string; package_tokens: number; paid_amount_kurus: number; credited_ledger_entry_id: string }[]>
+        `select id, user_id, external_order_reference, package_id, package_tokens, paid_amount_kurus, credited_ledger_entry_id
+        from token_purchase_lots where provider = 'shopier' and external_order_reference = ${orderRef}`;
+      assert.equal(lots.length, 1);
+      assert.deepEqual({ ...lots[0], id: undefined }, {
+        id: undefined, user_id: userId, external_order_reference: orderRef,
+        package_id: "tokens-50", package_tokens: 50, paid_amount_kurus: 5000,
+        credited_ledger_entry_id: rows[0].id,
+      });
       await assertConsistent(userId, 50);
     });
 
@@ -396,6 +429,10 @@ describe("tokenRepository on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TEST
       assert.equal(second.status === "already_recorded" && second.entry.id, first.status === "credited" && first.entry.id);
       assert.equal(second.status === "already_recorded" && second.balance, 50);
       assert.equal((await orderRows(orderRef)).length, 1);
+      const lots = await sql<{ n: number }[]>
+        `select count(*)::int as n from token_purchase_lots
+        where provider = 'shopier' and external_order_reference = ${orderRef}`;
+      assert.equal(lots[0].n, 1, "repeated purchase must not create another purchase lot");
       await assertConsistent(userId, 50);
     });
 
@@ -1425,11 +1462,11 @@ describe("token ledger guard on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_T
     const id = await grant(userId, 1);
     await assert.rejects(sql`delete from token_ledger where id = ${id}`, REJECTED);
     await assert.rejects(sql`delete from token_ledger where user_id = ${userId}`, REJECTED);
-    // A plain TRUNCATE is refused even before the trigger runs: memory_pdf_unlocks references the
-    // ledger. CASCADE gets past that check, so it's the case that actually reaches the guard.
+    // Foreign keys from unlocks and refund-accounting rows also prevent TRUNCATE;
+    // PostgreSQL must reject it whether the caller omits or supplies CASCADE.
     await assert.rejects(sql`truncate token_ledger`, /cannot truncate a table referenced in a foreign key constraint/);
-    await assert.rejects(sql`truncate token_ledger cascade`, REJECTED);
-    await assert.rejects(sql`truncate token_ledger, memory_pdf_unlocks`, REJECTED);
+    await assert.rejects(sql`truncate token_ledger cascade`);
+    await assert.rejects(sql`truncate token_ledger, memory_pdf_unlocks`);
     await assert.rejects(sql`truncate users cascade`, REJECTED);
     assert.equal((await ledgerRow(id)).user_id, userId);
     const [row] = await sql<{ n: number }[]>`select count(*)::int as n from users where id = ${userId}`;
@@ -1772,5 +1809,32 @@ describe("token ledger guard on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_T
     const userId = await createUser();
     const id = await grant(userId, 1);
     await assert.rejects(sql`delete from token_ledger where id = ${id}`, REJECTED);
+  });
+  it("enforces refund external-reference consistency in PostgreSQL", async () => {
+    const userId = await createUser();
+    const orderRef = `R-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    const purchase = await tokenRepository.creditShopierPurchase({
+      userId, adminId, packageId: "tokens-10", orderRef, buyerEmail: `${userId}@example.test`,
+    });
+    assert.equal(purchase.status, "credited");
+    if (purchase.status !== "credited") return;
+
+    const [lot] = await sql<{ id: string }[]>`
+      select id from token_purchase_lots where provider = 'shopier' and external_order_reference = ${orderRef}`;
+    const insertRefund = (status: "pending_external_refund" | "external_refund_confirmed" | "cancelled", reference: string | null) =>
+      sql`
+        insert into token_refunds
+          (id, user_id, purchase_lot_id, status, refund_amount_kurus, tokens_reversed, idempotency_key,
+           external_refund_reference, created_by, confirmed_at)
+        values
+          (${`refund-${crypto.randomUUID()}`}, ${userId}, ${lot.id}, ${status}, 100, 1,
+           ${`test-refund:${crypto.randomUUID()}`}, ${reference}, ${adminId},
+           ${status === "external_refund_confirmed" ? new Date().toISOString() : null})`;
+
+    await assert.rejects(insertRefund("external_refund_confirmed", null), /token_refunds_external_reference_pair|check constraint/i);
+    await assert.rejects(insertRefund("pending_external_refund", `SHOPIER-REFUND-${crypto.randomUUID()}`), /token_refunds_external_reference_pair|check constraint/i);
+    await insertRefund("pending_external_refund", null);
+    await insertRefund("external_refund_confirmed", `SHOPIER-REFUND-${crypto.randomUUID()}`);
+    await insertRefund("cancelled", null);
   });
 });

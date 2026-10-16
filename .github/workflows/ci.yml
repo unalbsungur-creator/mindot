@@ -34,11 +34,29 @@ jobs:
 
       - run: npm test
 
+      # Download the disposable test image; token-db-test intentionally requires
+      # a pre-pulled local image and never connects to production.
+      - run: docker pull postgres:16-alpine
+
+      # Exercise the real PostgreSQL migration and token transaction invariants
+      # in the disposable Docker database; never points at production.
+      - run: npm run test:db:tokens
+
+      # Run refund-action concurrency tests in a separate disposable database;
+      # Drizzle migrations must not race each other in parallel test processes.
+      - run: npm run test:db:refunds
+
       - run: npm run lint
 
       # PageProps/LayoutProps are global types Next generates into the
       # gitignored next-env.d.ts and .next/types; a clean checkout has
-      # neither, so generate them first (no build, no env needed).
+      # neither, so generate them first.
       - run: npx next typegen
 
       - run: npx tsc --noEmit
+
+      # Build the staging Worker artifact from a clean, isolated checkout.
+      # build:cf:staging strips DATABASE_URL and refuses .env files; this is
+      # a build-only check and does not deploy or contact Cloudflare.
+      - name: Build isolated staging Worker
+        run: npm run build:cf:staging

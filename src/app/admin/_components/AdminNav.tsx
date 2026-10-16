@@ -33,6 +33,7 @@ export function AdminNav({ pendingModerationCount, openReportCount }: AdminNavPr
     { label: dictionary.invitationsAdmin.title, href: "/admin/invitations" },
     { label: dictionary.adminAccessCodes.title, href: "/admin/access-codes" },
     { label: dictionary.adminOrders.title, href: "/admin/orders" },
+    { label: dictionary.adminRefunds.title, href: "/admin/refunds" },
   ];
 
   return (

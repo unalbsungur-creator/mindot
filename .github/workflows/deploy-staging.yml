@@ -1,0 +1,195 @@
+name: Deploy staging
+
+# One-time automatic attempt when this workflow is introduced/changed on the
+# staging build branch, plus a manual retry path. This workflow can deploy only
+# Wrangler's explicitly isolated `--env staging` Worker.
+on:
+  push:
+    branches:
+      - mindot-staging-build
+    paths:
+      - ".github/workflows/deploy-staging.yml"
+      - "wrangler.jsonc"
+      - "src/components/layout/SiteHeader.tsx"
+      - "src/styles/tokens.css"
+      - "src/app/globals.css"
+      - "src/app/admin/refunds/**"
+      - "src/features/tokens/**"
+      - "src/i18n/translations/**"
+      - "src/lib/db/migrateProduction.ts"
+      - "drizzle/**"
+      - "package.json"
+      - "docs/token-refunds-implementation-design.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mindot-staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Validate, migrate and deploy staging
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 30
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+      # Wrangler resolves the Hyperdrive binding through Miniflare before deploying; emulate it with the same validated staging-only database.
+      CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE: ${{ secrets.STAGING_DATABASE_URL }}
+      STAGING_DATABASE_HOST: ${{ vars.STAGING_DATABASE_HOST }}
+      STAGING_DATABASE_NAME: ${{ vars.STAGING_DATABASE_NAME }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # Fail closed before migrations or deployment unless the separate staging
+      # database target and Cloudflare credentials have explicitly been set in
+      # the GitHub "staging" environment. Never log the connection string.
+      - name: Verify staging-only credentials and database target
+        run: |
+          node --input-type=module <<'NODE'
+          const required = [
+            "STAGING_DATABASE_URL",
+            "STAGING_DATABASE_HOST",
+            "STAGING_DATABASE_NAME",
+            "CLOUDFLARE_API_TOKEN",
+            "CLOUDFLARE_ACCOUNT_ID",
+          ];
+          const missing = required.filter((key) => !process.env[key]?.trim());
+          if (missing.length) {
+            console.error("Staging deployment is blocked. Configure these secrets/variables in GitHub Environment 'staging': " + missing.join(", "));
+            process.exit(1);
+          }
+
+          let target;
+          try {
+            target = new URL(process.env.STAGING_DATABASE_URL);
+          } catch {
+            console.error("STAGING_DATABASE_URL is not a valid URL.");
+            process.exit(1);
+          }
+          if (!["postgres:", "postgresql:"].includes(target.protocol)) {
+            console.error("STAGING_DATABASE_URL must use PostgreSQL.");
+            process.exit(1);
+          }
+          const databaseName = decodeURIComponent(target.pathname.replace(/^\//, ""));
+          if (
+            target.hostname.toLowerCase() !== process.env.STAGING_DATABASE_HOST.trim().toLowerCase() ||
+            databaseName !== process.env.STAGING_DATABASE_NAME.trim()
+          ) {
+            console.error("Staging database URL does not match the allowlisted STAGING_DATABASE_HOST and STAGING_DATABASE_NAME. No migration or deployment was run.");
+            process.exit(1);
+          }
+          console.log("Staging database target verified: " + target.hostname + "/" + databaseName);
+          NODE
+
+      # Validate Cloudflare auth before running tests or staging migrations. Never print the token.
+      - name: Verify Cloudflare API token
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from "node:fs";
+
+          const raw = process.env.CLOUDFLARE_API_TOKEN ?? "";
+          let token = raw.trim();
+          token = token.replace(/^Bearer\s+/i, "");
+          if ((token.startsWith('"') && token.endsWith('"')) || (token.startsWith("'") && token.endsWith("'"))) {
+            token = token.slice(1, -1);
+          }
+          token = token.replace(/\s/g, "");
+          if (!token) {
+            console.error("CLOUDFLARE_API_TOKEN is missing. Configure it in GitHub Environment secret 'staging'.");
+            process.exit(1);
+          }
+          if (!token.startsWith("cfut_")) {
+            console.error("CLOUDFLARE_API_TOKEN does not have the expected user-token prefix (cfut_). Paste only the secret value, not a curl command, label, or Authorization header.");
+            process.exit(1);
+          }
+
+          let response;
+          let result;
+          try {
+            response = await fetch("https://api.cloudflare.com/client/v4/user/tokens/verify", {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            result = await response.json();
+          } catch {
+            console.error("Cloudflare token verification request could not be constructed. Recheck the secret value; it was not logged.");
+            process.exit(1);
+          }
+
+          if (!response.ok || result?.success !== true || result?.result?.status !== "active") {
+            const safeErrors = Array.isArray(result?.errors)
+              ? result.errors.map((entry) => ({ code: entry.code, message: entry.message }))
+              : [];
+            console.error(JSON.stringify({
+              message: "Cloudflare rejected the token before any staging tests or migrations ran.",
+              httpStatus: response.status,
+              errors: safeErrors,
+            }));
+            process.exit(1);
+          }
+
+          appendFileSync(process.env.GITHUB_ENV, `CLOUDFLARE_API_TOKEN=${token}\n`);
+          console.log("Cloudflare API token verified as active. Secret value was not logged.");
+          NODE
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: docker pull postgres:16-alpine
+
+      - run: npm run test:db:tokens
+
+      - run: npm run test:db:refunds
+
+      - run: npm run lint
+
+      - run: npx next typegen
+
+      - run: npx tsc --noEmit
+
+      # Builds with APP_ENV=staging and no .env files or DATABASE_URL fallback.
+      - run: npm run build:cf:staging
+
+      # Applies migrations only to the verified standalone staging database.
+      - name: Migrate staging database
+        run: npm run db:migrate:staging
+
+      # The explicit environment flag is required; top-level production config
+      # in wrangler.jsonc must remain untouched by this deployment.
+      - name: Deploy staging Worker
+        run: npx opennextjs-cloudflare deploy --env staging
+
+      - name: Verify staging responds and stays non-indexable
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            if curl --fail --silent --show-error https://staging.mind-ot.com/robots.txt -o /tmp/mindot-staging-robots.txt; then
+              break
+            fi
+            if [ "$attempt" -eq 12 ]; then
+              echo "Staging robots.txt did not become available after deploy."
+              exit 1
+            fi
+            sleep 10
+          done
+          if ! grep -Fq 'Disallow: /' /tmp/mindot-staging-robots.txt; then
+            echo "Staging robots.txt must disallow indexing."
+            cat /tmp/mindot-staging-robots.txt
+            exit 1
+          fi
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 https://staging.mind-ot.com/ -o /tmp/mindot-staging-home.html
+          echo "Staging HTTP smoke checks passed."
