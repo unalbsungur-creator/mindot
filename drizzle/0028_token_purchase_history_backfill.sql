@@ -1,5 +1,5 @@
 -- Backfill source lots and consumption allocations from immutable historical ledger rows.
--- Reconstructs FIFO by (created_at, id). Never updates token_ledger or token_wallets.
+-- Mirrors runtime accounting: consume earlier available purchase lots first, then other sources by (created_at, id). Never edits token_ledger or token_wallets.
 -- Fails closed if a consume cannot be attributed to earlier credits.
 DO $$
 DECLARE
@@ -80,7 +80,7 @@ BEGIN
         FOR source_row IN
           SELECT * FROM refund_backfill_source_queue
           WHERE user_id = account_row.user_id AND remaining_tokens > 0
-          ORDER BY created_at, source_ledger_entry_id FOR UPDATE
+          ORDER BY CASE WHEN source_type = 'purchase' THEN 0 ELSE 1 END, created_at, source_ledger_entry_id FOR UPDATE
         LOOP
           EXIT WHEN remaining_to_allocate = 0;
           allocated_now := LEAST(remaining_to_allocate, source_row.remaining_tokens);

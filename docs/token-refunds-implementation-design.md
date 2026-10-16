@@ -31,7 +31,7 @@ The agreed operational rule is applied per verified purchase lot, not to the use
 
 ## Historical purchase backfill
 
-Migration `0028_token_purchase_history_backfill` adds purchase lots only for known Shopier packages whose recorded Token count matches the package. It reconstructs historical consumes FIFO from the append-only ledger, for users without existing allocation rows. Existing wallet and Token ledger rows are never updated or deleted. Unknown or ambiguous purchases remain unattributed and should be reviewed manually.
+Migration `0028_token_purchase_history_backfill` adds purchase lots only for known Shopier packages whose recorded Token count matches the package. It reconstructs historical consumes using the runtime source policy—available purchase lots first, then non-purchase credits by (created_at, id)—for users without existing allocation rows. Existing wallet and Token ledger rows are never updated or deleted. Unknown or ambiguous purchases remain unattributed and should be reviewed manually.
 
 The migration fails transactionally if a historical consume cannot be attributed to earlier credits. Run the guarded production migration only after verifying a Neon restore point; it checks the direct production host/database and wallet-to-ledger balance invariant before and after migrations.
 
