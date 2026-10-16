@@ -18,10 +18,11 @@ const REQUEST_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 const MAX_REFERENCE_LENGTH = 200;
 
 /**
- * Admin-entered amount and Token count are intentionally not auto-calculated:
- * no refund formula/policy has been approved. This action reserves the Tokens
- * immediately so they cannot be spent while the external Shopier refund is
- * being performed. The admin must then confirm the actual Shopier reference.
+ * The refund amount and Token quantity are derived from persisted purchase
+ * allocations under the agreed 10% rule. This action reserves the unused
+ * Tokens so they cannot be spent during the external Shopier refund. Confirm
+ * only after Shopier has actually completed the refund and the admin enters
+ * its real external reference.
  */
 export async function createTokenRefund(input: {
   purchaseLotId: string;
