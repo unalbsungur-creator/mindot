@@ -9,6 +9,7 @@ on:
       - mindot-staging-build
     paths:
       - ".github/workflows/deploy-staging.yml"
+      - "wrangler.jsonc"
   workflow_dispatch:
 
 permissions:
