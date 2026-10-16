@@ -82,21 +82,55 @@ jobs:
           console.log("Staging database target verified: " + target.hostname + "/" + databaseName);
           NODE
 
-      # Cloudflare tokens are single-line values. Normalize accidental line breaks
-      # from clipboard pasting without ever printing the token; reject other whitespace.
-      - name: Validate Cloudflare API token formatting
+      # Validate Cloudflare auth before running tests or staging migrations. Never print the token.
+      - name: Verify Cloudflare API token
         shell: bash
         run: |
           node --input-type=module <<'NODE'
           import { appendFileSync } from "node:fs";
+
           const raw = process.env.CLOUDFLARE_API_TOKEN ?? "";
-          const token = raw.replace(/\s/g, "");
+          let token = raw.trim();
+          token = token.replace(/^Bearer\s+/i, "");
+          if ((token.startsWith('"') && token.endsWith('"')) || (token.startsWith("'") && token.endsWith("'"))) {
+            token = token.slice(1, -1);
+          }
+          token = token.replace(/\s/g, "");
           if (!token) {
             console.error("CLOUDFLARE_API_TOKEN is missing. Configure it in GitHub Environment secret 'staging'.");
             process.exit(1);
           }
+          if (!token.startsWith("cfut_")) {
+            console.error("CLOUDFLARE_API_TOKEN does not have the expected user-token prefix (cfut_). Paste only the secret value, not a curl command, label, or Authorization header.");
+            process.exit(1);
+          }
+
+          let response;
+          let result;
+          try {
+            response = await fetch("https://api.cloudflare.com/client/v4/user/tokens/verify", {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            result = await response.json();
+          } catch {
+            console.error("Cloudflare token verification request could not be constructed. Recheck the secret value; it was not logged.");
+            process.exit(1);
+          }
+
+          if (!response.ok || result?.success !== true || result?.result?.status !== "active") {
+            const safeErrors = Array.isArray(result?.errors)
+              ? result.errors.map((entry) => ({ code: entry.code, message: entry.message }))
+              : [];
+            console.error(JSON.stringify({
+              message: "Cloudflare rejected the token before any staging tests or migrations ran.",
+              httpStatus: response.status,
+              errors: safeErrors,
+            }));
+            process.exit(1);
+          }
+
           appendFileSync(process.env.GITHUB_ENV, `CLOUDFLARE_API_TOKEN=${token}\n`);
-          console.log("Cloudflare API token formatting validated; secret value was not logged.");
+          console.log("Cloudflare API token verified as active. Secret value was not logged.");
           NODE
 
       - run: npm ci
