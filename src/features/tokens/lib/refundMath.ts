@@ -30,6 +30,6 @@ export function calculateUnusedTokenRefundKurus({
   // Agreed rule: at most 10% consumed yields a full-price refund. Above 10%,
   // refund only the value of unused Tokens. Use integer arithmetic throughout.
   const usedTokens = packageTokens - unusedTokens;
-  if (BigInt(usedTokens) * 10n <= BigInt(packageTokens)) return packagePriceKurus;
+  if (BigInt(usedTokens) * BigInt(10) <= BigInt(packageTokens)) return packagePriceKurus;
   return Number((BigInt(packagePriceKurus) * BigInt(unusedTokens)) / BigInt(packageTokens));
 }

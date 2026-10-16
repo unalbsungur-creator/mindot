@@ -63,7 +63,7 @@ export async function createTokenRefund(input: {
 
       const [wallet] = await tx.select().from(tokenWallets)
         .where(eq(tokenWallets.userId, lot.userId)).for("update");
-      if (!wallet || wallet.balance < input.tokensReversed) throw new Error("insufficient_balance");
+      if (!wallet) throw new Error("insufficient_balance");
 
       const allocations = await tx.select({
         allocated: sql<number>`coalesce(sum(${tokenPurchaseAllocations.amount}), 0)::int`,
