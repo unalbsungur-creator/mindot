@@ -7,6 +7,7 @@ import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 
+async function main(): Promise<void> {
 const CONFIRMATION = "MINDOT-PRODUCTION-REFUND-0028";
 const PRODUCTION_HOST_PREFIX = "ep-cool-art-b2nhe8o2";
 const ALLOWED_LATEST = new Set([
@@ -85,3 +86,13 @@ try {
 } finally {
   await db.end({ timeout: 5 });
 }
+
+
+}
+
+void main().catch((error: unknown) => {
+  const secret = process.env.PRODUCTION_DATABASE_URL ?? "";
+  const message = error instanceof Error ? error.message : "Unknown preflight error";
+  console.error("[db:migrate:production] Preflight failed: " + message.replaceAll(secret, "[redacted connection string]"));
+  process.exitCode = 1;
+});
