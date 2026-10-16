@@ -91,7 +91,7 @@ jobs:
           import { appendFileSync } from "node:fs";
           const raw = process.env.CLOUDFLARE_API_TOKEN ?? "";
           const token = raw.replace(/[\r\n]/g, "").trim();
-          if (!token || /\\s/.test(token)) {
+          if (!token || /\s/.test(token)) {
             console.error("CLOUDFLARE_API_TOKEN is missing or contains unsupported whitespace. Recreate it and paste the single-line token into GitHub Environment secret 'staging'.");
             process.exit(1);
           }
