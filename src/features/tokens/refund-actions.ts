@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getDb } from "@/lib/db/client";
+import { calculateUnusedTokenRefundKurus } from "@/features/tokens/lib/refundMath";
 import {
   tokenLedger,
   tokenPurchaseAllocations,
@@ -24,16 +25,12 @@ const MAX_REFERENCE_LENGTH = 200;
  */
 export async function createTokenRefund(input: {
   purchaseLotId: string;
-  refundAmountKurus: number;
-  tokensReversed: number;
   requestId: string;
 }): Promise<RefundActionResult> {
   const admin = await requireAdmin();
   if (!admin) return { ok: false, error: "unauthorized" };
   if (
     typeof input.purchaseLotId !== "string" || !input.purchaseLotId ||
-    !Number.isSafeInteger(input.refundAmountKurus) || input.refundAmountKurus <= 0 ||
-    !Number.isSafeInteger(input.tokensReversed) || input.tokensReversed <= 0 ||
     typeof input.requestId !== "string" || !REQUEST_ID.test(input.requestId)
   ) return { ok: false, error: "invalid_input" };
 
@@ -56,11 +53,7 @@ export async function createTokenRefund(input: {
         tokensReversed: tokenRefunds.tokensReversed,
       }).from(tokenRefunds).where(eq(tokenRefunds.idempotencyKey, idempotencyKey)).limit(1);
       if (existing) {
-        if (
-          existing.purchaseLotId === input.purchaseLotId &&
-          existing.refundAmountKurus === input.refundAmountKurus &&
-          existing.tokensReversed === input.tokensReversed
-        ) return;
+        if (existing.purchaseLotId === input.purchaseLotId) return;
         throw new Error("idempotency_conflict");
       }
 
@@ -83,32 +76,43 @@ export async function createTokenRefund(input: {
         .where(and(eq(tokenRefunds.purchaseLotId, lot.id), inArray(tokenRefunds.status, ["pending_external_refund", "external_refund_confirmed"])));
       const alreadyReserved = refunds[0]?.tokens ?? 0;
       const alreadyRefundedAmount = refunds[0]?.amountKurus ?? 0;
-      const unused = lot.packageTokens - (allocations[0]?.allocated ?? 0) - alreadyReserved;
-      if (input.tokensReversed > unused) throw new Error("tokens_exceed_unused");
-      if (input.refundAmountKurus > lot.paidAmountKurus - alreadyRefundedAmount) throw new Error("amount_exceeds_paid");
+      if (alreadyReserved > 0 || alreadyRefundedAmount > 0) throw new Error("refund_already_exists");
+
+      const used = allocations[0]?.allocated ?? 0;
+      if (used < 0 || used > lot.packageTokens) throw new Error("purchase_allocations_inconsistent");
+      const unused = lot.packageTokens - used;
+      if (unused <= 0) throw new Error("no_refundable_tokens");
+
+      const refundAmountKurus = calculateUnusedTokenRefundKurus({
+        packageTokens: lot.packageTokens,
+        packagePriceKurus: lot.paidAmountKurus,
+        unusedTokens: unused,
+      });
+      if (refundAmountKurus <= 0) throw new Error("no_refund_value");
+      if (wallet.balance < unused) throw new Error("insufficient_balance");
 
       const id = crypto.randomUUID();
       const [debited] = await tx.update(tokenWallets)
-        .set({ balance: sql`${tokenWallets.balance} - ${input.tokensReversed}`, updatedAt: new Date() })
-        .where(and(eq(tokenWallets.userId, lot.userId), sql`${tokenWallets.balance} >= ${input.tokensReversed}`))
+        .set({ balance: sql`${tokenWallets.balance} - ${unused}`, updatedAt: new Date() })
+        .where(and(eq(tokenWallets.userId, lot.userId), sql`${tokenWallets.balance} >= ${unused}`))
         .returning({ balance: tokenWallets.balance });
       if (!debited) throw new Error("insufficient_balance");
 
       await tx.insert(tokenLedger).values({
-        id: crypto.randomUUID(), userId: lot.userId, amount: -input.tokensReversed,
+        id: crypto.randomUUID(), userId: lot.userId, amount: -unused,
         type: "refund", balanceAfter: debited.balance, referenceType: "token_refund",
         referenceId: id, idempotencyKey: `${idempotencyKey}:reserve`, createdBy: admin.id,
-        note: "Tokens reserved pending external Shopier refund",
+        note: "Unused Tokens reserved pending external Shopier refund",
       });
       await tx.insert(tokenRefunds).values({
         id, userId: lot.userId, purchaseLotId: lot.id, status: "pending_external_refund",
-        refundAmountKurus: input.refundAmountKurus, tokensReversed: input.tokensReversed,
+        refundAmountKurus, tokensReversed: unused,
         idempotencyKey, createdBy: admin.id,
       });
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message : "";
-    const allowed = ["purchase_not_found", "insufficient_balance", "tokens_exceed_unused", "amount_exceeds_paid", "idempotency_conflict"];
+    const allowed = ["purchase_not_found", "insufficient_balance", "no_refundable_tokens", "no_refund_value", "refund_already_exists", "purchase_allocations_inconsistent", "idempotency_conflict"];
     return { ok: false, error: allowed.includes(reason) ? reason : "conflict" };
   }
   revalidatePath("/admin/refunds");

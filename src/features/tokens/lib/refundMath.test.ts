@@ -9,6 +9,11 @@ describe("calculateUnusedTokenRefundKurus", () => {
     }), 1200);
   });
 
+  it("returns the full package price when exactly 10% was used", () => {
+    assert.equal(calculateUnusedTokenRefundKurus({packageTokens: 10, packagePriceKurus: 1200, unusedTokens: 9}), 1200);
+    assert.equal(calculateUnusedTokenRefundKurus({packageTokens: 50, packagePriceKurus: 5000, unusedTokens: 45}), 5000);
+  });
+
   it("returns zero when no purchased Tokens remain unused", () => {
     assert.equal(calculateUnusedTokenRefundKurus({
       packageTokens: 50, packagePriceKurus: 5000, unusedTokens: 0,

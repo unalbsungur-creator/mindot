@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { cancelTokenRefund, confirmTokenRefund, createTokenRefund } from "@/features/tokens/refund-actions";
+import { calculateUnusedTokenRefundKurus } from "@/features/tokens/lib/refundMath";
 
 type RefundStatus = "pending_external_refund" | "external_refund_confirmed" | "cancelled";
 type RefundRow = {
@@ -35,14 +36,11 @@ export function AdminRefundsContent({ refunds, purchases, authorized }: { refund
 
   async function createRefund(event: React.FormEvent<HTMLFormElement>, purchaseLotId: string) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
     setBusy(true);
     setNotice(null);
     try {
       const result = await createTokenRefund({
         purchaseLotId,
-        refundAmountKurus: Math.round(Number(form.get("refundAmountTry")) * 100),
-        tokensReversed: Number(form.get("tokensReversed")),
         requestId: crypto.randomUUID(),
       });
       setNotice(result.ok ? labels.actionSuccess : labels.actionError);
@@ -142,15 +140,18 @@ export function AdminRefundsContent({ refunds, purchases, authorized }: { refund
                 <td className="px-4 py-3 whitespace-nowrap">{date(purchase.paymentApprovedAt, locale)}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{date(purchase.createdAt, locale)}</td>
                 <td className="px-4 py-3">
-                  <form onSubmit={(event) => createRefund(event, purchase.id)} className="min-w-56 space-y-2">
-                    <label className="block text-xs">{labels.refundAmountInput}
-                      <input name="refundAmountTry" type="number" min="0.01" max={purchase.paidAmountKurus / 100} step="0.01" required className="mt-1 w-full rounded border border-border bg-canvas px-2 py-1" />
-                    </label>
-                    <label className="block text-xs">{labels.tokensToReverseInput}
-                      <input name="tokensReversed" type="number" min="1" max={purchase.remainingRecordedTokens ?? 0} step="1" required disabled={purchase.remainingRecordedTokens === null || purchase.remainingRecordedTokens <= 0} className="mt-1 w-full rounded border border-border bg-canvas px-2 py-1" />
-                    </label>
-                    <button disabled={busy || purchase.remainingRecordedTokens === null || purchase.remainingRecordedTokens <= 0} className="rounded bg-navy px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">{labels.createRefund}</button>
-                  </form>
+                  {purchase.remainingRecordedTokens === null ? (
+                    <span className="text-xs text-ink-soft">{labels.allocationInconsistent}</span>
+                  ) : (
+                    <form onSubmit={(event) => createRefund(event, purchase.id)} className="min-w-56 space-y-2">
+                      <div className="text-xs text-ink-soft">{labels.refundAmountInput}</div>
+                      <div className="font-medium tabular-nums">
+                        {money(calculateUnusedTokenRefundKurus({ packageTokens: purchase.packageTokens, packagePriceKurus: purchase.paidAmountKurus, unusedTokens: purchase.remainingRecordedTokens }), locale)}
+                      </div>
+                      <div className="text-xs text-ink-soft">{labels.tokensToReverseInput}: {purchase.remainingRecordedTokens}</div>
+                      <button disabled={busy || purchase.remainingRecordedTokens <= 0 || calculateUnusedTokenRefundKurus({ packageTokens: purchase.packageTokens, packagePriceKurus: purchase.paidAmountKurus, unusedTokens: purchase.remainingRecordedTokens }) <= 0} className="rounded bg-navy px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">{labels.createRefund}</button>
+                    </form>
+                  )}
                 </td>
               </tr>)}
               {purchases.length === 0 && <tr><td colSpan={9} className="px-4 py-10 text-center text-ink-soft">{labels.noPurchases}</td></tr>}

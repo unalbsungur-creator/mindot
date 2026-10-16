@@ -55,11 +55,27 @@ describe("createTokenRefund on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TE
       buyerEmail: `${userId}@example.test`,
     });
     assert.equal(purchase.status, "credited");
-    const [lot] = await sql<{ id: string }[]>`
-      select id from token_purchase_lots
+    const [lot] = await sql<{ id: string; credited_ledger_entry_id: string }[]>`
+      select id, credited_ledger_entry_id from token_purchase_lots
       where provider = 'shopier' and external_order_reference = ${orderRef}`;
     assert.ok(lot, "the fixture purchase lot must exist");
     purchaseLotId = lot.id;
+    const consumeId = crypto.randomUUID();
+    const projectId = `refund-test-project-${crypto.randomUUID()}`;
+    const [debited] = await sql<{ balance: number }[]>`
+      update token_wallets set balance = balance - 1, updated_at = now()
+      where user_id = ${userId} and balance >= 1 returning balance`;
+    assert.ok(debited);
+    await sql`
+      insert into token_ledger
+        (id, user_id, amount, type, balance_after, reference_type, reference_id, idempotency_key, created_by, note)
+      values
+        (${consumeId}, ${userId}, -1, 'consume', ${debited.balance}, 'memory_project', ${projectId}, ${`refund-test-consume:${consumeId}`}, null, 'refund test fixture')`;
+    await sql`
+      insert into token_purchase_allocations
+        (id, user_id, consume_ledger_entry_id, source_ledger_entry_id, purchase_lot_id, source_type, amount)
+      values
+        (${crypto.randomUUID()}, ${userId}, ${consumeId}, ${lot.credited_ledger_entry_id}, ${lot.id}, 'purchase', 1)`;
   });
 
   after(async () => {
@@ -68,12 +84,7 @@ describe("createTokenRefund on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TE
 
   it("returns idempotent success for concurrent identical requests and debits exactly once", async () => {
     const requestId = crypto.randomUUID();
-    const input = {
-      purchaseLotId,
-      refundAmountKurus: 100,
-      tokensReversed: 1,
-      requestId,
-    };
+    const input = { purchaseLotId, requestId };
 
     const results = await Promise.all(
       Array.from({ length: 12 }, () => createTokenRefund(input))
@@ -82,26 +93,28 @@ describe("createTokenRefund on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TE
     assert.deepEqual(results, Array.from({ length: 12 }, () => ({ ok: true })));
 
     const idempotencyKey = `token_refund_reserve:${requestId}`;
-    const [rows] = await sql<{ refunds: number; reservedEntries: number }[]>`
+    const [rows] = await sql<{ refunds: number; reservedEntries: number; amountKurus: number; tokensReversed: number }[]>`
       select
         (select count(*)::int from token_refunds where idempotency_key = ${idempotencyKey}) as refunds,
-        (select count(*)::int from token_ledger where idempotency_key = ${`${idempotencyKey}:reserve`}) as "reservedEntries"`;
-    assert.deepEqual(rows, { refunds: 1, reservedEntries: 1 });
+        (select count(*)::int from token_ledger where idempotency_key = ${`${idempotencyKey}:reserve`}) as "reservedEntries",
+        (select refund_amount_kurus from token_refunds where idempotency_key = ${idempotencyKey}) as "amountKurus",
+        (select tokens_reversed from token_refunds where idempotency_key = ${idempotencyKey}) as "tokensReversed"`;
+    assert.deepEqual(rows, { refunds: 1, reservedEntries: 1, amountKurus: 1200, tokensReversed: 9 });
 
     const [wallet] = await sql<{ balance: number; ledgerTotal: number }[]>`
       select
         (select balance from token_wallets where user_id = ${userId}) as balance,
         (select coalesce(sum(amount), 0)::int from token_ledger where user_id = ${userId}) as "ledgerTotal"`;
-    assert.equal(wallet.balance, 9, "only one Token is reserved from the 10-Token purchase");
-    assert.equal(wallet.ledgerTotal, 9, "wallet projection equals the append-only ledger sum");
+    assert.equal(wallet.balance, 0, "the nine unused Tokens are reserved from the 10-Token purchase");
+    assert.equal(wallet.ledgerTotal, 0, "wallet projection equals the append-only ledger sum");
 
-    const conflictingReplay = await createTokenRefund({ ...input, refundAmountKurus: 101 });
+    const conflictingReplay = await createTokenRefund({ ...input, purchaseLotId: "different-purchase-lot" });
     assert.deepEqual(conflictingReplay, { ok: false, error: "idempotency_conflict" });
 
     const [afterConflict] = await sql<{ refunds: number; balance: number }[]>`
       select
         (select count(*)::int from token_refunds where idempotency_key = ${idempotencyKey}) as refunds,
         (select balance from token_wallets where user_id = ${userId}) as balance`;
-    assert.deepEqual(afterConflict, { refunds: 1, balance: 9 }, "conflicting reuse must not mutate the wallet or refund history");
+    assert.deepEqual(afterConflict, { refunds: 1, balance: 0 }, "conflicting reuse must not mutate the wallet or refund history");
   });
 });
