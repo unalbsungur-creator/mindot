@@ -46,6 +46,10 @@ jobs:
       # Drizzle migrations must not race each other in parallel test processes.
       - run: npm run test:db:refunds
 
+      # Admin credentials lockout (expired lock restarts the count) on its
+      # own disposable database, for the same migration-race reason.
+      - run: npm run test:db:admin-lockout
+
       - run: npm run lint
 
       # PageProps/LayoutProps are global types Next generates into the
