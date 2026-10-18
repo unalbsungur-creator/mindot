@@ -163,6 +163,20 @@ describe("account deletion on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TES
     });
     assert.equal(granted.status, "granted");
     assert.equal((await tokenRepository.consumeForMemoryPdfUnlock({ userId: target, memoryProjectId: unlockedProject })).status, "newly_unlocked");
+    // A Shopier purchase (lot + its credit, recorded by `other` as the admin) after that
+    // consume, so the unlock's allocation stays on the grant, and a pending refund of it
+    // opened by the target — token_purchase_lots.user_id, token_refunds.user_id/created_by.
+    const orderRef = `T-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    const purchase = await tokenRepository.creditShopierPurchase({
+      userId: target, adminId: other, packageId: "tokens-10", orderRef, buyerEmail: `${target}@example.test`,
+    });
+    assert.equal(purchase.status, "credited");
+    const [{ id: lotId }] = await sql<{ id: string }[]>`
+      select id from token_purchase_lots where provider = 'shopier' and external_order_reference = ${orderRef}`;
+    const refundId = uid("refund");
+    await sql`
+      insert into token_refunds (id, user_id, purchase_lot_id, status, refund_amount_kurus, tokens_reversed, idempotency_key, created_by)
+      values (${refundId}, ${target}, ${lotId}, 'pending_external_refund', 100, 1, ${`test-refund:${crypto.randomUUID()}`}, ${target})`;
     const codedProject = await createProject(target, othersMessage);
     const codeId = uid("code");
     await sql`insert into digital_access_codes (id, memory_project_id, code, status, redeemed_at, redeemed_by)
@@ -184,7 +198,7 @@ describe("account deletion on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TES
     return {
       target, other, third, othersMessage, published, unpublished, rejectedReported, pendingNotified, othersLike,
       filedReport, reviewedReport, othersNotification, draftProject, orderedProject, orderId, unlockedProject,
-      codedProject, codeId, othersSession,
+      codedProject, codeId, othersSession, lotId, refundId,
     };
   }
 
@@ -194,7 +208,7 @@ describe("account deletion on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TES
     const { target } = await seedAccount();
     const missing = Object.entries(await referencesTo(target)).filter(([, n]) => n === 0).map(([fk]) => fk);
     assert.deepEqual(missing, [], "extend seedAccount for a new foreign key to users.id (and check deleteAccount handles it)");
-    assert.equal((await userForeignKeys()).length, 20);
+    assert.equal((await userForeignKeys()).length, 24);
   });
 
   it("deletes or re-points every reference, removing the account and leaving other people's rows alone", async () => {
@@ -258,7 +272,11 @@ describe("account deletion on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TES
         (select coalesce(sum(amount), 0)::int from token_ledger where user_id = ${tombstone}) as total,
         (select count(*)::int from token_ledger where user_id = ${tombstone}) as entries,
         (select count(*)::int from token_ledger where created_by = ${tombstone}) as created`;
-    assert.deepEqual(tokens, { balance: 2, total: 2, entries: 2, created: 1 }, "balance == SUM(ledger) stays with the tombstone");
+    // Grant 3 − unlock 1 + Shopier tokens-10 purchase 10; only the grant was created by the target.
+    assert.deepEqual(tokens, { balance: 12, total: 12, entries: 3, created: 1 }, "balance == SUM(ledger) stays with the tombstone");
+    assert.equal(await count(sql`select count(*)::int as n from token_purchase_lots where id = ${f.lotId} and user_id = ${tombstone}`), 1);
+    assert.equal(await count(sql`select count(*)::int as n from token_refunds
+      where id = ${f.refundId} and user_id = ${tombstone} and created_by = ${tombstone}`), 1);
     assert.equal(await count(sql`select count(*)::int as n from message_reports where id = ${f.filedReport} and reporter_id = ${tombstone}`), 1);
     assert.equal(await count(sql`select count(*)::int as n from message_reports where id = ${f.reviewedReport} and reviewed_by = ${tombstone}`), 1);
     assert.equal(await count(sql`select count(*)::int as n from messages
