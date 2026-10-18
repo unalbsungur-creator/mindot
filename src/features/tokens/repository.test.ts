@@ -30,9 +30,13 @@ import { MAX_ADMIN_GRANT_AMOUNT } from "./types";
 // and the ledger guard triggers run against a disposable Postgres in
 // repository.db.test.ts (npm run test:db:tokens).
 
-const MIGRATION = readFileSync("drizzle/0016_graceful_king_cobra.sql", "utf-8");
-const GUARD_MIGRATION = readFileSync("drizzle/0022_token_ledger_append_only.sql", "utf-8");
-const FIRST_SHARE_REWARD_MIGRATION = readFileSync("drizzle/0023_first_share_reward.sql", "utf-8");
+// Line endings normalized: a Windows checkout with core.autocrlf=true turns
+// the migrations' LF into CRLF, which the multi-line expectations below
+// would otherwise never match. The SQL content itself is compared unchanged.
+const readMigration = (path: string) => readFileSync(path, "utf-8").replace(/\r\n/g, "\n");
+const MIGRATION = readMigration("drizzle/0016_graceful_king_cobra.sql");
+const GUARD_MIGRATION = readMigration("drizzle/0022_token_ledger_append_only.sql");
+const FIRST_SHARE_REWARD_MIGRATION = readMigration("drizzle/0023_first_share_reward.sql");
 
 function constraintNames(table: PgTable) {
   const config = getTableConfig(table);
