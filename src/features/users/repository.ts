@@ -29,9 +29,11 @@ const MAX_GENERATION_ATTEMPTS = 5;
 // EPIC 030: after this many consecutive failed credentials sign-ins, the
 // account is locked out for LOCKOUT_MINUTES — DB-persisted (see schema.ts's
 // failedLoginAttempts/lockedUntil doc comment) so it survives a restart or
-// a different serverless instance handling the next request.
-const MAX_FAILED_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_MINUTES = 15;
+// a different serverless instance handling the next request. An expired
+// lockout starts a fresh count: the failure after it is attempt 1, never a
+// sixth that would re-lock at once — see recordFailedLogin().
+export const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+export const LOCKOUT_MINUTES = 15;
 
 export interface UserRepository {
   getById(id: string): Promise<User | null>;
@@ -114,8 +116,14 @@ export interface UserRepository {
    * Caller is responsible for trimming/lowercasing `email` first.
    */
   getCredentialsByEmail(email: string): Promise<CredentialsUser | null>;
-  /** Increments the failed-attempt counter and, once MAX_FAILED_LOGIN_ATTEMPTS is reached, sets `lockedUntil` LOCKOUT_MINUTES ahead — see schema.ts. */
-  recordFailedLogin(userId: string): Promise<void>;
+  /**
+   * Records one failed credentials sign-in at `now`, in a single atomic
+   * UPDATE: an expired lockout restarts the count at 1 (and clears
+   * `lockedUntil`), otherwise the counter is incremented; reaching
+   * MAX_FAILED_LOGIN_ATTEMPTS sets `lockedUntil` LOCKOUT_MINUTES after
+   * `now`. An active lockout is never extended. See schema.ts.
+   */
+  recordFailedLogin(userId: string, now?: Date): Promise<void>;
   /** Resets the failed-attempt counter/lockout on a successful credentials sign-in. */
   recordSuccessfulLogin(userId: string): Promise<void>;
   /**
@@ -376,20 +384,28 @@ class DrizzleUserRepository implements UserRepository {
     };
   }
 
-  async recordFailedLogin(userId: string): Promise<void> {
+  async recordFailedLogin(userId: string, now: Date = new Date()): Promise<void> {
     const db = getDb();
-    const now = new Date();
-    const [row] = await db
+    // One statement, so concurrent failures serialize on the row lock and
+    // each sees the previous one's committed count. Every expression reads
+    // the row as it was before this UPDATE.
+    const at = sql`${now.toISOString()}::timestamptz`;
+    const lockEnd = sql`${new Date(now.getTime() + LOCKOUT_MINUTES * 60_000).toISOString()}::timestamptz`;
+    const lockExpired = sql`(${users.lockedUntil} is not null and ${users.lockedUntil} <= ${at})`;
+    const lockActive = sql`(${users.lockedUntil} is not null and ${users.lockedUntil} > ${at})`;
+    const nextCount = sql`(case when ${lockExpired} then 1 else ${users.failedLoginAttempts} + 1 end)`;
+    await db
       .update(users)
-      .set({ failedLoginAttempts: sql`${users.failedLoginAttempts} + 1`, updatedAt: now })
-      .where(eq(users.id, userId))
-      .returning({ failedLoginAttempts: users.failedLoginAttempts });
-    if (row && row.failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
-      await db
-        .update(users)
-        .set({ lockedUntil: new Date(now.getTime() + LOCKOUT_MINUTES * 60_000) })
-        .where(eq(users.id, userId));
-    }
+      .set({
+        failedLoginAttempts: nextCount,
+        lockedUntil: sql`case
+          when ${lockActive} then ${users.lockedUntil}
+          when ${nextCount} >= ${MAX_FAILED_LOGIN_ATTEMPTS} then ${lockEnd}
+          else null
+        end`,
+        updatedAt: now,
+      })
+      .where(eq(users.id, userId));
   }
 
   async recordSuccessfulLogin(userId: string): Promise<void> {

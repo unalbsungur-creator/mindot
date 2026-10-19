@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { User, UserRole } from "@/features/users/types";
+import type { CredentialsUser, User, UserRole } from "@/features/users/types";
 import {
   checkAppleSignIn,
   checkGoogleSignIn,
   completeAppleSignIn,
   completeGoogleSignIn,
   finishAppleSignIn,
+  verifyAdminCredentials,
+  type AdminCredentialsDeps,
   type ProviderSignInDeps,
 } from "./service";
 
@@ -128,5 +130,104 @@ describe("Apple sign-in", () => {
     await completeAppleSignIn(apple, "web", token, refused.deps);
     assert.equal(refused.calls.appleUpserts.length, 0);
     assert.equal(refused.calls.tokenSaves.length, 0);
+  });
+});
+
+describe("admin credentials sign-in", () => {
+  const NOW = new Date("2026-10-18T12:00:00.000Z");
+
+  function admin(overrides: Partial<CredentialsUser> = {}): CredentialsUser {
+    return {
+      id: "admin-1",
+      name: "Admin",
+      role: "admin",
+      status: "active",
+      passwordHash: "scrypt:salt:hash",
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      ...overrides,
+    };
+  }
+
+  function fakeAdminDeps(candidate: CredentialsUser | null, correctPassword = "right") {
+    const calls = { lookups: [] as string[], verified: 0, failures: [] as [string, Date | undefined][], successes: [] as string[] };
+    const deps: AdminCredentialsDeps = {
+      users: {
+        async getCredentialsByEmail(email) {
+          calls.lookups.push(email);
+          return candidate;
+        },
+        async recordFailedLogin(userId, now) {
+          calls.failures.push([userId, now]);
+        },
+        async recordSuccessfulLogin(userId) {
+          calls.successes.push(userId);
+        },
+      },
+      async verifyPassword(password) {
+        calls.verified++;
+        return password === correctPassword;
+      },
+    };
+    return { deps, calls };
+  }
+
+  it("signs in with the right password and resets the counter", async () => {
+    const { deps, calls } = fakeAdminDeps(admin({ failedLoginAttempts: 3 }));
+    const result = await verifyAdminCredentials({ email: "  Admin@Example.TEST ", password: "right" }, NOW, deps);
+    assert.deepEqual(result, { id: "admin-1", name: "Admin", role: "admin" });
+    assert.deepEqual(calls.lookups, ["admin@example.test"]);
+    assert.deepEqual(calls.successes, ["admin-1"]);
+    assert.equal(calls.failures.length, 0);
+  });
+
+  it("records a wrong password with the same `now` the lock check used", async () => {
+    const { deps, calls } = fakeAdminDeps(admin());
+    assert.equal(await verifyAdminCredentials({ email: "admin@example.test", password: "wrong" }, NOW, deps), null);
+    assert.deepEqual(calls.failures, [["admin-1", NOW]]);
+    assert.equal(calls.successes.length, 0);
+  });
+
+  it("refuses both a wrong and the right password while locked, without checking either or counting", async () => {
+    const locked = admin({ failedLoginAttempts: 5, lockedUntil: new Date(NOW.getTime() + 60_000) });
+    for (const password of ["wrong", "right"]) {
+      const { deps, calls } = fakeAdminDeps(locked);
+      assert.equal(await verifyAdminCredentials({ email: "admin@example.test", password }, NOW, deps), null);
+      assert.equal(calls.verified, 0);
+      assert.equal(calls.failures.length, 0);
+      assert.equal(calls.successes.length, 0);
+    }
+  });
+
+  it("checks the password again once the lock has expired — exactly at lockedUntil included", async () => {
+    for (const lockedUntil of [NOW, new Date(NOW.getTime() - 1)]) {
+      const wrong = fakeAdminDeps(admin({ failedLoginAttempts: 5, lockedUntil }));
+      assert.equal(await verifyAdminCredentials({ email: "admin@example.test", password: "wrong" }, NOW, wrong.deps), null);
+      assert.deepEqual(wrong.calls.failures, [["admin-1", NOW]]);
+
+      const right = fakeAdminDeps(admin({ failedLoginAttempts: 5, lockedUntil }));
+      assert.ok(await verifyAdminCredentials({ email: "admin@example.test", password: "right" }, NOW, right.deps));
+      assert.deepEqual(right.calls.successes, ["admin-1"]);
+    }
+  });
+
+  it("refuses unknown, non-admin and suspended accounts without counting anything", async () => {
+    const cases: (CredentialsUser | null)[] = [null, admin({ role: "user" }), admin({ status: "suspended" })];
+    for (const candidate of cases) {
+      const { deps, calls } = fakeAdminDeps(candidate);
+      assert.equal(await verifyAdminCredentials({ email: "admin@example.test", password: "right" }, NOW, deps), null);
+      assert.equal(calls.verified, 0);
+      assert.equal(calls.failures.length, 0);
+      assert.equal(calls.successes.length, 0);
+    }
+  });
+
+  it("refuses missing or non-string credentials before any lookup", async () => {
+    const inputs = [undefined, {}, { email: "admin@example.test" }, { password: "right" }, { email: "   ", password: "right" }, { email: 1, password: 2 }];
+    for (const input of inputs) {
+      const { deps, calls } = fakeAdminDeps(admin());
+      assert.equal(await verifyAdminCredentials(input, NOW, deps), null);
+      assert.equal(calls.lookups.length, 0);
+    }
   });
 });

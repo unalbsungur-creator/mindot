@@ -50,6 +50,10 @@ jobs:
       # disposable database: a new FK without a deleteAccount update fails here.
       - run: npm run test:db:account-deletion
 
+      # Admin credentials lockout (expired lock restarts the count) on its
+      # own disposable database, for the same migration-race reason.
+      - run: npm run test:db:admin-lockout
+
       - run: npm run lint
 
       # PageProps/LayoutProps are global types Next generates into the

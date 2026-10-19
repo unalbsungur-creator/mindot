@@ -3,11 +3,17 @@ import Apple from "next-auth/providers/apple";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { userRepository } from "@/features/users/repository";
-import { verifyPassword } from "@/features/users/lib/password";
 import type { UserRole } from "@/features/users/types";
 import { getAuthRuntimeConfig } from "@/lib/env";
 import { parseAppleProfile } from "./lib/appleProfile";
-import { checkAppleSignIn, checkGoogleSignIn, finishAppleSignIn, finishGoogleSignIn, type ProviderSignInCheck } from "./service";
+import {
+  checkAppleSignIn,
+  checkGoogleSignIn,
+  finishAppleSignIn,
+  finishGoogleSignIn,
+  verifyAdminCredentials,
+  type ProviderSignInCheck,
+} from "./service";
 
 /**
  * Google (normal users) + Credentials (admin only), one Auth.js instance,
@@ -149,28 +155,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // the lookup (case-insensitive, matching how the one admin row's
       // email was provisioned); the password is never normalized — a
       // password is compared byte-for-byte via the existing scrypt
-      // verifier, exactly as before.
+      // verifier, exactly as before. The checks and the lockout live in
+      // verifyAdminCredentials (./service).
       async authorize(credentials) {
-        const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : "";
-        const password = typeof credentials?.password === "string" ? credentials.password : "";
-        if (!email || !password) return null;
-
-        const candidate = await userRepository.getCredentialsByEmail(email);
-        if (!candidate) return null;
-        // Credentials sign-in is admin-only by design (see file doc
-        // comment) and suspension is re-checked here even though today
-        // only an admin account ever has a passwordHash — belt-and-braces
-        // against this ever being repurposed for a non-admin account later.
-        if (candidate.role !== "admin" || candidate.status !== "active") return null;
-        if (candidate.lockedUntil && candidate.lockedUntil.getTime() > Date.now()) return null;
-
-        const passwordMatches = await verifyPassword(password, candidate.passwordHash);
-        if (!passwordMatches) {
-          await userRepository.recordFailedLogin(candidate.id);
-          return null;
-        }
-        await userRepository.recordSuccessfulLogin(candidate.id);
-        return { id: candidate.id, name: candidate.name, role: candidate.role, authProvider: "credentials" };
+        const admin = await verifyAdminCredentials(credentials);
+        return admin ? { ...admin, authProvider: "credentials" } : null;
       },
     }),
     ...appleProviders,

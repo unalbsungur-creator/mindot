@@ -1,3 +1,4 @@
+import { verifyPassword } from "@/features/users/lib/password";
 import { appleUserId } from "@/features/users/lib/providerIds";
 import { userRepository, type UserRepository } from "@/features/users/repository";
 import type { User, UserRole } from "@/features/users/types";
@@ -134,4 +135,47 @@ export async function completeAppleSignIn(
   const check = await checkAppleSignIn(identity, deps);
   if (!check.ok) return check;
   return { ok: true, ...(await finishAppleSignIn(identity, client, refreshToken, deps)) };
+}
+
+export interface AdminCredentialsDeps {
+  users: Pick<UserRepository, "getCredentialsByEmail" | "recordFailedLogin" | "recordSuccessfulLogin">;
+  verifyPassword: (password: string, storedHash: string) => Promise<boolean>;
+}
+
+const defaultAdminCredentialsDeps: AdminCredentialsDeps = { users: userRepository, verifyPassword };
+
+/**
+ * The Credentials provider's `authorize()` (features/auth/auth.ts): the one
+ * admin's email + password sign-in. Returns `null` for every rejection —
+ * unknown email, no password, non-admin, suspended, locked out, wrong
+ * password — so the caller can never tell *why* (no email enumeration).
+ *
+ * While `lockedUntil` is after `now`, the password is not checked at all,
+ * so even the right one is refused. The same `now` is used for that check
+ * and for recording a failure, so "expired" means the same thing to both;
+ * the failure after an expired lockout starts a fresh count
+ * (userRepository.recordFailedLogin).
+ */
+export async function verifyAdminCredentials(
+  credentials: Partial<Record<"email" | "password", unknown>> | undefined,
+  now: Date = new Date(),
+  deps: AdminCredentialsDeps = defaultAdminCredentialsDeps
+): Promise<{ id: string; name: string | null; role: UserRole } | null> {
+  const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : "";
+  const password = typeof credentials?.password === "string" ? credentials.password : "";
+  if (!email || !password) return null;
+
+  const candidate = await deps.users.getCredentialsByEmail(email);
+  if (!candidate) return null;
+  // Credentials sign-in is admin-only by design, and suspension is re-checked
+  // here even though today only an admin account ever has a passwordHash.
+  if (candidate.role !== "admin" || candidate.status !== "active") return null;
+  if (candidate.lockedUntil && candidate.lockedUntil.getTime() > now.getTime()) return null;
+
+  if (!(await deps.verifyPassword(password, candidate.passwordHash))) {
+    await deps.users.recordFailedLogin(candidate.id, now);
+    return null;
+  }
+  await deps.users.recordSuccessfulLogin(candidate.id);
+  return { id: candidate.id, name: candidate.name, role: candidate.role };
 }
