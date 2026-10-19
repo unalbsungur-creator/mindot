@@ -2,6 +2,19 @@
 
 The `Deploy staging` GitHub Actions workflow is deliberately staging-only. It runs tests, builds with `APP_ENV=staging`, applies migrations to an explicitly allowlisted standalone staging database, deploys Wrangler's `--env staging` Worker, and checks the staging homepage and non-indexable robots file. It never targets the top-level production Worker.
 
+## Current environment map
+
+Verified read-only on 2026-10-19 (`wrangler hyperdrive get`, `wrangler versions view`). Identifiers only — connection strings and credentials never belong in this file.
+
+| | Production | Staging |
+|---|---|---|
+| Worker | `mindot` | `mindot-staging` (`--env staging`) |
+| Hyperdrive | `8c1d28bf42b047c1954fd3108ece3d0f` (`mindot-db`) | `1c8e1d72a9584615bcbb1150f7b2a9b5` (`mindot-staging-app-v2`) |
+| Neon endpoint (direct) | `ep-cool-art-b2nhe8o2` | `ep-morning-hat-b1wdnpa2` |
+| Database | `neondb` | `mindot_staging_app` |
+
+Staging moved to this Hyperdrive/database in `630db7d` (2026-10-16). The earlier staging Hyperdrive `72f3259d…` and its origin endpoint `ep-little-shadow-b1haass3` are no longer used by the Worker — don't treat either as staging's database. Before any staging database work, re-check that the Hyperdrive origin still matches this table.
+
 ## Required GitHub Environment configuration
 
 Open **Repository → Settings → Environments → staging**. Add the following environment secrets and variables. The first deployment attempt on 2026-10-16 stopped before installing dependencies, migrations, or deployment because all five required values were absent; no staging or production database was changed by that attempt.
