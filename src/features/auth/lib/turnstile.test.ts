@@ -30,6 +30,30 @@ function fakeFetch(
   return { impl, calls };
 }
 
+/**
+ * A signal-aware fake `fetch` that stays pending until its AbortSignal fires,
+ * then rejects exactly as a real aborted fetch does (AbortError). This lets
+ * the timeout path be exercised deterministically — the request resolves only
+ * because verifyTurnstileToken's internal timer aborts it — with no real HTTP,
+ * no network timing, and no hanging promise.
+ */
+function abortAwareFetch() {
+  const calls: { url: string; init: RequestInit | undefined }[] = [];
+  const impl = ((url: unknown, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+    return new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      const abort = () => reject(new DOMException("The operation was aborted.", "AbortError"));
+      if (signal?.aborted) {
+        abort();
+        return;
+      }
+      signal?.addEventListener("abort", abort, { once: true });
+    });
+  }) as unknown as typeof fetch;
+  return { impl, calls };
+}
+
 function options(overrides: Partial<TurnstileVerifyOptions> = {}): TurnstileVerifyOptions {
   return {
     secret: "secret-key",
@@ -103,6 +127,23 @@ describe("verifyTurnstileToken", () => {
   it("fails closed on a malformed (non-JSON) response", async () => {
     const { impl } = fakeFetch(null, { jsonThrows: true });
     assert.deepEqual(await verifyTurnstileToken("tok", options({ fetchImpl: impl })), { ok: false, reason: "malformed-response" });
+  });
+
+  // GÖREV 44 / C5 — the AbortController timeout fires and the request fails closed.
+  it("aborts the siteverify request on timeout and fails closed (request-failed)", async () => {
+    const { impl, calls } = abortAwareFetch();
+    const result = await verifyTurnstileToken("tok", options({ fetchImpl: impl, timeoutMs: 5 }));
+    assert.deepEqual(result, { ok: false, reason: "request-failed" });
+    // The timer, not the fetch, resolved this: the signal handed to fetch was aborted.
+    assert.equal((calls[0].init?.signal as AbortSignal).aborted, true);
+  });
+
+  // GÖREV 44 / C6 — a timed-out request is made exactly once, never retried.
+  it("makes exactly one siteverify attempt on a timeout — no retry", async () => {
+    const { impl, calls } = abortAwareFetch();
+    const result = await verifyTurnstileToken("tok", options({ fetchImpl: impl, timeoutMs: 5 }));
+    assert.equal(result.ok, false);
+    assert.equal(calls.length, 1, "no retry after a timeout");
   });
 
   it("forwards secret and response, and the remote IP only when provided", async () => {

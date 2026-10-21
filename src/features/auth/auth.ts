@@ -7,6 +7,7 @@ import { userRepository } from "@/features/users/repository";
 import type { UserRole } from "@/features/users/types";
 import { getAuthRuntimeConfig } from "@/lib/env";
 import { parseAppleProfile } from "./lib/appleProfile";
+import { pickTrustedRemoteIp } from "./lib/remoteIp";
 import {
   checkAppleSignIn,
   checkGoogleSignIn,
@@ -26,7 +27,11 @@ import {
  */
 async function adminTurnstileRemoteIp(): Promise<string | null> {
   try {
-    return (await headers()).get("CF-Connecting-IP");
+    // Header selection (CF-Connecting-IP only, never forgeable forwarding
+    // headers) lives in the pure, unit-tested pickTrustedRemoteIp helper;
+    // the request-scope error handling (next/headers throwing outside a
+    // request) stays here.
+    return pickTrustedRemoteIp(await headers());
   } catch {
     return null;
   }
