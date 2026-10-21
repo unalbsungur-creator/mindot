@@ -5,6 +5,8 @@ import { useRef, useState, useTransition } from "react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/Button";
 import { adminSignIn, type AdminSignInError } from "@/features/auth/actions";
+import { TurnstileWidget } from "@/features/auth/components/TurnstileWidget";
+import { TURNSTILE_ADMIN_LOGIN_ACTION } from "@/features/auth/lib/turnstileConstants";
 import { useLocale } from "@/i18n/LocaleProvider";
 
 /**
@@ -13,42 +15,60 @@ import { useLocale } from "@/i18n/LocaleProvider";
  * authentication *option* here, it's a different flow entirely for a
  * different audience (see CLAUDE.md's authentication section once updated).
  *
- * EPIC 036: the login identity is email (`unalbsungur@hotmail.com`), not
- * username — the DB row still has a `username` column, but this form
- * never collects or sends it; `adminSignIn`/`authorize()` look the
- * account up by email now.
+ * EPIC 036: the login identity is email, not username — the DB row still has
+ * a `username` column, but this form never collects or sends it;
+ * `adminSignIn`/`authorize()` look the account up by email now.
+ *
+ * GÖREV 30 / P1: a Cloudflare Turnstile Managed widget (action `admin-login`)
+ * gates the submit — the button stays disabled until a token is present, and
+ * the widget is reset after a failed attempt (its token is single-use). The
+ * token is verified server-side in verifyAdminCredentials; the client check
+ * is only UX. When the site key is unconfigured the form shows an unavailable
+ * state and cannot be submitted (the server would reject it regardless).
  *
  * Every rejection reason — wrong password, unknown email, a real account
- * that just isn't an admin, a suspended admin, a locked-out account —
- * renders as the exact same `invalidCredentials` message. That's
- * deliberate (no email enumeration), not a missing feature.
+ * that just isn't an admin, a suspended admin, a locked-out account, a failed
+ * Turnstile check — renders as the exact same `invalidCredentials` message.
+ * That's deliberate (no email enumeration), not a missing feature.
  */
-export function AdminLoginPageContent() {
+export function AdminLoginPageContent({ turnstileSiteKey }: { turnstileSiteKey: string | null }) {
   const { dictionary } = useLocale();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<AdminSignInError | undefined>();
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetSignal, setTurnstileResetSignal] = useState(0);
+  const [turnstileFailed, setTurnstileFailed] = useState(false);
   // Same real re-entrancy guard used by ShareCardPicker/SocialShareActions —
   // `isPending` alone drives the disabled UI, but a synchronous ref is what
   // actually blocks a double-submit fired before React commits the first
   // click's pending state.
   const busyRef = useRef(false);
 
+  const turnstileConfigured = turnstileSiteKey !== null;
+  // Submit is blocked until the challenge is solved; without a site key the
+  // form can never be submitted (and the server fails closed anyway).
+  const canSubmit = Boolean(email) && Boolean(password) && turnstileConfigured && turnstileToken !== null;
+
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busyRef.current) return;
+    if (busyRef.current || !turnstileToken) return;
     busyRef.current = true;
     setError(undefined);
+    const token = turnstileToken;
     startTransition(async () => {
       try {
-        const result = await adminSignIn(email, password);
+        const result = await adminSignIn(email, password, token);
         if (result.ok) {
           router.push("/admin");
           return;
         }
         setError(result.error);
+        // The token is spent whether or not it was the reason; get a fresh one.
+        setTurnstileToken(null);
+        setTurnstileResetSignal((n) => n + 1);
       } finally {
         busyRef.current = false;
       }
@@ -105,13 +125,36 @@ export function AdminLoginPageContent() {
             />
           </div>
 
+          {turnstileConfigured ? (
+            <TurnstileWidget
+              siteKey={turnstileSiteKey}
+              action={TURNSTILE_ADMIN_LOGIN_ACTION}
+              resetSignal={turnstileResetSignal}
+              onToken={(token) => {
+                setTurnstileToken(token);
+                if (token) setTurnstileFailed(false);
+              }}
+              onLoadError={() => setTurnstileFailed(true)}
+            />
+          ) : (
+            <p role="alert" className="text-sm text-red-600">
+              {dictionary.adminLogin.securityCheckUnavailable}
+            </p>
+          )}
+
+          {turnstileConfigured && turnstileFailed && (
+            <p role="alert" className="text-sm text-red-600">
+              {dictionary.adminLogin.securityCheckError}
+            </p>
+          )}
+
           {error && (
             <p role="alert" className="text-sm text-red-600">
               {error === "invalid-credentials" ? dictionary.adminLogin.invalidCredentials : dictionary.adminLogin.errorGeneric}
             </p>
           )}
 
-          <Button type="submit" disabled={isPending || !email || !password}>
+          <Button type="submit" disabled={isPending || !canSubmit}>
             {isPending ? dictionary.adminLogin.signingIn : dictionary.adminLogin.signInButton}
           </Button>
         </form>

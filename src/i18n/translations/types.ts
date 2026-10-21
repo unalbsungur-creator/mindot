@@ -220,6 +220,8 @@ export interface Dictionary {
     signingIn: string;
     invalidCredentials: string;
     errorGeneric: string;
+    securityCheckUnavailable: string;
+    securityCheckError: string;
   };
   moderation: {
     title: string;

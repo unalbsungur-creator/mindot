@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { verifyAdminCredentials } from "@/features/auth/service";
-import { hashPassword } from "./lib/password";
+import { hashPassword, verifyPassword } from "./lib/password";
 import { LOCKOUT_MINUTES, MAX_FAILED_LOGIN_ATTEMPTS, userRepository } from "./repository";
 
 // The admin credentials lockout (userRepository.recordFailedLogin /
@@ -68,7 +68,15 @@ describe("admin credentials lockout on PostgreSQL", { skip: TEST_URL ? false : "
     return row;
   }
 
-  const signIn = (email: string, password: string, now: Date) => verifyAdminCredentials({ email, password }, now);
+  // Turnstile is exercised separately (features/auth/lib/turnstile.test.ts);
+  // here it always passes, so these cases test the P0 lockout logic alone,
+  // unchanged. Real dependencies otherwise.
+  const signIn = (email: string, password: string, now: Date) =>
+    verifyAdminCredentials({ email, password, turnstileToken: "test-token" }, now, {
+      users: userRepository,
+      verifyPassword,
+      verifyTurnstile: async () => true,
+    });
 
   async function failTimes(email: string, times: number, now: Date) {
     for (let i = 0; i < times; i++) assert.equal(await signIn(email, "wrong", now), null);

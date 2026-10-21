@@ -207,6 +207,8 @@ export const en: Dictionary = {
     signingIn: "Signing in…",
     invalidCredentials: "Incorrect email or password.",
     errorGeneric: "Something went wrong. Please try again.",
+    securityCheckUnavailable: "The security check couldn't load. Please refresh the page and try again.",
+    securityCheckError: "Please complete the security check and try again.",
   },
   moderation: {
     title: "Moderation queue",

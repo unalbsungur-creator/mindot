@@ -42,10 +42,16 @@ export type AdminSignInResult = { ok: true } | { ok: false; error: AdminSignInEr
  * navigation) while this function still reported `invalid-credentials` to
  * the user. Removed; whether `signIn()` threw is the correct, sufficient
  * signal.
+ *
+ * GÖREV 30 / P1: the Cloudflare Turnstile token is passed straight through to
+ * the Credentials provider as a credential. The actual verification happens
+ * server-side in verifyAdminCredentials (./service), before any database
+ * query — this action never inspects the token itself, so putting a check
+ * only here could never be the boundary (the raw callback path would bypass it).
  */
-export async function adminSignIn(email: string, password: string): Promise<AdminSignInResult> {
+export async function adminSignIn(email: string, password: string, turnstileToken: string): Promise<AdminSignInResult> {
   try {
-    await signIn("credentials", { email, password, redirect: false });
+    await signIn("credentials", { email, password, turnstileToken, redirect: false });
     return { ok: true };
   } catch (error) {
     if (error instanceof AuthError) {

@@ -207,6 +207,8 @@ export const tr: Dictionary = {
     signingIn: "Giriş yapılıyor…",
     invalidCredentials: "Geçersiz e-posta veya şifre.",
     errorGeneric: "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
+    securityCheckUnavailable: "Güvenlik doğrulaması yüklenemedi. Lütfen sayfayı yenileyip tekrar deneyin.",
+    securityCheckError: "Lütfen güvenlik doğrulamasını tamamlayıp tekrar deneyin.",
   },
   moderation: {
     title: "Moderasyon kuyruğu",

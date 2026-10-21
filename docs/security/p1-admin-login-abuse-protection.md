@@ -2,9 +2,17 @@
 
 | | |
 |---|---|
-| Status | **OPEN** — analysis only, nothing enabled |
+| Status | **IN PROGRESS** — Option C (Turnstile) implemented in code (GÖREV 30), not yet deployed; keys unset |
 | Follows | [P0 — Admin Lockout Expiry Fix](../releases/2026-10-19-p0-admin-lockout-expiry.md) |
 | Surface | `/admin/login` (the one Credentials admin) |
+
+> **GÖREV 30 update — Option C is built.** Cloudflare Turnstile is now wired
+> into the one shared boundary both admin sign-in paths pass through. See
+> [Chosen control: Turnstile (Option C)](#chosen-control-turnstile-option-c)
+> below for the architecture, configuration, staging/production rollout order,
+> and rollback. Keys are **not** set in any environment yet, so until they are
+> set the admin login fails closed (see rollout order — set the secret before
+> deploying the code).
 
 ## Current state
 
@@ -62,3 +70,99 @@ Recommended order to evaluate: **B** (strongest, no code), then **A** as cheap d
 4. Confirm Google sign-in, `/`, `/board` and `/api/board` are unaffected from the same IP while the control is active.
 5. Confirm the admin can still sign in after the control's timeout, and that the account-level lock behaves exactly as after the P0 fix.
 6. Only then plan the production rollout, with the rule's previous state recorded for rollback.
+
+## Chosen control: Turnstile (Option C)
+
+Implemented in GÖREV 30 (branch `feat/admin-turnstile`). Stops scripted/bot
+sign-in attempts on **both** request paths above, because the check lives at
+the one function they converge on.
+
+### Architecture
+
+- **Single boundary.** `verifyAdminCredentials` (`features/auth/service.ts`) is
+  where the `/admin/login` Server Action (`adminSignIn`) and the raw
+  `POST /api/auth/callback/credentials` both end up (via the Credentials
+  provider's `authorize()`). The Turnstile check is the **first** thing it does
+  — before `getCredentialsByEmail`, before any password work.
+- **The token rides on the credentials.** It is `credentials.turnstileToken`,
+  so it arrives identically on both paths; a check placed only in `adminSignIn`
+  would be bypassable through the raw callback, so it is deliberately **not**
+  there.
+- **Verifier module.** `features/auth/lib/turnstile.ts` calls Cloudflare
+  siteverify. It checks `success === true`, `action === "admin-login"`, and
+  that `hostname` is the current environment's own host (production and staging
+  hostnames are kept strictly separate; development accepts localhost only).
+  Token length is capped at 2048. It is injected into `verifyAdminCredentials`
+  (`AdminCredentialsDeps.verifyTurnstile`) so unit tests never hit the network.
+- **Fail-closed, everywhere.** Missing/oversized token, missing secret, network
+  error, timeout (5s, `AbortController`), 5xx, non-JSON body, `success:false`
+  (covers invalid/expired/reused tokens), or any action/hostname mismatch → the
+  attempt is refused. **No retry** (a retry would double-spend the one-time
+  token). Neither the token nor the secret is ever logged — only a short reason
+  code.
+- **P0 lockout preserved exactly.** A Turnstile rejection returns *before*
+  `recordFailedLogin`, so a bot that cannot solve the challenge can never drive
+  the real admin's `failed_login_attempts`/`locked_until`. Once a valid token is
+  present, the password/lockout logic is byte-for-byte the P0 behavior.
+- **Generic message unchanged.** A failed Turnstile check surfaces as the same
+  `invalidCredentials` message as every other rejection — no enumeration.
+- **OAuth untouched.** Google/Apple sign-in use `ProviderSignInDeps`, which has
+  no Turnstile field and never reaches `verifyAdminCredentials`.
+- **Client.** The Managed widget (action `admin-login`) loads **only** on
+  `/admin/login` (`features/auth/components/TurnstileWidget.tsx`). Submit is
+  disabled until a token is present; the widget is reset after a failed attempt.
+  The trusted client IP (`CF-Connecting-IP` only — never `X-Forwarded-For`) is
+  read in `authorize()` and forwarded to siteverify as `remoteip`.
+
+### Configuration
+
+Two env vars, a **different key pair per environment** (Cloudflare Turnstile
+widget), never committed:
+
+- `TURNSTILE_SITE_KEY` — public; read at request time in
+  `app/admin/login/page.tsx` and passed to the client (not inlined at build).
+- `TURNSTILE_SECRET_KEY` — server-only; read in `features/auth/lib/turnstile.ts`.
+
+The build never needs real values. If unset at runtime the login fails closed
+(the form shows an unavailable state; the server rejects regardless).
+
+**Local development:** use Cloudflare's documented always-pass test keys
+(site `1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA`)
+in `.env.local`; the dev hostname allow-list is localhost. These are public
+Cloudflare test values, not secrets.
+
+### Staging rollout (manual prerequisites)
+
+1. In the Cloudflare dashboard, create a Turnstile widget (Managed) whose
+   hostname is `staging.mind-ot.com`; note its site key + secret key.
+2. Set `TURNSTILE_SITE_KEY` (plain var is fine; it's public) and
+   `TURNSTILE_SECRET_KEY` (**secret**, `wrangler secret`) on the
+   `mindot-staging` Worker — **before** deploying this code, or admin login on
+   staging fails closed in the gap.
+3. Deploy the branch to staging only. Confirm the widget renders on
+   `/admin/login`, a solved challenge lets a correct password through, and a
+   wrong password still shows the generic message and (manually, read-only)
+   does **not** increment the counter when the challenge is unsolved.
+4. Confirm Google sign-in, `/`, `/board`, `/api/board` are unaffected.
+
+### Production rollout (secret-before-deploy order — mandatory)
+
+1. Create a **separate** production Turnstile widget (hostname `mind-ot.com`).
+2. Set `TURNSTILE_SECRET_KEY` (secret) and `TURNSTILE_SITE_KEY` on the
+   production Worker **first**, and confirm they are present.
+3. **Only then** deploy the code. Reversing this order makes admin login
+   unreachable (fail-closed) for the window between deploy and secret-set.
+4. Smoke-test one real admin sign-in immediately after deploy.
+
+### Rollback
+
+- **Fastest (no redeploy):** this control is the admin's own login; it does not
+  affect public traffic. If the widget provider has an outage, the immediate
+  option is to roll the Worker back to the previous version (the pre-GÖREV-30
+  code), which removes the Turnstile requirement. Record the current version id
+  before deploying so the rollback target is known.
+- Do **not** "disable" by unsetting the secret — that fails closed (login
+  becomes impossible), it does not open the gate. Rollback is a code/version
+  revert, not a config toggle.
+- The database and the P0 lockout columns are untouched by this change, so a
+  rollback needs no migration.

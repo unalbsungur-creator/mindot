@@ -205,6 +205,8 @@ export const de: Dictionary = {
     signingIn: "Anmeldung läuft…",
     invalidCredentials: "Ungültige E-Mail-Adresse oder ungültiges Passwort.",
     errorGeneric: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+    securityCheckUnavailable: "Die Sicherheitsprüfung konnte nicht geladen werden. Bitte lade die Seite neu und versuche es erneut.",
+    securityCheckError: "Bitte schließe die Sicherheitsprüfung ab und versuche es erneut.",
   },
   moderation: {
     title: "Moderationswarteschlange",
