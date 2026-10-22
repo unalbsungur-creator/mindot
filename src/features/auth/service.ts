@@ -4,6 +4,7 @@ import { userRepository, type UserRepository } from "@/features/users/repository
 import type { User, UserRole } from "@/features/users/types";
 import { appleTokenRepository, type AppleTokenClient, type AppleTokenRepository } from "./appleTokenRepository";
 import type { AppleIdentity } from "./lib/appleProfile";
+import { verifyAdminLoginTurnstile } from "./lib/turnstile";
 
 /**
  * Provider sign-in completion — the account rules every Google/Apple
@@ -140,27 +141,58 @@ export async function completeAppleSignIn(
 export interface AdminCredentialsDeps {
   users: Pick<UserRepository, "getCredentialsByEmail" | "recordFailedLogin" | "recordSuccessfulLogin">;
   verifyPassword: (password: string, storedHash: string) => Promise<boolean>;
+  /**
+   * Cloudflare Turnstile check (GÖREV 30 / P1). Returns `true` only for a
+   * token that passes siteverify with the expected action and hostname;
+   * fail-closed on anything else. Injected so tests never hit the network.
+   * `remoteIp` is bound in by the caller — see {@link createAdminCredentialsDeps}.
+   */
+  verifyTurnstile: (token: string) => Promise<boolean>;
 }
 
-const defaultAdminCredentialsDeps: AdminCredentialsDeps = { users: userRepository, verifyPassword };
+/**
+ * The default admin-credentials dependencies, with the Turnstile verifier
+ * bound to the (trusted, edge-provided) client IP for this request. The IP is
+ * resolved by the caller (`authorize()` in auth.ts, via `CF-Connecting-IP`);
+ * it defaults to `null`, which siteverify treats as "no remoteip".
+ */
+export function createAdminCredentialsDeps(remoteIp: string | null = null): AdminCredentialsDeps {
+  return {
+    users: userRepository,
+    verifyPassword,
+    verifyTurnstile: (token) => verifyAdminLoginTurnstile(token, remoteIp),
+  };
+}
 
 /**
  * The Credentials provider's `authorize()` (features/auth/auth.ts): the one
  * admin's email + password sign-in. Returns `null` for every rejection —
- * unknown email, no password, non-admin, suspended, locked out, wrong
- * password — so the caller can never tell *why* (no email enumeration).
+ * failed Turnstile, unknown email, no password, non-admin, suspended, locked
+ * out, wrong password — so the caller can never tell *why* (no email
+ * enumeration).
  *
- * While `lockedUntil` is after `now`, the password is not checked at all,
- * so even the right one is refused. The same `now` is used for that check
- * and for recording a failure, so "expired" means the same thing to both;
- * the failure after an expired lockout starts a fresh count
- * (userRepository.recordFailedLogin).
+ * GÖREV 30 / P1: a Cloudflare Turnstile check runs FIRST, before any database
+ * query. A missing or invalid token returns before `getCredentialsByEmail`
+ * and, crucially, never calls `recordFailedLogin` — so a bot that cannot
+ * solve the challenge cannot drive the real admin's lockout counter. The
+ * token lives in `credentials.turnstileToken`, so it arrives identically on
+ * both the Server Action and the raw `/api/auth/callback/credentials` paths.
+ *
+ * The password/lockout logic below is unchanged from the P0 fix: while
+ * `lockedUntil` is after `now`, the password is not checked at all, so even
+ * the right one is refused. The same `now` is used for that check and for
+ * recording a failure, so "expired" means the same thing to both; the failure
+ * after an expired lockout starts a fresh count (userRepository.recordFailedLogin).
  */
 export async function verifyAdminCredentials(
-  credentials: Partial<Record<"email" | "password", unknown>> | undefined,
+  credentials: Partial<Record<"email" | "password" | "turnstileToken", unknown>> | undefined,
   now: Date = new Date(),
-  deps: AdminCredentialsDeps = defaultAdminCredentialsDeps
+  deps: AdminCredentialsDeps = createAdminCredentialsDeps()
 ): Promise<{ id: string; name: string | null; role: UserRole } | null> {
+  // Turnstile first — fail-closed, no database query, no counter change.
+  const turnstileToken = typeof credentials?.turnstileToken === "string" ? credentials.turnstileToken : "";
+  if (!(await deps.verifyTurnstile(turnstileToken))) return null;
+
   const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : "";
   const password = typeof credentials?.password === "string" ? credentials.password : "";
   if (!email || !password) return null;

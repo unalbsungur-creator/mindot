@@ -149,8 +149,14 @@ describe("admin credentials sign-in", () => {
     };
   }
 
-  function fakeAdminDeps(candidate: CredentialsUser | null, correctPassword = "right") {
-    const calls = { lookups: [] as string[], verified: 0, failures: [] as [string, Date | undefined][], successes: [] as string[] };
+  function fakeAdminDeps(candidate: CredentialsUser | null, correctPassword = "right", turnstilePasses = true) {
+    const calls = {
+      lookups: [] as string[],
+      verified: 0,
+      failures: [] as [string, Date | undefined][],
+      successes: [] as string[],
+      turnstile: [] as string[],
+    };
     const deps: AdminCredentialsDeps = {
       users: {
         async getCredentialsByEmail(email) {
@@ -168,9 +174,15 @@ describe("admin credentials sign-in", () => {
         calls.verified++;
         return password === correctPassword;
       },
+      async verifyTurnstile(token) {
+        calls.turnstile.push(token);
+        return turnstilePasses;
+      },
     };
     return { deps, calls };
   }
+
+  const PASS = { turnstileToken: "good-token" };
 
   it("signs in with the right password and resets the counter", async () => {
     const { deps, calls } = fakeAdminDeps(admin({ failedLoginAttempts: 3 }));
@@ -226,8 +238,52 @@ describe("admin credentials sign-in", () => {
     const inputs = [undefined, {}, { email: "admin@example.test" }, { password: "right" }, { email: "   ", password: "right" }, { email: 1, password: 2 }];
     for (const input of inputs) {
       const { deps, calls } = fakeAdminDeps(admin());
-      assert.equal(await verifyAdminCredentials(input, NOW, deps), null);
+      assert.equal(await verifyAdminCredentials({ ...input, ...PASS }, NOW, deps), null);
       assert.equal(calls.lookups.length, 0);
     }
+  });
+
+  // GÖREV 30 / P1 — Turnstile gate.
+  it("fails closed when Turnstile rejects, with no DB query and no counter change", async () => {
+    const { deps, calls } = fakeAdminDeps(admin(), "right", false); // turnstile rejects
+    assert.equal(await verifyAdminCredentials({ email: "admin@example.test", password: "right", ...PASS }, NOW, deps), null);
+    assert.equal(calls.turnstile.length, 1, "Turnstile checked exactly once");
+    assert.equal(calls.lookups.length, 0, "no getCredentialsByEmail on a Turnstile reject");
+    assert.equal(calls.verified, 0);
+    assert.equal(calls.failures.length, 0, "the lockout counter is never touched by a bot");
+    assert.equal(calls.successes.length, 0);
+  });
+
+  it("checks Turnstile exactly once, before the credential lookup, on a normal attempt", async () => {
+    const { deps, calls } = fakeAdminDeps(admin());
+    await verifyAdminCredentials({ email: "admin@example.test", password: "right", turnstileToken: "good-token" }, NOW, deps);
+    assert.deepEqual(calls.turnstile, ["good-token"]);
+    assert.deepEqual(calls.lookups, ["admin@example.test"]);
+  });
+
+  it("a valid token still enforces the password: wrong counts one failure, right signs in", async () => {
+    const wrong = fakeAdminDeps(admin());
+    assert.equal(await verifyAdminCredentials({ email: "admin@example.test", password: "nope", ...PASS }, NOW, wrong.deps), null);
+    assert.deepEqual(wrong.calls.failures, [["admin-1", NOW]]);
+
+    const right = fakeAdminDeps(admin());
+    assert.deepEqual(await verifyAdminCredentials({ email: "admin@example.test", password: "right", ...PASS }, NOW, right.deps), {
+      id: "admin-1",
+      name: "Admin",
+      role: "admin",
+    });
+    assert.deepEqual(right.calls.successes, ["admin-1"]);
+  });
+});
+
+describe("OAuth isolation from the admin Turnstile gate", () => {
+  // The Turnstile verifier lives only on AdminCredentialsDeps; Google/Apple
+  // sign-in use ProviderSignInDeps, which has no such field and never reaches
+  // verifyAdminCredentials — so OAuth is structurally unaffected by the gate.
+  it("completes Google and Apple sign-in with no Turnstile dependency", async () => {
+    const g = await completeGoogleSignIn(google, fakeDeps("new").deps);
+    assert.equal(g.ok, true);
+    const a = await completeAppleSignIn(apple, "web", null, fakeDeps("new").deps);
+    assert.equal(a.ok, true);
   });
 });

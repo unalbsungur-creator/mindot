@@ -28,7 +28,13 @@ export type RuntimeEnvName =
     // touches these, so a deployment with no email provider configured is
     // unaffected. See features/email/providers/resend.ts.
     | "RESEND_API_KEY"
-    | "EMAIL_FROM";
+    | "EMAIL_FROM"
+    // Cloudflare Turnstile for admin login (GÖREV 30 / P1). The site key is
+    // public (read at runtime in app/admin/login/page.tsx and passed to the
+    // client); the secret key is server-only and read in features/auth/lib/
+    // turnstile.ts. Staging and production use different key pairs.
+    | "TURNSTILE_SITE_KEY"
+    | "TURNSTILE_SECRET_KEY";
 
 export class RuntimeConfigurationError extends Error {
     readonly code = "RUNTIME_CONFIGURATION_ERROR";

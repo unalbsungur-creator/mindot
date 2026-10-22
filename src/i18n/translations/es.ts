@@ -205,6 +205,8 @@ export const es: Dictionary = {
     signingIn: "Iniciando sesión…",
     invalidCredentials: "Correo electrónico o contraseña incorrectos.",
     errorGeneric: "Algo salió mal. Inténtalo de nuevo.",
+    securityCheckUnavailable: "No se pudo cargar la verificación de seguridad. Actualiza la página e inténtalo de nuevo.",
+    securityCheckError: "Completa la verificación de seguridad e inténtalo de nuevo.",
   },
   moderation: {
     title: "Cola de moderación",

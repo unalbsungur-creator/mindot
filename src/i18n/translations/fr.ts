@@ -205,6 +205,8 @@ export const fr: Dictionary = {
     signingIn: "Connexion en cours…",
     invalidCredentials: "E-mail ou mot de passe incorrect.",
     errorGeneric: "Une erreur s'est produite. Veuillez réessayer.",
+    securityCheckUnavailable: "La vérification de sécurité n'a pas pu se charger. Veuillez actualiser la page et réessayer.",
+    securityCheckError: "Veuillez compléter la vérification de sécurité et réessayer.",
   },
   moderation: {
     title: "File de modération",

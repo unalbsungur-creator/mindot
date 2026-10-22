@@ -1,4 +1,5 @@
 import NextAuth, { type DefaultSession, type NextAuthConfig } from "next-auth";
+import { headers } from "next/headers";
 import Apple from "next-auth/providers/apple";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
@@ -6,14 +7,35 @@ import { userRepository } from "@/features/users/repository";
 import type { UserRole } from "@/features/users/types";
 import { getAuthRuntimeConfig } from "@/lib/env";
 import { parseAppleProfile } from "./lib/appleProfile";
+import { pickTrustedRemoteIp } from "./lib/remoteIp";
 import {
   checkAppleSignIn,
   checkGoogleSignIn,
+  createAdminCredentialsDeps,
   finishAppleSignIn,
   finishGoogleSignIn,
   verifyAdminCredentials,
   type ProviderSignInCheck,
 } from "./service";
+
+/**
+ * The trusted client IP for the admin Turnstile check. Only Cloudflare's own
+ * `CF-Connecting-IP` is read — never `X-Forwarded-For`/`X-Real-IP`, which a
+ * client can forge. Returns `null` (siteverify then runs without `remoteip`)
+ * outside a request scope or when the header is absent. Reading it here, in
+ * the request-scoped `authorize()`, covers both admin sign-in paths uniformly.
+ */
+async function adminTurnstileRemoteIp(): Promise<string | null> {
+  try {
+    // Header selection (CF-Connecting-IP only, never forgeable forwarding
+    // headers) lives in the pure, unit-tested pickTrustedRemoteIp helper;
+    // the request-scope error handling (next/headers throwing outside a
+    // request) stays here.
+    return pickTrustedRemoteIp(await headers());
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Google (normal users) + Credentials (admin only), one Auth.js instance,
@@ -140,6 +162,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "Email" },
         password: { label: "Password", type: "password" },
+        // GÖREV 30 / P1: the Cloudflare Turnstile token. Declared so it is a
+        // recognized credential on both the Server Action and the raw
+        // /api/auth/callback/credentials paths; verifyAdminCredentials checks
+        // it before any database query.
+        turnstileToken: { label: "Turnstile Token", type: "hidden" },
       },
       // EPIC 030: deliberately returns `null` (never throws a
       // custom/hinting error) for every rejection path — unknown email,
@@ -158,7 +185,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // verifier, exactly as before. The checks and the lockout live in
       // verifyAdminCredentials (./service).
       async authorize(credentials) {
-        const admin = await verifyAdminCredentials(credentials);
+        const remoteIp = await adminTurnstileRemoteIp();
+        const admin = await verifyAdminCredentials(credentials, new Date(), createAdminCredentialsDeps(remoteIp));
         return admin ? { ...admin, authProvider: "credentials" } : null;
       },
     }),
