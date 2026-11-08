@@ -23,8 +23,8 @@ describe("HeroBrandComposition (MB-01: cards never overlap)", () => {
   ];
   const html = renderToStaticMarkup(<HeroBrandComposition notes={notes} pinnedIds={["pinned"]} />);
 
-  it("lays the cards out in two flowing columns with a 16px gap — no absolutely positioned card", () => {
-    const columns = html.match(/<div class="flex flex-col justify-between gap-4[^"]*">/g) ?? [];
+  it("lays the cards out in two flowing columns with a 32px gap (≥ 8px left after ±8° rotations) — no absolutely positioned card", () => {
+    const columns = html.match(/<div class="flex flex-col justify-between gap-8[^"]*">/g) ?? [];
     assert.equal(columns.length, 2);
     assert.doesNotMatch(html, /absolute -left-|absolute -right-/, "no corner-pinned card wrappers");
   });

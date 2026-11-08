@@ -9,8 +9,10 @@ import { arrangeHeroSlots } from "./heroSlots";
  * Corners pinned to a fixed square let a long card grow into the card
  * above it; in a flex column the cards simply stack, so no card can ever
  * cover another, and a tall pair makes the composition taller instead.
- * `gap-4` (16px) keeps at least 8px of visible space even after each
- * card's own small rotation pushes a corner out a few pixels. The staggered
+ * `gap-8` (32px) keeps at least 8px of visible space even after each
+ * card's own rotation (up to ±8°, board `MAX_ROTATION_DEG`) pushes its
+ * corners out by ~10px — measured on staging: 16px left only 6px between
+ * two rotated cards. The staggered
  * paddings keep the scattered look the corner offsets had.
  *
  * Below `lg:` the cards are shrunk with `zoom` (which, unlike `scale`,
@@ -18,8 +20,8 @@ import { arrangeHeroSlots } from "./heroSlots";
  * mobile as well) to fit the ~340px composition without horizontal scroll.
  */
 const COLUMN_CLASSES = [
-  "flex flex-col justify-between gap-4 pt-[6%] pb-[10%] -ml-1 lg:-ml-6",
-  "flex flex-col justify-between gap-4 pt-[2%] pb-[4%] -mr-1 lg:-mr-6",
+  "flex flex-col justify-between gap-8 pt-[6%] pb-[10%] -ml-1 lg:-ml-6",
+  "flex flex-col justify-between gap-8 pt-[2%] pb-[4%] -mr-1 lg:-mr-6",
 ];
 const CARD_ZOOM_CLASS = "max-lg:[zoom:0.62]";
 
