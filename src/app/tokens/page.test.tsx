@@ -187,7 +187,7 @@ describe("/tokens entry points", () => {
   it("adds the same session-free link beside the homepage's write CTA", () => {
     const html = renderToStaticMarkup(
       <LocaleProvider>
-        <HomeHero activeCount={0} heroNotes={[]} />
+        <HomeHero activeCount={0} heroNotes={[]} heroMode="latest" />
       </LocaleProvider>
     );
     const tokens = linksTo(html, "/tokens");

@@ -96,6 +96,8 @@ export function SharePageContent({
     templateId: message.templateId,
     fontFamily: message.fontFamily,
     textAlign: message.textAlign,
+    isQuote: message.isQuote,
+    quoteAuthor: message.quoteAuthor,
     size: "md",
     rotation: 0,
     position: { top: "0%", left: "0%" },

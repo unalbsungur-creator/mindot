@@ -60,6 +60,8 @@ describe("messages.text_align on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_
       language: "tr",
       templateId,
       fontFamily: "modern",
+      isQuote: false,
+      quoteAuthor: null,
       textAlign,
       invitationId: null,
       aiModerationStatus: "review",
@@ -123,7 +125,7 @@ describe("messages.text_align on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_
     const created = await writeMessage(author, "center");
     await messageRepository.approve(created.id, admin);
 
-    assert.ok(await messageRepository.submitRevision(created.id, author, "Yeni metin.\nİkinci satır."));
+    assert.ok(await messageRepository.submitRevision(created.id, author, "Yeni metin.\nİkinci satır.", { isQuote: false, quoteAuthor: null }));
     const revised = await messageRepository.approveRevision(created.id, admin);
     assert.equal(revised?.content, "Yeni metin.\nİkinci satır.");
     assert.equal(revised?.textAlign, "center");

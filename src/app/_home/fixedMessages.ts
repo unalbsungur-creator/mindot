@@ -1,29 +1,17 @@
-import { BOARD_REFERENCE_MESSAGE_ID } from "@/features/board/lib/worldGeometry";
-
 /**
- * EPIC: Ana Sayfadaki 4 Mesajın Yeni Yapısı — the two messages that always
- * appear in the hero composition, independent of like counts. Both are
- * real, already-approved database rows (confirmed by direct query before
- * writing this) — never invented content, never a duplicate.
+ * The homepage's pinned cards — shown in the hero composition independent
+ * of like counts, first, before the cards the selection rule picks (see
+ * heroSelection.ts). Real, already-approved database rows only; never
+ * invented content.
  *
- *   1. "Kalite asla tesadüf değildir." — reuses the board's own canonical
- *      reference message id (see features/board/lib/worldGeometry.ts)
- *      rather than a second constant for the same message, per that
- *      EPIC's own note that this message "can keep its existing central
- *      reference role."
- *   2. "Aklımda kalmasın..." (id 54a52c75-5d5e-40ba-80c9-a3e127f59644),
- *      approved, anonymous. The EPIC that requested this quoted the text
- *      as "Aklında kalmasın..." — the real database record's spelling is
- *      "Aklımda" (verified directly against the live table); this id
- *      points at that real row, not a newly created one.
+ * MB-01: one card — "Merhaba Dünya" (approved, anonymous; confirmed on the
+ * public board, tile 1,0). It takes the first of the four places. The two
+ * cards pinned before ("Kalite asla tesadüf değildir." — the board's
+ * reference message — and "Aklımda kalmasın…") are no longer pinned; they
+ * can still appear through the rule like any other card.
  *
- * app/page.tsx resolves these to actual `Message` rows at render time and
- * only treats a given id as "fixed" if that row is still `status =
- * "approved"` — if one has since been archived, its slot is filled by the
- * same top-liked fallback the two dynamic slots already use (see
- * getHomeHeroNotes there), never left broken.
+ * A pinned card that is no longer approved (archived, rejected) or no
+ * longer exists is skipped — its place is filled by the rule, never left
+ * broken (`selectHomeHeroMessages`).
  */
-export const HOME_FIXED_MESSAGE_IDS = [
-  BOARD_REFERENCE_MESSAGE_ID,
-  "54a52c75-5d5e-40ba-80c9-a3e127f59644",
-] as const;
+export const HOME_FIXED_MESSAGE_IDS: readonly string[] = ["287bddad-ce94-4eca-8127-4f0d95776434"];

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { StarField } from "@/components/ui/StarField";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useLocale } from "@/i18n/LocaleProvider";
@@ -47,7 +48,7 @@ function PinIcon() {
  * background/border, only thin vertical dividers between them (`lg:divide-x`).
  *
  * The first column's icon is the official circular lockup (public/Mindot
- * Daire.png) at a small, controlled size — a brand mark, not a full-size
+ * Daire.png, MB-01: its tagline-free `images/brand/mindot-circle.png`) at a small, controlled size — a brand mark, not a full-size
  * logo. The other three stay hand-drawn topic icons (infinity/people/pin)
  * since they represent ideas, not the brand mark itself.
  */
@@ -57,13 +58,14 @@ export function MeaningStrip() {
 
   const columns = [
     {
-      icon: <Image src="/Mindot Daire.png" alt="" width={500} height={500} className="h-7 w-7 object-contain" />,
+      icon: <Image src="/images/brand/mindot-circle.png" alt="" width={500} height={500} className="h-7 w-7 object-contain" />,
       line1: t.col1Line1,
       highlight: t.col1Highlight,
     },
     { icon: <InfinityIcon />, line1: t.col2Line1, highlight: t.col2Highlight },
     { icon: <PeopleIcon />, line1: t.col3Line1, highlight: t.col3Highlight },
-    { icon: <PinIcon />, line1: t.col4Line1, highlight: t.col4Highlight },
+    // MB-01: "1994'ten beri küçük bir pano…" opens the story on /about.
+    { icon: <PinIcon />, line1: t.col4Line1, highlight: t.col4Highlight, href: "/about#story" },
   ];
 
   return (
@@ -78,9 +80,18 @@ export function MeaningStrip() {
           {columns.map((column, index) => (
             <div key={index} className="flex flex-col items-start gap-2 lg:px-6 lg:first:pl-0 lg:last:pr-0">
               <div className="flex h-7 items-center">{column.icon}</div>
-              <p className="text-balance text-base font-medium leading-snug text-white/90">
-                {column.line1} <span className="text-orange">{column.highlight}</span>
-              </p>
+              {column.href ? (
+                <Link
+                  href={column.href}
+                  className="text-balance text-base font-medium leading-snug text-white/90 underline decoration-white/25 underline-offset-4 transition-colors hover:text-white hover:decoration-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
+                >
+                  {column.line1} <span className="text-orange">{column.highlight}</span>
+                </Link>
+              ) : (
+                <p className="text-balance text-base font-medium leading-snug text-white/90">
+                  {column.line1} <span className="text-orange">{column.highlight}</span>
+                </p>
+              )}
             </div>
           ))}
         </div>

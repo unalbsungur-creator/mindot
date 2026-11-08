@@ -235,6 +235,12 @@ export const messages = pgTable(
     // alignment, exactly what it drew before — in the migration itself.
     // Fixed at writing time: a revision changes `content` only.
     textAlign: text("text_align").notNull().default("auto"),
+    // MB-01 "Bu söz kimin?": whether the note is a quote, and whose. false
+    // (the writer's own words) for every row written before this existed.
+    // `quoteAuthor` null on a quote means "unknown"; on own words it is
+    // always null (CHECK below). Rules: features/messages/lib/quoteAttribution.ts.
+    isQuote: boolean("is_quote").notNull().default(false),
+    quoteAuthor: text("quote_author"),
     invitationId: text("invitation_id").references(() => invitations.id),
     status: messageStatusEnum("status").notNull().default("pending"),
     // Null until the message is approved and placed — see placement.ts.
@@ -306,6 +312,12 @@ export const messages = pgTable(
     // table — see that column's comment above for why a full audit table
     // was deliberately rejected for the same kind of field.
     pendingContent: text("pending_content"),
+    // MB-01: the attribution a pending revision proposes, applied together
+    // with `pendingContent` and cleared with it. `pendingIsQuote` null means
+    // the revision keeps the live attribution (a revision submitted before
+    // this existed); `pendingContent` stays the one "revision in flight" flag.
+    pendingIsQuote: boolean("pending_is_quote"),
+    pendingQuoteAuthor: text("pending_quote_author"),
     revisionSubmittedAt: timestamp("revision_submitted_at", { withTimezone: true }),
     // The admin's decision on the most recent revision — set by both
     // approve (content applied, then cleared alongside pendingContent) and
@@ -331,6 +343,15 @@ export const messages = pgTable(
     index("messages_status_like_count_idx").on(table.status, table.likeCount),
     // Exactly `NOTE_TEXT_ALIGNS` (features/notes/lib/textAlign.ts).
     check("messages_text_align_check", sql`${table.textAlign} in ('auto', 'left', 'center', 'right')`),
+    // MB-01: own words never carry an author; an author is 1–80 characters (QUOTE_AUTHOR_MAX_LENGTH).
+    check(
+      "messages_quote_author_check",
+      sql`(${table.isQuote} or ${table.quoteAuthor} is null) and (${table.quoteAuthor} is null or char_length(${table.quoteAuthor}) between 1 and 80)`
+    ),
+    check(
+      "messages_pending_quote_author_check",
+      sql`(${table.pendingIsQuote} is true or ${table.pendingQuoteAuthor} is null) and (${table.pendingQuoteAuthor} is null or char_length(${table.pendingQuoteAuthor}) between 1 and 80)`
+    ),
   ]
 );
 

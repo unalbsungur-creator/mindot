@@ -124,6 +124,8 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
     templateId: message.templateId,
     fontFamily: message.fontFamily,
     textAlign: message.textAlign,
+    isQuote: message.isQuote,
+    quoteAuthor: message.quoteAuthor,
     size: "lg",
     rotation: 0,
     position: { top: "0%", left: "0%" },

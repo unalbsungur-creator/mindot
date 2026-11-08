@@ -32,8 +32,9 @@ import type { ReactNode } from "react";
 import { HEART_PATH } from "@/features/notes/components/Note";
 import { getNoteTemplate } from "@/features/notes/config/templates";
 import { SPORTS_COLOR_HEX } from "@/features/notes/lib/sportsBall";
+import type { QuoteBylineLines } from "@/features/notes/lib/quoteByline";
 import { effectiveTextAlign } from "@/features/notes/lib/textAlign";
-import { noteTextLengthTier, noteTextSizeTier, spaciousLineHeight, spaciousTextSizeCqw } from "@/features/notes/lib/textScale";
+import { noteTextLengthTier, noteTextSizeTier, QUOTE_COMPACT_TEXT_SCALE, spaciousLineHeight, spaciousTextSizeCqw } from "@/features/notes/lib/textScale";
 import type { NoteDecoration, NoteShape, NoteTemplate, NoteTextAlign, NoteTextFontFamily, SportsColorKey } from "@/features/notes/types";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "@/features/memories/services/pdfPalette";
 import { measureTextWidth, wrapTextToLines } from "@/features/memories/services/pdfTextMeasure";
@@ -118,6 +119,13 @@ const MAX_ESTIMATED_LINES = 20;
 export interface MemoryNoteCardInput {
   content: string;
   authorName: string | null;
+  /**
+   * MB-01: a quote's byline — "— {quote author}" in place of the author
+   * line, and a smaller "shared by" line under it — already worded in the
+   * note's language (`quoteBylineLines`). Absent/`null`: own words, the
+   * single "— {authorName}" line exactly as before.
+   */
+  quote?: QuoteBylineLines | null;
   templateId: string;
   /** The writer's own text typeface — see FONT_METRICS above. */
   fontFamily: NoteTextFontFamily;
@@ -155,7 +163,9 @@ export function estimateMemoryCardSize(
   templateId: string,
   content: string,
   width: number,
-  fontFamily: NoteTextFontFamily
+  fontFamily: NoteTextFontFamily,
+  /** MB-01: a quote's extra "shared by" line under the author line. */
+  hasQuoteByline = false
 ): { width: number; height: number } {
   const template = getNoteTemplate(templateId);
   const isHeart = template.shape === "heart";
@@ -175,6 +185,7 @@ export function estimateMemoryCardSize(
   const lines = estimateLineCount(content, metrics.charsPerLine);
   const paddingY = isHeart ? (28 + 40) * scale : 32 * scale;
   let height = paddingY + lines * metrics.lineHeight * scale + 12 * scale + 20 * scale; // content-to-author gap + author line, reserved even if unused (matches Note.tsx's `gap-3` flex layout, negligible when authorName is absent)
+  if (hasQuoteByline) height += QUOTE_SHARER_LINE_PX * scale;
 
   if (isHeart) height = Math.max(height, width * 1.25);
   if (isPolaroid) height += (32 + 96 - 16 + 4) * scale; // pb-8 shape padding + the top photo block, same accounting as features/notes/lib/footprint.ts
@@ -257,15 +268,20 @@ export function footballAuthorFontPx(content: string, textFontPx: number, fit: n
  * vertically, and every line — its glyph band, not its full leading — must
  * stay inside the circle's chord at its own height.
  */
-function footballLinesFit(lines: string[], fontFamily: NoteTextFontFamily, fontPx: number, authorName: string | null, authorPx: number): boolean {
+function footballLinesFit(lines: string[], fontFamily: NoteTextFontFamily, fontPx: number, authorName: string | null, authorPx: number, quote?: QuoteBylineLines | null): boolean {
   const lineBox = fontPx * FOOTBALL_TEXT_LINE_HEIGHT;
   const rows = lines.map((text) => ({ width: measureTextWidth(text, fontFamily, fontPx), height: lineBox, glyph: fontPx }));
-  if (authorName) {
+  const authorLine = quote ? quote.authorLine : authorName ? `— ${authorName}` : null;
+  if (authorLine) {
     rows.push({
-      width: measureTextWidth(`— ${authorName}`, "modern", authorPx),
+      width: measureTextWidth(authorLine, "modern", authorPx),
       height: (FOOTBALL_AUTHOR_GAP * authorPx) / FOOTBALL_AUTHOR_FONT_PX + authorPx * FOOTBALL_AUTHOR_LINE_HEIGHT,
       glyph: authorPx,
     });
+  }
+  if (quote?.sharedByLine) {
+    const sharerPx = authorPx * QUOTE_SHARER_SCALE;
+    rows.push({ width: measureTextWidth(quote.sharedByLine, "modern", sharerPx), height: sharerPx * FOOTBALL_AUTHOR_LINE_HEIGHT, glyph: sharerPx });
   }
   let top = -rows.reduce((sum, row) => sum + row.height, 0) / 2;
   for (const row of rows) {
@@ -290,7 +306,7 @@ function footballLinesFit(lines: string[], fontFamily: NoteTextFontFamily, fontP
  * await it); without the fonts it falls back to 1, the pre-fit size,
  * rather than failing a share image.
  */
-export function footballTextFitScale(content: string, fontFamily: NoteTextFontFamily, authorName: string | null): number {
+export function footballTextFitScale(content: string, fontFamily: NoteTextFontFamily, authorName: string | null, quote?: QuoteBylineLines | null): number {
   if (!content.includes("\n")) return 1;
   const baseFontPx = FONT_METRICS[fontFamily].fontSize * footballFontScale(content);
   const wrapWidth = FOOTBALL_DISC_RADIUS * 2 - 2 * FOOTBALL_DISC_PADDING;
@@ -300,7 +316,7 @@ export function footballTextFitScale(content: string, fontFamily: NoteTextFontFa
     while (fit > 0.05) {
       const fontPx = baseFontPx * fit;
       const authorPx = footballAuthorFontPx(content, fontPx, fit);
-      if (footballLinesFit(wrapTextToLines(content, fontFamily, fontPx, wrapWidth), fontFamily, fontPx, authorName, authorPx)) break;
+      if (footballLinesFit(wrapTextToLines(content, fontFamily, fontPx, wrapWidth), fontFamily, fontPx, authorName, authorPx, quote)) break;
       fit -= 0.02;
     }
     return Math.round(fit * 100) / 100;
@@ -531,6 +547,38 @@ function decorationIcon(decoration: NoteDecoration): ReactNode {
   }
 }
 
+/** MB-01: the sharer line's size relative to the quote's author line — Note.tsx's QuoteByline uses the same 0.8em. */
+const QUOTE_SHARER_SCALE = 0.8;
+/** A growing (standard) card's extra height for that line at BASELINE_WIDTH: 12px author size × 0.8 × line height ~1.45. */
+const QUOTE_SHARER_LINE_PX = 14;
+
+/**
+ * MB-01: a quote's byline — the author line at the size the plain
+ * "— {name}" line had, and the sharer line 0.8 of it right below.
+ */
+function QuoteBylineSatori({
+  quote,
+  fontSize,
+  marginTop,
+  alignStyle,
+  shrink = true,
+}: {
+  quote: QuoteBylineLines;
+  fontSize: number;
+  marginTop: number;
+  alignStyle: ReturnType<typeof textAlignStyle>;
+  shrink?: boolean;
+}): ReactNode {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", marginTop, color: PDF_COLORS.inkSoft, ...(shrink ? {} : { flexShrink: 0 }), ...(alignStyle.textAlign ? { textAlign: alignStyle.textAlign } : {}) }}>
+      {quote.authorLine && <span style={{ display: "flex", fontSize, wordBreak: "break-word", ...alignStyle }}>{quote.authorLine}</span>}
+      {quote.sharedByLine && (
+        <span style={{ display: "flex", fontSize: fontSize * QUOTE_SHARER_SCALE, opacity: 0.85, wordBreak: "break-word", ...alignStyle }}>{quote.sharedByLine}</span>
+      )}
+    </div>
+  );
+}
+
 /**
  * The Satori style for an effective alignment: nothing for "auto", so an
  * "auto" card renders exactly as before; otherwise `textAlign` for wrapped
@@ -541,9 +589,9 @@ function textAlignStyle(align: NoteTextAlign): { textAlign?: "left" | "center" |
   return { textAlign: align, justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center" };
 }
 
-export function MemoryNoteCard({ content, authorName, templateId, fontFamily, textAlign, rotation, width, artworkDataUri }: MemoryNoteCardInput): ReactNode {
+export function MemoryNoteCard({ content, authorName, quote, templateId, fontFamily, textAlign, rotation, width, artworkDataUri }: MemoryNoteCardInput): ReactNode {
   const template = getNoteTemplate(templateId);
-  const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily);
+  const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily, Boolean(quote?.sharedByLine));
   const alignStyle = textAlignStyle(effectiveTextAlign(textAlign, template.shape));
 
   // EPIC: Special Day Clean Artwork + Share Visual Consistency — the exact
@@ -558,6 +606,8 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, te
     }
     const area = template.contentArea!;
     const fontSize = imageBackedFontSizePx(content, template, fontFamily) * (width / BASELINE_WIDTH);
+    // MB-01: a quote's text on a compact image card, as Note.tsx draws it (QUOTE_COMPACT_TEXT_SCALE); the byline keeps its size.
+    const textFontSize = quote && template.contentTextSize !== "spacious" ? fontSize * QUOTE_COMPACT_TEXT_SCALE : fontSize;
     return (
       <div style={{ position: "relative", display: "flex", width, height, transform: `rotate(${rotation}deg)`, overflow: "hidden" }}>
         {/* eslint-disable-next-line @next/next/no-img-element -- Satori server-side render, not an optimizable next/image asset */}
@@ -579,9 +629,13 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, te
               box — over the printed frame on standard-quote, off the card edge at the largest
               size. This breaks only such a word, like Note.tsx's `break-words` in the DOM;
               every line that already fit lays out exactly as before. Never `break-all`. */}
-          <span style={{ display: "flex", ...noteTextFontStyle(fontFamily, fontSize), fontSize, lineHeight: imageBackedLineHeight(template, fontFamily), color: PDF_COLORS.ink, wordBreak: "break-word", whiteSpace: "pre-line", ...alignStyle }}>{content}</span>
-          {authorName && (
-            <span style={{ display: "flex", marginTop: fontSize * 0.5, fontSize: fontSize * 0.85, color: PDF_COLORS.inkSoft, ...alignStyle }}>— {authorName}</span>
+          <span style={{ display: "flex", ...noteTextFontStyle(fontFamily, textFontSize), fontSize: textFontSize, lineHeight: imageBackedLineHeight(template, fontFamily), color: PDF_COLORS.ink, wordBreak: "break-word", whiteSpace: "pre-line", ...alignStyle }}>{content}</span>
+          {quote ? (
+            <QuoteBylineSatori quote={quote} fontSize={fontSize * 0.85} marginTop={fontSize * 0.5} alignStyle={alignStyle} />
+          ) : (
+            authorName && (
+              <span style={{ display: "flex", marginTop: fontSize * 0.5, fontSize: fontSize * 0.85, color: PDF_COLORS.inkSoft, ...alignStyle }}>— {authorName}</span>
+            )
           )}
         </div>
       </div>
@@ -596,10 +650,12 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, te
   const shape = shapeStyleFor(template.shape, width, height, scale);
   const metrics = FONT_METRICS[fontFamily];
   const paperColor = PDF_PAPER_COLORS[template.paper] ?? PDF_PAPER_COLORS.white;
-  const footballFit = isFootball ? footballTextFitScale(content, fontFamily, authorName) : 1;
-  const footballFontPx = isFootball ? metrics.fontSize * scale * footballFontScale(content) * footballFit : 0;
+  const footballFit = isFootball ? footballTextFitScale(content, fontFamily, authorName, quote) : 1;
+  // MB-01: a quote's message is drawn at QUOTE_COMPACT_TEXT_SCALE on the disc, as in Note.tsx.
+  const footballFontPx = isFootball ? metrics.fontSize * scale * footballFontScale(content) * footballFit * (quote ? QUOTE_COMPACT_TEXT_SCALE : 1) : 0;
   // Baseline px, so the gap keeps its 8 : 10.5 ratio to the author line as it shrinks.
-  const footballAuthorPx = isFootball ? footballAuthorFontPx(content, footballFontPx / scale, footballFit) : 0;
+  // A quote's byline (two lines) at QUOTE_COMPACT_TEXT_SCALE too, as Note.tsx draws it.
+  const footballAuthorPx = isFootball ? footballAuthorFontPx(content, footballFontPx / scale, footballFit) * (quote ? QUOTE_COMPACT_TEXT_SCALE : 1) : 0;
 
   const paddingStyle = isHeart
     ? { paddingLeft: 28 * scale, paddingRight: 28 * scale, paddingTop: 28 * scale, paddingBottom: 40 * scale }
@@ -666,8 +722,12 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, te
             >
               {content}
             </span>
-            {authorName && (
-              <span style={{ display: "flex", flexShrink: 0, marginTop: ((8 * footballAuthorPx) / 10.5) * scale, fontSize: footballAuthorPx * scale, color: PDF_COLORS.inkSoft }}>— {authorName}</span>
+            {quote ? (
+              <QuoteBylineSatori quote={quote} fontSize={footballAuthorPx * scale} marginTop={((8 * footballAuthorPx) / 10.5) * scale} alignStyle={{ textAlign: "center", justifyContent: "center" }} shrink={false} />
+            ) : (
+              authorName && (
+                <span style={{ display: "flex", flexShrink: 0, marginTop: ((8 * footballAuthorPx) / 10.5) * scale, fontSize: footballAuthorPx * scale, color: PDF_COLORS.inkSoft }}>— {authorName}</span>
+              )
             )}
           </div>
         </div>
@@ -708,8 +768,12 @@ export function MemoryNoteCard({ content, authorName, templateId, fontFamily, te
           >
             {content}
           </span>
-          {authorName && (
-            <span style={{ display: "flex", marginTop: 12 * scale, fontSize: 12 * scale, color: PDF_COLORS.inkSoft, ...alignStyle }}>— {authorName}</span>
+          {quote ? (
+            <QuoteBylineSatori quote={quote} fontSize={12 * scale} marginTop={12 * scale} alignStyle={alignStyle} />
+          ) : (
+            authorName && (
+              <span style={{ display: "flex", marginTop: 12 * scale, fontSize: 12 * scale, color: PDF_COLORS.inkSoft, ...alignStyle }}>— {authorName}</span>
+            )
           )}
         </div>
       )}

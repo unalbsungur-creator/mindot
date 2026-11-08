@@ -475,7 +475,8 @@ describe("submitMessageRevisionForAuthor", () => {
       },
     };
     assert.deepEqual(await submitMessageRevisionForAuthor(revision("Yeni metin"), deps), { ok: true });
-    assert.deepEqual(calls, [["msg-1", "user-1", "Yeni metin"]]);
+    // MB-01: no attribution sent → the stored one (own words here) is proposed unchanged.
+    assert.deepEqual(calls, [["msg-1", "user-1", "Yeni metin", { isQuote: false, quoteAuthor: null }]]);
   });
 
   it("answers forbidden when the repository refuses the revision", async () => {
@@ -552,5 +553,98 @@ describe("likeMessageAsVisitor", () => {
   it("lets a repository error through", async () => {
     const { deps } = fakeLike(new Error("db down"));
     await assert.rejects(likeMessageAsVisitor({ messageId: "m1", userId: "user-1" }, deps), /db down/);
+  });
+});
+
+describe("MB-01 quote attribution — submitMessageForAuthor", () => {
+  it("stores a quote with its normalized author", async () => {
+    const { deps, created } = fake();
+    const result = await submitMessageForAuthor(params({ isQuote: true, quoteAuthor: "  Orhan   Veli " }), deps);
+    assert.equal(result.ok, true);
+    assert.deepEqual([created[0].isQuote, created[0].quoteAuthor], [true, "Orhan Veli"]);
+  });
+
+  it("stores an unknown author as null, and own words with no author whatever was typed", async () => {
+    const unknown = fake();
+    await submitMessageForAuthor(params({ isQuote: true, quoteAuthor: "ignored", quoteAuthorUnknown: true }), unknown.deps);
+    assert.deepEqual([unknown.created[0].isQuote, unknown.created[0].quoteAuthor], [true, null]);
+    const own = fake();
+    await submitMessageForAuthor(params({ isQuote: false, quoteAuthor: "Birisi" }), own.deps);
+    assert.deepEqual([own.created[0].isQuote, own.created[0].quoteAuthor], [false, null]);
+  });
+
+  it("treats a client that sends no attribution (an older build) as own words", async () => {
+    const { deps, created } = fake();
+    await submitMessageForAuthor(params(), deps);
+    assert.deepEqual([created[0].isQuote, created[0].quoteAuthor], [false, null]);
+  });
+
+  it("refuses a quote with an empty or an 81-character author — before the invitation is used or anything is stored", async () => {
+    for (const [quoteAuthor, error] of [["   ", "quote-author-required"], [undefined, "quote-author-required"], ["x".repeat(81), "quote-author-too-long"]] as const) {
+      const { deps, calls } = fake({ invitation: invitation() });
+      assert.deepEqual(await submitMessageForAuthor(params({ isQuote: true, quoteAuthor, invitationToken: "tok" }), deps), { ok: false, error });
+      assertNoAiOrCreate(calls);
+      assert.ok(!calls.includes("recordUse"), "the invitation must not be spent");
+    }
+  });
+
+  it("accepts an author of exactly 80 characters", async () => {
+    const { deps, created } = fake();
+    assert.equal((await submitMessageForAuthor(params({ isQuote: true, quoteAuthor: "ğ".repeat(80) }), deps)).ok, true);
+    assert.equal(created[0].quoteAuthor, "ğ".repeat(80));
+  });
+});
+
+describe("MB-01 quote attribution — submitMessageRevisionForAuthor", () => {
+  function attributionFake(stored: Partial<Message>) {
+    const calls: unknown[][] = [];
+    const deps: SubmitRevisionDeps = {
+      messages: {
+        async getById() {
+          return { id: "msg-1", authorId: "user-1", templateId: CARD_150, ...stored } as Message;
+        },
+        async submitRevision(...args) {
+          calls.push(args);
+          return {} as Message;
+        },
+      },
+    };
+    return { deps, calls };
+  }
+  const base = { messageId: "msg-1", authorId: "user-1", content: "Aynı metin" };
+
+  it("sends a changed author to review as part of the revision", async () => {
+    const { deps, calls } = attributionFake({ isQuote: true, quoteAuthor: "Nazim Hikmet" });
+    assert.deepEqual(await submitMessageRevisionForAuthor({ ...base, isQuote: true, quoteAuthor: "Nâzım Hikmet" }, deps), { ok: true });
+    assert.deepEqual(calls, [["msg-1", "user-1", "Aynı metin", { isQuote: true, quoteAuthor: "Nâzım Hikmet" }]]);
+  });
+
+  it("can propose turning own words into a quote, or a quote into own words", async () => {
+    const toQuote = attributionFake({ isQuote: false, quoteAuthor: null });
+    await submitMessageRevisionForAuthor({ ...base, isQuote: true, quoteAuthorUnknown: true }, toQuote.deps);
+    assert.deepEqual(toQuote.calls[0][3], { isQuote: true, quoteAuthor: null });
+    const toOwn = attributionFake({ isQuote: true, quoteAuthor: "Sezen Aksu" });
+    await submitMessageRevisionForAuthor({ ...base, isQuote: false }, toOwn.deps);
+    assert.deepEqual(toOwn.calls[0][3], { isQuote: false, quoteAuthor: null });
+  });
+
+  it("keeps the stored quote when the client sends no attribution", async () => {
+    const { deps, calls } = attributionFake({ isQuote: true, quoteAuthor: "Can Yücel" });
+    await submitMessageRevisionForAuthor(base, deps);
+    assert.deepEqual(calls[0][3], { isQuote: true, quoteAuthor: "Can Yücel" });
+  });
+
+  it("refuses an empty or too-long author and proposes nothing", async () => {
+    for (const [quoteAuthor, error] of [["", "quote-author-required"], ["y".repeat(81), "quote-author-too-long"]] as const) {
+      const { deps, calls } = attributionFake({ isQuote: true, quoteAuthor: "Eski" });
+      assert.deepEqual(await submitMessageRevisionForAuthor({ ...base, isQuote: true, quoteAuthor }, deps), { ok: false, error });
+      assert.equal(calls.length, 0);
+    }
+  });
+
+  it("answers forbidden for someone else's message before looking at the attribution", async () => {
+    const { deps, calls } = attributionFake({ authorId: "someone-else", isQuote: true, quoteAuthor: "X" });
+    assert.deepEqual(await submitMessageRevisionForAuthor({ ...base, isQuote: true, quoteAuthor: "" }, deps), { ok: false, error: "forbidden" });
+    assert.equal(calls.length, 0);
   });
 });

@@ -1,10 +1,11 @@
-import { and, desc, eq, gte, ilike, inArray, lte, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, ilike, inArray, lte, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { messageLikes, messages } from "@/lib/db/schema";
 import { computePlacement, findEmptyTile, hasCollision, neighborTiles, tileForSequence, type NoteFootprint, type OccupantFootprint } from "@/features/board/lib/placement";
 import { estimateNoteFootprint } from "@/features/notes/lib/footprint";
 import { toNoteTextAlign } from "@/features/notes/lib/textAlign";
 import { CONTENT_CONSENT_VERSION } from "./consent";
+import type { QuoteAttribution } from "./lib/quoteAttribution";
 import type { Message, NewMessageInput } from "./types";
 
 /**
@@ -159,13 +160,15 @@ export interface MessageRepository {
    */
   countRecentByAuthor(authorId: string, windowMinutes: number): Promise<number>;
   /**
-   * Approved messages ordered by like count (ties broken by createdAt,
-   * oldest first, for determinism), excluding the given ids. Deliberately
-   * does NOT filter to `likeCount > 0` — with too few liked messages this
-   * naturally falls through to "any other approved messages," which is
-   * exactly the homepage's documented fallback behavior, for free.
+   * Approved messages that have at least one like, ordered by like count
+   * (ties broken by createdAt, oldest first, for determinism), excluding
+   * the given ids. MB-01: `likeCount > 0` is now part of the query — the
+   * homepage tells "most liked" apart from "latest" (`selectHomeHeroMessages`),
+   * so an unliked card must never pass for a most-liked one.
    */
   listTopLikedApproved(excludeIds: string[], limit: number): Promise<Message[]>;
+  /** MB-01: the newest approved messages (createdAt desc), excluding the given ids — the homepage's fill-up when fewer than 4 cards have likes. */
+  listNewestApproved(excludeIds: string[], limit: number): Promise<Message[]>;
   /**
    * One author's own messages, every status — the private archive's only
    * read path (EPIC 009). Never filtered by anonymity: a message stays in
@@ -279,7 +282,7 @@ export interface MessageRepository {
    * leftover `revisionRejectionReason` from a previous rejected attempt, so
    * a fresh submission never shows a stale rejection message.
    */
-  submitRevision(id: string, authorId: string, content: string): Promise<Message | null>;
+  submitRevision(id: string, authorId: string, content: string, attribution: QuoteAttribution): Promise<Message | null>;
   /**
    * Applies a pending revision: `content` becomes `pendingContent`, then
    * every revision-tracking field is cleared in the same atomic UPDATE —
@@ -297,6 +300,15 @@ export interface MessageRepository {
    * `moderationReason` already uses.
    */
   rejectRevision(id: string, moderatorId: string, reason: string | null): Promise<Message | null>;
+  /**
+   * MB-01: a moderator's correction of a quote's author (a typo, a
+   * misattribution) — never turning own words into a quote or back. It
+   * applies to the live attribution when that is a quote, and to a pending
+   * revision's proposal when that is a quote, so approving the revision
+   * never brings the old spelling back. `null` when neither is a quote.
+   * The caller (an admin Server Function) has already validated the value.
+   */
+  setQuoteAuthor(id: string, quoteAuthor: string | null): Promise<Message | null>;
 }
 
 function toMessage(row: typeof messages.$inferSelect): Message {
@@ -312,6 +324,8 @@ function toMessage(row: typeof messages.$inferSelect): Message {
     templateId: row.templateId,
     fontFamily: row.fontFamily as Message["fontFamily"],
     textAlign: toNoteTextAlign(row.textAlign),
+    isQuote: row.isQuote,
+    quoteAuthor: row.isQuote ? row.quoteAuthor : null,
     invitationId: row.invitationId,
     status: row.status,
     tileX: row.tileX,
@@ -334,6 +348,8 @@ function toMessage(row: typeof messages.$inferSelect): Message {
     consentVersion: row.consentVersion,
     consentAcceptedAt: row.consentAcceptedAt?.toISOString() ?? null,
     pendingContent: row.pendingContent,
+    pendingIsQuote: row.pendingIsQuote,
+    pendingQuoteAuthor: row.pendingIsQuote ? row.pendingQuoteAuthor : null,
     revisionSubmittedAt: row.revisionSubmittedAt?.toISOString() ?? null,
     revisionReviewedAt: row.revisionReviewedAt?.toISOString() ?? null,
     revisionReviewedBy: row.revisionReviewedBy,
@@ -767,7 +783,7 @@ class DrizzleMessageRepository implements MessageRepository {
 
   async listTopLikedApproved(excludeIds: string[], limit: number): Promise<Message[]> {
     const db = getDb();
-    const conditions = [eq(messages.status, "approved")];
+    const conditions = [eq(messages.status, "approved"), gt(messages.likeCount, 0)];
     if (excludeIds.length > 0) conditions.push(notInArray(messages.id, excludeIds));
 
     const rows = await db
@@ -775,6 +791,21 @@ class DrizzleMessageRepository implements MessageRepository {
       .from(messages)
       .where(and(...conditions))
       .orderBy(desc(messages.likeCount), messages.createdAt)
+      .limit(limit);
+    return rows.map(toMessage);
+  }
+
+  async listNewestApproved(excludeIds: string[], limit: number): Promise<Message[]> {
+    if (limit <= 0) return [];
+    const db = getDb();
+    const conditions = [eq(messages.status, "approved")];
+    if (excludeIds.length > 0) conditions.push(notInArray(messages.id, excludeIds));
+    // messages_status_created_idx (status, createdAt) serves this.
+    const rows = await db
+      .select()
+      .from(messages)
+      .where(and(...conditions))
+      .orderBy(desc(messages.createdAt))
       .limit(limit);
     return rows.map(toMessage);
   }
@@ -892,12 +923,19 @@ class DrizzleMessageRepository implements MessageRepository {
     return row ? toMessage(row) : null;
   }
 
-  async submitRevision(id: string, authorId: string, content: string): Promise<Message | null> {
+  async submitRevision(id: string, authorId: string, content: string, attribution: QuoteAttribution): Promise<Message | null> {
     const db = getDb();
     const now = new Date();
     const [row] = await db
       .update(messages)
-      .set({ pendingContent: content, revisionSubmittedAt: now, revisionRejectionReason: null, updatedAt: now })
+      .set({
+        pendingContent: content,
+        pendingIsQuote: attribution.isQuote,
+        pendingQuoteAuthor: attribution.isQuote ? attribution.quoteAuthor : null,
+        revisionSubmittedAt: now,
+        revisionRejectionReason: null,
+        updatedAt: now,
+      })
       .where(
         and(
           eq(messages.id, id),
@@ -917,7 +955,12 @@ class DrizzleMessageRepository implements MessageRepository {
       .update(messages)
       .set({
         content: sql`${messages.pendingContent}`,
+        // A revision from before MB-01 (pendingIsQuote null) keeps the live attribution.
+        isQuote: sql`coalesce(${messages.pendingIsQuote}, ${messages.isQuote})`,
+        quoteAuthor: sql`case when ${messages.pendingIsQuote} is null then ${messages.quoteAuthor} else ${messages.pendingQuoteAuthor} end`,
         pendingContent: null,
+        pendingIsQuote: null,
+        pendingQuoteAuthor: null,
         revisionSubmittedAt: null,
         revisionReviewedAt: now,
         revisionReviewedBy: moderatorId,
@@ -936,6 +979,8 @@ class DrizzleMessageRepository implements MessageRepository {
       .update(messages)
       .set({
         pendingContent: null,
+        pendingIsQuote: null,
+        pendingQuoteAuthor: null,
         revisionSubmittedAt: null,
         revisionReviewedAt: now,
         revisionReviewedBy: moderatorId,
@@ -943,6 +988,20 @@ class DrizzleMessageRepository implements MessageRepository {
         updatedAt: now,
       })
       .where(and(eq(messages.id, id), sql`${messages.pendingContent} is not null`))
+      .returning();
+    return row ? toMessage(row) : null;
+  }
+
+  async setQuoteAuthor(id: string, quoteAuthor: string | null): Promise<Message | null> {
+    const db = getDb();
+    const [row] = await db
+      .update(messages)
+      .set({
+        quoteAuthor: sql`case when ${messages.isQuote} then ${quoteAuthor}::text else ${messages.quoteAuthor} end`,
+        pendingQuoteAuthor: sql`case when ${messages.pendingIsQuote} is true then ${quoteAuthor}::text else ${messages.pendingQuoteAuthor} end`,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(messages.id, id), or(eq(messages.isQuote, true), eq(messages.pendingIsQuote, true))))
       .returning();
     return row ? toMessage(row) : null;
   }

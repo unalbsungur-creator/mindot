@@ -204,6 +204,13 @@
       "when": 1792166400000,
       "tag": "0028_token_purchase_history_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1794096000000,
+      "tag": "0029_quote_attribution",
+      "breakpoints": true
     }
   ]
 }

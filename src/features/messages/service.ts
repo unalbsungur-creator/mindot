@@ -9,6 +9,7 @@ import { userRepository, type UserRepository } from "@/features/users/repository
 import { CONTENT_CONSENT_VERSION } from "./consent";
 import { normalizeMessageContent } from "./lib/messageContent";
 import { maxMessageLength } from "./lib/messageLength";
+import { OWN_WORDS, resolveQuoteAttribution, type QuoteAttribution, type QuoteAttributionError } from "./lib/quoteAttribution";
 import { messageRepository, type MessageRepository } from "./repository";
 import { MESSAGE_MAX_LENGTH, type Message } from "./types";
 
@@ -38,6 +39,15 @@ export interface SubmitMessageInput {
   textAlign?: string;
   authorName: string;
   isAnonymous: boolean;
+  /**
+   * MB-01 "Bu söz kimin?": `true` for someone else's words. The web form
+   * always sends an explicit choice; a caller that sends nothing (an older
+   * client build) stores the writer's own words, as every message before
+   * this did. A quote needs `quoteAuthor` or `quoteAuthorUnknown`.
+   */
+  isQuote?: boolean;
+  quoteAuthor?: string | null;
+  quoteAuthorUnknown?: boolean;
   language: string;
   invitationToken?: string;
   /**
@@ -67,6 +77,7 @@ export type SubmitMessageError =
   | "empty-content"
   | "too-long"
   | "invalid-template"
+  | QuoteAttributionError
   | "invitation-invalid"
   | "invitation-inactive";
 
@@ -121,7 +132,7 @@ const defaultDeps: SubmitMessageDeps = {
  *
  * The check order is part of the contract (it decides which error a writer
  * sees when several apply): suspension → rate limit → consent → content →
- * template → card limit → invitation.
+ * template → card limit → attribution → invitation.
  */
 export async function submitMessageForAuthor(
   params: SubmitMessageParams,
@@ -175,6 +186,14 @@ export async function submitMessageForAuthor(
     : DEFAULT_FONT_FAMILY;
   const textAlign = toNoteTextAlign(params.textAlign);
 
+  // Before the invitation, whose use is recorded as soon as it's accepted.
+  const attribution = resolveQuoteAttribution({
+    isQuote: params.isQuote === true,
+    quoteAuthor: params.quoteAuthor,
+    quoteAuthorUnknown: params.quoteAuthorUnknown,
+  });
+  if (!attribution.ok) return { ok: false, error: attribution.error };
+
   let invitationId: string | null = null;
   if (params.invitationToken) {
     const invitation = await deps.invitations.getByToken(params.invitationToken);
@@ -203,6 +222,8 @@ export async function submitMessageForAuthor(
     templateId: template.id,
     fontFamily,
     textAlign,
+    isQuote: attribution.attribution.isQuote,
+    quoteAuthor: attribution.attribution.quoteAuthor,
     invitationId,
     aiModerationStatus: aiResult.decision,
     aiModerationProvider: aiResult.provider,
@@ -217,7 +238,9 @@ export async function submitMessageForAuthor(
   return { ok: true, message };
 }
 
-export type SubmitRevisionServiceResult = { ok: true } | { ok: false; error: "empty-content" | "too-long" | "forbidden" };
+export type SubmitRevisionServiceResult =
+  | { ok: true }
+  | { ok: false; error: "empty-content" | "too-long" | "forbidden" | QuoteAttributionError };
 
 export interface SubmitRevisionDeps {
   messages: Pick<MessageRepository, "getById" | "submitRevision">;
@@ -234,9 +257,14 @@ const defaultRevisionDeps: SubmitRevisionDeps = { messages: messageRepository };
  * "forbidden" before the card-limit check, so the result never reveals
  * another author's card. `messageRepository.submitRevision`'s atomic
  * WHERE clause (author + approved + nothing pending) is the real boundary.
+ *
+ * MB-01: the attribution is part of the same pending revision — a changed
+ * quote author waits for a moderator exactly like changed text. A caller
+ * that sends no attribution (`isQuote` undefined) proposes the live one
+ * unchanged.
  */
 export async function submitMessageRevisionForAuthor(
-  params: { messageId: string; authorId: string; content: string },
+  params: { messageId: string; authorId: string; content: string; isQuote?: boolean; quoteAuthor?: string | null; quoteAuthorUnknown?: boolean },
   deps: SubmitRevisionDeps = defaultRevisionDeps
 ): Promise<SubmitRevisionServiceResult> {
   const content = normalizeMessageContent(params.content);
@@ -247,7 +275,14 @@ export async function submitMessageRevisionForAuthor(
   if (!existing || existing.authorId !== params.authorId) return { ok: false, error: "forbidden" };
   if ([...content].length > maxMessageLength(existing.templateId)) return { ok: false, error: "too-long" };
 
-  const updated = await deps.messages.submitRevision(params.messageId, params.authorId, content);
+  let attribution: QuoteAttribution = existing.isQuote ? { isQuote: true, quoteAuthor: existing.quoteAuthor } : OWN_WORDS;
+  if (params.isQuote !== undefined) {
+    const resolved = resolveQuoteAttribution({ isQuote: params.isQuote, quoteAuthor: params.quoteAuthor, quoteAuthorUnknown: params.quoteAuthorUnknown });
+    if (!resolved.ok) return { ok: false, error: resolved.error };
+    attribution = resolved.attribution;
+  }
+
+  const updated = await deps.messages.submitRevision(params.messageId, params.authorId, content, attribution);
   if (!updated) return { ok: false, error: "forbidden" };
   return { ok: true };
 }

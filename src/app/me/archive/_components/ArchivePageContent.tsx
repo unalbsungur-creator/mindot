@@ -10,6 +10,14 @@ import { Button } from "@/components/ui/Button";
 import { getNoteTemplate } from "@/features/notes/config/templates";
 import { Note } from "@/features/notes/components/Note";
 import { templateDisplayName } from "@/features/notes/lib/templateDisplayName";
+import {
+  QuoteAttributionFields,
+  quoteAttributionDraftError,
+  quoteAttributionDraftFor,
+  quoteAttributionErrorMessage,
+  toQuoteAttributionInput,
+  type QuoteAttributionDraft,
+} from "@/features/messages/components/QuoteAttributionFields";
 import { maxMessageLength } from "@/features/messages/lib/messageLength";
 import { setMessageWallVisibility, submitMessageRevision } from "@/features/profile/actions";
 import { ArchiveSearchFilter } from "@/features/profile/components/ArchiveSearchFilter";
@@ -135,6 +143,8 @@ export function ArchivePageContent({ isSignedIn, messages: initialMessages, page
                       templateId: message.templateId,
                       fontFamily: message.fontFamily,
                       textAlign: message.textAlign,
+                      isQuote: message.isQuote,
+                      quoteAuthor: message.quoteAuthor,
                       size: "sm",
                       rotation: 0,
                       position: { top: "0%", left: "0%" },
@@ -205,6 +215,8 @@ export function ArchivePageContent({ isSignedIn, messages: initialMessages, page
                       <EditMessageAction
                         messageId={message.id}
                         content={message.content}
+                        isQuote={message.isQuote}
+                        quoteAuthor={message.quoteAuthor}
                         maxLength={maxMessageLength(message.templateId)}
                         onSubmitted={(newContent) =>
                           setMessages((current) =>
@@ -290,16 +302,21 @@ function WallVisibilityToggle({
  * textarea, not a reason field. Deliberately does NOT reuse
  * `WriteThoughtForm` — identity/anonymity/language/consent were fixed at
  * submission time and stay out of scope for an edit (see submitMessage's
- * own "anonymity enforced server-side" comment): only the text changes.
+ * own "anonymity enforced server-side" comment): only the text changes —
+ * and (MB-01) whose words they are, which goes through the same review.
  */
 function EditMessageAction({
   messageId,
   content,
+  isQuote,
+  quoteAuthor,
   maxLength,
   onSubmitted,
 }: {
   messageId: string;
   content: string;
+  isQuote: boolean;
+  quoteAuthor: string | null;
   /** The note's own card limit (`maxMessageLength`) — 150 for most cards. */
   maxLength: number;
   onSubmitted: (newContent: string) => void;
@@ -309,6 +326,7 @@ function EditMessageAction({
   const headingId = useId();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(content);
+  const [attribution, setAttribution] = useState<QuoteAttributionDraft>(() => quoteAttributionDraftFor(isQuote, quoteAuthor));
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -322,6 +340,7 @@ function EditMessageAction({
 
   function openDialog() {
     setDraft(content);
+    setAttribution(quoteAttributionDraftFor(isQuote, quoteAuthor));
     setError(null);
     setSuccess(false);
     setOpen(true);
@@ -342,10 +361,19 @@ function EditMessageAction({
       setError(dictionary.archive.editErrorTooLong);
       return;
     }
+    const attributionError = quoteAttributionDraftError(attribution);
+    if (attributionError) {
+      setError(quoteAttributionErrorMessage(attributionError, dictionary.quote));
+      return;
+    }
     startTransition(async () => {
-      const result = await submitMessageRevision(messageId, trimmed);
+      const result = await submitMessageRevision(messageId, trimmed, toQuoteAttributionInput(attribution));
       if (!result.ok) {
-        setError(dictionary.archive.editErrorGeneric);
+        setError(
+          result.error === "quote-author-required" || result.error === "quote-author-too-long"
+            ? quoteAttributionErrorMessage(result.error, dictionary.quote)
+            : dictionary.archive.editErrorGeneric
+        );
         return;
       }
       setSuccess(true);
@@ -396,6 +424,7 @@ function EditMessageAction({
               <span className="text-right text-xs text-ink-soft">
                 {[...draft].length}/{maxLength}
               </span>
+              <QuoteAttributionFields idPrefix={`edit-${messageId}`} value={attribution} onChange={setAttribution} showError={false} />
               {error && <p className="text-xs text-red-600">{error}</p>}
               <div className="flex justify-end gap-2 pt-1">
                 <Button type="button" variant="ghost" size="sm" onClick={closeDialog}>

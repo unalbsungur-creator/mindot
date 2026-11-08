@@ -54,6 +54,9 @@ export interface ReportQueueItem {
     /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface — rendering metadata, same privacy tier as `templateId`. */
     fontFamily: NoteTextFontFamily;
     textAlign: NoteTextAlign;
+    /** MB-01: shown on the reported card exactly as on the board. */
+    isQuote: boolean;
+    quoteAuthor: string | null;
     language: string;
     authorName: string;
     isAnonymous: boolean;

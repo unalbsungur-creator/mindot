@@ -240,4 +240,12 @@ export interface NoteData {
   fontFamily?: NoteTextFontFamily;
   /** Absent means `"auto"` — sample notes, older call sites, and board responses cached before the field existed. */
   textAlign?: NoteTextAlign;
+  /**
+   * MB-01: someone else's words. The card then shows "— {quoteAuthor}" as
+   * its main byline and `authorName` as a smaller "shared by" line below
+   * it. Absent means the writer's own words — the byline is unchanged.
+   */
+  isQuote?: boolean;
+  /** The quote's author; `null`/absent on a quote means unknown, `""` means not entered yet (the write preview: no author line). Ignored unless `isQuote`. */
+  quoteAuthor?: string | null;
 }

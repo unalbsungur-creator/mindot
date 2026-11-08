@@ -27,6 +27,9 @@ export interface PersonalWallNote {
   /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface — rendering metadata, same privacy tier as `templateId`. */
   fontFamily: NoteTextFontFamily;
   textAlign: NoteTextAlign;
+  /** MB-01: public card content, like the text itself — see messages/lib/quoteAttribution.ts. */
+  isQuote: boolean;
+  quoteAuthor: string | null;
   rotation: number;
   language: string;
   createdAt: string;
@@ -75,6 +78,9 @@ export interface ArchiveMessage {
   /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface — rendering metadata, same privacy tier as `templateId`. */
   fontFamily: NoteTextFontFamily;
   textAlign: NoteTextAlign;
+  /** MB-01: the live attribution (a pending revision's proposal is not shown). */
+  isQuote: boolean;
+  quoteAuthor: string | null;
   language: string;
   isAnonymous: boolean;
   createdAt: string;

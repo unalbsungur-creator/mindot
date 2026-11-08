@@ -1,19 +1,28 @@
 /**
- * Guarded production migration for the Token refund release.
+ * Guarded production migration — current release: MB-01 (0029_quote_attribution).
  * Take and verify a Neon restore point first. Uses only an explicit direct
  * production URL; never reads .env.local, and never performs a Shopier refund.
+ *
+ * Release order (MB-01): staging 0029 → staging verification → production
+ * 0029 (this script) → code deploy → quote backfill script
+ * (`npm run db:quotes:backfill`, dry-run first).
+ * Only a known journal state (0024–0028) is accepted as the starting point;
+ * an already-applied 0029 is accepted too, so a re-run is a no-op.
  */
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 
 async function main(): Promise<void> {
-const CONFIRMATION = "MINDOT-PRODUCTION-REFUND-0028";
+const CONFIRMATION = "MINDOT-PRODUCTION-QUOTES-0029";
 const PRODUCTION_HOST_PREFIX = "ep-cool-art-b2nhe8o2";
 const ALLOWED_LATEST = new Set([
   "1791809597974", "1791975595810", "1791989814430",
   "1792032000000", "1792032300000", "1792166400000",
+  // 0029_quote_attribution — already applied: the migrator skips it.
+  "1794096000000",
 ]);
+const EXPECTED_LATEST = "1794096000000";
 function fail(message: string): never { throw new Error(message); }
 const urlText = process.env.PRODUCTION_DATABASE_URL?.trim();
 if (!urlText) fail("Set PRODUCTION_DATABASE_URL in the shell; .env.local is never read.");
@@ -72,13 +81,16 @@ try {
   await migrate(drizzle(db), { migrationsFolder: "drizzle" });
   const after = await walletLedgerViolations(db);
   if (after !== 0) fail(`After migration, wallet/ledger invariant failed for ${after} account(s).`);
-  const [result] = await db`
-    SELECT (SELECT count(*)::int FROM public.token_purchase_lots) AS purchase_lots,
-           (SELECT count(*)::int FROM public.token_purchase_allocations) AS allocations
-  `;
   const [verified] = await db.unsafe(`SELECT max(created_at)::text AS latest FROM "${safeSchema}"."__drizzle_migrations"`);
-  if (String(verified?.latest ?? "") !== "1792166400000") fail("Migrations returned without expected 0028 journal marker.");
-  console.log(`Production migration complete: ${result.purchase_lots} purchase lots, ${result.allocations} source allocations; balances reconcile.`);
+  if (String(verified?.latest ?? "") !== EXPECTED_LATEST) fail("Migrations returned without expected 0029 journal marker.");
+  const columns = await db`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'messages'
+      AND column_name IN ('is_quote', 'quote_author', 'pending_is_quote', 'pending_quote_author')
+  `;
+  if (columns.length !== 4) fail(`Expected 4 quote attribution columns on messages, found ${columns.length}.`);
+  const [quotes] = await db`SELECT count(*) FILTER (WHERE is_quote)::int AS quotes, count(*)::int AS messages FROM public.messages`;
+  console.log(`Production migration complete: 0029 applied; ${quotes.messages} messages, ${quotes.quotes} marked as quotes; balances reconcile.`);
 } catch (error) {
   const safeMessage = error instanceof Error ? error.message.replaceAll(urlText, "[redacted connection string]") : "Unknown error";
   console.error(`Production migration failed: ${safeMessage}`);

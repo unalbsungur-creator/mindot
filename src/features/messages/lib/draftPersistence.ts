@@ -1,3 +1,4 @@
+import type { QuoteAttributionDraft } from "./quoteAttribution";
 import type { Locale } from "@/i18n/config";
 import type { NoteTextAlign, NoteTextFontFamily } from "@/features/notes/types";
 
@@ -32,6 +33,8 @@ export interface WriteDraft {
   /** Optional the same way: a draft from before alignment existed restores as `undefined`, which the form reads as "auto" (`toNoteTextAlign`) — no key-version bump. */
   textAlign?: NoteTextAlign;
   isAnonymous: boolean;
+  /** MB-01: optional the same way — a draft from before the "Bu söz kimin?" choice restores with it unanswered. */
+  attribution?: QuoteAttributionDraft;
   displayName: string;
   language: Locale;
   /** `undefined` for the plain `/write` flow — must match the page being restored into, so an invite-flow draft never resurrects on `/write` or vice versa. */

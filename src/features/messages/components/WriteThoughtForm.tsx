@@ -17,6 +17,15 @@ import { submitMessage, type SubmitMessageError } from "../actions";
 import { CONTENT_CONSENT_VERSION } from "../consent";
 import { consumeWriteDraft, saveWriteDraft } from "../lib/draftPersistence";
 import { maxMessageLength } from "../lib/messageLength";
+import {
+  ChoiceOption,
+  EMPTY_QUOTE_ATTRIBUTION,
+  QuoteAttributionFields,
+  quoteAttributionDraftError,
+  quoteAttributionErrorMessage,
+  toQuoteAttributionInput,
+  type QuoteAttributionDraft,
+} from "./QuoteAttributionFields";
 
 interface WriteThoughtFormProps {
   invitationToken?: string;
@@ -90,6 +99,8 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
   const [textAlign, setTextAlign] = useState<NoteTextAlign>("auto");
   const [displayName, setDisplayName] = useState(sessionUser?.name ?? "");
   const [isAnonymous, setIsAnonymous] = useState(true);
+  // MB-01 "Bu söz kimin?": no default — the writer picks own words or a quote.
+  const [attribution, setAttribution] = useState<QuoteAttributionDraft>(EMPTY_QUOTE_ATTRIBUTION);
   const [language, setLanguage] = useState<Locale>(locale);
   const [consentChecked, setConsentChecked] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -136,6 +147,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
     setFontFamily(draft.fontFamily ?? "modern");
     setTextAlign(toNoteTextAlign(draft.textAlign));
     setIsAnonymous(draft.isAnonymous);
+    setAttribution(draft.attribution ?? EMPTY_QUOTE_ATTRIBUTION);
     setDisplayName(draft.displayName);
     setLanguage(draft.language);
     // Only honored if it's still the current consent wording — a bumped
@@ -163,13 +175,14 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
       fontFamily,
       textAlign,
       isAnonymous,
+      attribution,
       displayName,
       language,
       invitationToken,
       consentAccepted: consentChecked,
       consentVersion: CONTENT_CONSENT_VERSION,
     });
-  }, [sessionUser, content, templateId, fontFamily, textAlign, isAnonymous, displayName, language, consentChecked, invitationToken]);
+  }, [sessionUser, content, templateId, fontFamily, textAlign, isAnonymous, attribution, displayName, language, consentChecked, invitationToken]);
 
   // The football disc ignores the choice (always centered); "auto" draws left everywhere else.
   const selectedIsFootball = getNoteTemplate(templateId).shape === "football";
@@ -187,8 +200,9 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
   // second string to translate across all five locales.
   const nearLimit = !overLimit && charCount >= maxLength - 15;
   const hasContent = content.trim().length > 0 && !overLimit;
-  const canSubmit = hasContent && consentChecked && !isPending && !isSuspended;
-  const canContinueToGoogle = hasContent && consentChecked && !isSuspended;
+  const attributionError = quoteAttributionDraftError(attribution);
+  const canSubmit = hasContent && attributionError === null && consentChecked && !isPending && !isSuspended;
+  const canContinueToGoogle = hasContent && attributionError === null && consentChecked && !isSuspended;
   const redirectTo = invitationToken ? `/invite/${invitationToken}` : "/write";
 
   const previewAuthor = isAnonymous
@@ -203,6 +217,9 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
     templateId,
     fontFamily,
     textAlign,
+    isQuote: attribution.choice === "quote",
+    // "" (not yet typed, Unknown not ticked): the preview shows no author line rather than "— Unknown".
+    quoteAuthor: attribution.quoteAuthorUnknown ? null : attribution.quoteAuthor.trim(),
     size: "md",
     rotation: -2,
     position: { top: "0%", left: "0%" },
@@ -216,10 +233,14 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
   // the button ALSO requires non-empty content, with nothing on screen ever
   // saying so, so a writer who only noticed the checkbox had no way to know
   // why the button stayed disabled.
+  // MB-01: once text and consent are in place, an unfinished attribution
+  // ("Bu söz kimin?" unanswered, or a quote with no author) is the reason.
   const continueRequirementsHint = overLimit
     ? dictionary.write.errorTooLong
     : hasContent && consentChecked
-      ? null
+      ? attributionError
+        ? quoteAttributionErrorMessage(attributionError, dictionary.quote)
+        : null
       : !hasContent && !consentChecked
         ? dictionary.write.continueRequirementsBoth
         : !hasContent
@@ -234,6 +255,8 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
     "empty-content": dictionary.write.errorEmpty,
     "too-long": dictionary.write.errorTooLong,
     "invalid-template": dictionary.write.errorGeneric,
+    "quote-author-required": quoteAttributionErrorMessage("quote-author-required", dictionary.quote),
+    "quote-author-too-long": quoteAttributionErrorMessage("quote-author-too-long", dictionary.quote),
     "invitation-invalid": dictionary.write.errorGeneric,
     "invitation-inactive": dictionary.write.errorGeneric,
   };
@@ -249,13 +272,18 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
         textAlign,
         authorName: displayName,
         isAnonymous,
+        ...toQuoteAttributionInput(attribution),
         language,
         invitationToken,
         consentAccepted: consentChecked,
         consentVersion: CONTENT_CONSENT_VERSION,
       });
       setOutcome({ ok: result.ok, error: result.error });
-      if (result.ok) setContent("");
+      if (result.ok) {
+        setContent("");
+        // The next thought is asked again — a quote's author never carries over.
+        setAttribution(EMPTY_QUOTE_ATTRIBUTION);
+      }
     });
   }
 
@@ -311,6 +339,19 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
             .replace("{count}", String(charCount))
             .replace("{max}", String(maxLength))}
         </span>
+        {/* Right under the text it describes. Errors stay in the hint under
+            the submit button (continueRequirementsHint), like the other requirements. */}
+        <div className="pt-2">
+          <QuoteAttributionFields
+            idPrefix="write"
+            value={attribution}
+            onChange={(next) => {
+              markEdited();
+              setAttribution(next);
+            }}
+            showError={false}
+          />
+        </div>
       </div>
 
       <div className="order-2 flex min-w-0 flex-col items-center gap-3 rounded-lg border border-border bg-canvas p-8 lg:order-none lg:col-start-2 lg:row-start-1">
@@ -414,7 +455,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-medium text-navy">{dictionary.write.identityHeading}</legend>
           <div role="radiogroup" aria-label={dictionary.write.identityHeading} className="grid gap-3 sm:grid-cols-2">
-            <IdentityOption
+            <ChoiceOption
               selected={isAnonymous}
               onSelect={() => {
                 markEdited();
@@ -423,7 +464,7 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
               title={dictionary.write.anonymousLabel}
               hint={dictionary.write.identityAnonymousHint}
             />
-            <IdentityOption
+            <ChoiceOption
               selected={!isAnonymous}
               onSelect={() => {
                 markEdited();
@@ -562,33 +603,5 @@ export function WriteThoughtForm({ invitationToken, sessionUser, isSuspended = f
       </div>
 
     </div>
-  );
-}
-
-function IdentityOption({
-  selected,
-  onSelect,
-  title,
-  hint,
-}: {
-  selected: boolean;
-  onSelect: () => void;
-  title: string;
-  hint: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      onClick={onSelect}
-      className={cn(
-        "flex flex-col items-start gap-1 rounded-md border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange",
-        selected ? "border-navy bg-navy/5" : "border-border bg-surface hover:border-navy/40"
-      )}
-    >
-      <span className="text-sm font-medium text-navy">{title}</span>
-      <span className="text-xs text-ink-soft">{hint}</span>
-    </button>
   );
 }

@@ -15,12 +15,19 @@ import {
   approveMessage,
   approveMessageRevision,
   archiveMessage,
+  correctQuoteAuthor,
   reconsiderMessage,
   rejectMessage,
   rejectMessageRevision,
   restoreMessage,
 } from "../moderation-actions";
 import type { AiModerationDecision, Message, MessageStatus } from "../types";
+import {
+  QuoteAttributionFields,
+  quoteAttributionDraftError,
+  quoteAttributionDraftFor,
+  type QuoteAttributionDraft,
+} from "./QuoteAttributionFields";
 
 interface ModerationQueueProps {
   pending: Message[];
@@ -240,6 +247,98 @@ function aiLabel(dictionary: Dictionary, decision: AiModerationDecision): string
  * (border/padding/Note preview/Button/ConfirmDialog) as `QueueCard`, not a
  * new design.
  */
+/** MB-01: the attribution a pending revision proposes — the live one when the revision predates MB-01. */
+function proposedAttribution(message: Message): { isQuote: boolean; quoteAuthor: string | null } {
+  if (message.pendingIsQuote === null) return { isQuote: message.isQuote, quoteAuthor: message.quoteAuthor };
+  return { isQuote: message.pendingIsQuote, quoteAuthor: message.pendingIsQuote ? message.pendingQuoteAuthor : null };
+}
+
+/**
+ * MB-01: "Alıntı / sahibi" on a moderation card — whether the note is a
+ * quote and whose, with an inline correction for the author
+ * (`correctQuoteAuthor`). Renders nothing for own words (with no quote
+ * proposed). On a revision card, `proposal` is the revision's attribution;
+ * a change from the live one is shown as "Proposed: …".
+ */
+function QuoteAttributionPanel({
+  message,
+  proposal,
+  onCorrected,
+}: {
+  message: Message;
+  proposal?: { isQuote: boolean; quoteAuthor: string | null };
+  onCorrected: (message: Message) => void;
+}) {
+  const { dictionary } = useLocale();
+  const t = dictionary.quote;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<QuoteAttributionDraft>(() => quoteAttributionDraftFor(true, message.quoteAuthor));
+  const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
+  const [isPending, startTransition] = useTransition();
+
+  const proposedChanges =
+    proposal !== undefined && (proposal.isQuote !== message.isQuote || (proposal.isQuote && proposal.quoteAuthor !== message.quoteAuthor));
+  if (!message.isQuote && !proposal?.isQuote) return null;
+
+  const describe = (isQuote: boolean, author: string | null) => (isQuote ? author ?? t.unknownAuthor : t.moderationOwnWords);
+  // The author being corrected: the proposal's on a revision that proposes a quote, otherwise the live one.
+  const editedAuthor = proposal?.isQuote ? proposal.quoteAuthor : message.quoteAuthor;
+  const draftError = quoteAttributionDraftError(draft);
+
+  function startEditing() {
+    setDraft(quoteAttributionDraftFor(true, editedAuthor));
+    setStatus("idle");
+    setEditing(true);
+  }
+
+  function save() {
+    if (draftError) return;
+    startTransition(async () => {
+      const result = await correctQuoteAuthor(message.id, { quoteAuthor: draft.quoteAuthor, quoteAuthorUnknown: draft.quoteAuthorUnknown });
+      if (!result.ok) {
+        setStatus("error");
+        return;
+      }
+      setStatus("saved");
+      setEditing(false);
+      onCorrected(result.message);
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 rounded-md border border-orange/30 bg-orange-tint/30 p-2.5 text-xs text-ink">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge className="border-orange/30 bg-orange-tint/60 normal-case text-orange-ink">{t.moderationQuoteBadge}</Badge>
+        <span>
+          {t.moderationAuthorLabel}: <span className="font-medium">{describe(message.isQuote, message.quoteAuthor)}</span>
+        </span>
+      </div>
+      {proposedChanges && proposal && (
+        <span className="text-orange-ink">{t.moderationProposed.replace("{value}", describe(proposal.isQuote, proposal.quoteAuthor))}</span>
+      )}
+      {editing ? (
+        <div className="flex flex-col gap-2 pt-1">
+          <QuoteAttributionFields idPrefix={`moderation-${message.id}`} value={draft} onChange={setDraft} showChoice={false} />
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={save} disabled={isPending || draftError !== null}>
+              {t.moderationSaveAction}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={isPending}>
+              {t.moderationCancelAction}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={startEditing} className="self-start font-medium text-navy hover:text-orange">
+          {t.moderationEditAction}
+        </button>
+      )}
+      {status === "saved" && <span role="status" className="text-ink-soft">{t.moderationSaved}</span>}
+      {status === "error" && <span role="alert" className="text-red-600">{t.moderationError}</span>}
+    </div>
+  );
+}
+
 function RevisionQueueCard({
   message,
   onApproved,
@@ -254,6 +353,10 @@ function RevisionQueueCard({
   const [error, setError] = useState(false);
   const [confirmingReject, setConfirmingReject] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  // MB-01: a moderator's author correction, shown without a refetch.
+  const [corrected, setCorrected] = useState<Message | null>(null);
+  const shown = corrected ?? message;
+  const proposed = proposedAttribution(shown);
 
   const template = getNoteTemplate(message.templateId);
   const proposedNote: NoteData = {
@@ -263,6 +366,8 @@ function RevisionQueueCard({
     templateId: message.templateId,
     fontFamily: message.fontFamily,
     textAlign: message.textAlign,
+    isQuote: proposed.isQuote,
+    quoteAuthor: proposed.quoteAuthor,
     size: "sm",
     rotation: 0,
     position: { top: "0%", left: "0%" },
@@ -315,6 +420,8 @@ function RevisionQueueCard({
       <p className="text-xs text-ink-soft">
         {dictionary.moderation.templateLabel}: {templateDisplayName(template, dictionary)}
       </p>
+
+      <QuoteAttributionPanel message={shown} proposal={proposed} onCorrected={setCorrected} />
 
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
         <Button size="sm" onClick={handleApprove} disabled={isPending}>
@@ -377,6 +484,9 @@ function QueueCard({
   const [expanded, setExpanded] = useState(false);
   const isApprovedCard = message.status === "approved";
   const showDetails = !isApprovedCard || expanded;
+  // MB-01: a moderator's author correction, shown without a refetch.
+  const [corrected, setCorrected] = useState<Message | null>(null);
+  const shown = corrected ?? message;
 
   const template = getNoteTemplate(message.templateId);
   const previewNote: NoteData = {
@@ -386,6 +496,8 @@ function QueueCard({
     templateId: message.templateId,
     fontFamily: message.fontFamily,
     textAlign: message.textAlign,
+    isQuote: shown.isQuote,
+    quoteAuthor: shown.quoteAuthor,
     size: "sm",
     rotation: 0,
     position: { top: "0%", left: "0%" },
@@ -484,6 +596,8 @@ function QueueCard({
           {message.isAnonymous ? dictionary.moderation.anonymousBadge : dictionary.moderation.namedBadge}
         </Badge>
       </div>
+
+      <QuoteAttributionPanel message={shown} onCorrected={setCorrected} />
 
       {/*
        * Grouped into one flex item so its own internal gap (not the

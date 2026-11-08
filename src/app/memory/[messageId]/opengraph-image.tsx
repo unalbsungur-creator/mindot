@@ -1,7 +1,7 @@
 import { getPublicMessageById } from "@/features/board/repository";
 import { getDictionary } from "@/i18n/translations";
 import { OG_IMAGE_SIZE, renderBrandOgImage } from "@/features/sharing/services/brandOgImage";
-import { sloganForLanguage, toShareCardNote } from "@/features/sharing/lib/shareCardData";
+import { sloganForLanguage, taglineForLanguage, toShareCardNote } from "@/features/sharing/lib/shareCardData";
 import { renderShareCard } from "@/features/sharing/services/shareCardRenderer";
 
 export const runtime = "nodejs";
@@ -31,5 +31,6 @@ export default async function Image({ params }: { params: Promise<{ messageId: s
     primary: toShareCardNote(message),
     format: { id: "og", name: "OG", width: OG_IMAGE_SIZE.width, height: OG_IMAGE_SIZE.height },
     slogan: sloganForLanguage(message.language),
+    tagline: taglineForLanguage(message.language),
   });
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { DotCtaButton } from "@/components/ui/DotCtaButton";
 import { StarField } from "@/components/ui/StarField";
@@ -11,6 +10,7 @@ import { useLocale } from "@/i18n/LocaleProvider";
 import { HeroBrandComposition } from "./HeroBrandComposition";
 import { PointsMilestone } from "./PointsMilestone";
 import { useHiddenMessageIds } from "@/features/blocks/hooks/useHiddenMessageIds";
+import type { HomeHeroMode } from "./heroSelection";
 
 /**
  * The homepage's dark navy hero — one of exactly two sections on the
@@ -21,9 +21,12 @@ import { useHiddenMessageIds } from "@/features/blocks/hooks/useHiddenMessageIds
  *   LEFT   — the brand block: the wide official lockup (public/Mindot
  *            Logo Dikdörtgen1.png) stacked above the large circular D mark
  *            (public/D Logo.png).
- *   CENTER — heading/description/CTA, plus the real active-message count
- *            (EPIC: Aktif Yayınlanmış Mesaj Sayacı — replaces the old
- *            static "Thousands have already joined" claim).
+ *   CENTER — the slogan, description and CTA, plus the 1,000,000-dot
+ *            progress readout built on the real approved count (MB-01:
+ *            the "living wall / a thought for humanity" framing and its
+ *            badge were retired for the fixed "AKLINDA KALMASIN." slogan;
+ *            the count now lives inside the progress sentence instead of a
+ *            separate large numeral, so it isn't shown twice).
  *   RIGHT  — HeroBrandComposition: the large Mindot Daire.png atmosphere
  *            with real, database-resolved surrounding notes (EPIC: Ana
  *            Sayfadaki 4 Mesajın Yeni Yapısı — resolved server-side in
@@ -39,38 +42,33 @@ import { useHiddenMessageIds } from "@/features/blocks/hooks/useHiddenMessageIds
  * swapped in at full strength, so MINDOT's own navy stays the dominant
  * tone.
  */
-export function HomeHero({ activeCount, heroNotes }: { activeCount: number; heroNotes: NoteData[] }) {
-  const { locale, dictionary } = useLocale();
+export function HomeHero({
+  activeCount,
+  heroNotes,
+  heroMode,
+  pinnedIds = [],
+}: {
+  activeCount: number;
+  heroNotes: NoteData[];
+  heroMode: HomeHeroMode;
+  /** MB-01: the pinned cards among `heroNotes` (fixedMessages.ts) — kept in the first places. */
+  pinnedIds?: string[];
+}) {
+  const { dictionary } = useLocale();
 
-  // `Message.authorName` is the literal, untranslated string "anonymous" for
-  // an anonymous submission (see submitMessage in features/messages/actions.ts
-  // — the real name is discarded server-side, never just hidden). That raw
-  // DB placeholder flows straight through `toHeroNoteData` (page.tsx) since
-  // locale isn't known server-side; translated here, the one place these
-  // notes reach a component with `useLocale()`, into the same fallback word
-  // the write-flow preview already uses for an anonymous byline — no new
-  // translation key. Never touches a real name or the anonymity decision
-  // itself, only this one placeholder value's display text.
+  // MB-01: the stored "anonymous" placeholder is translated by `Note` itself (AuthorName/QuoteByline).
   // User blocking: this page is one shared ISR render, so a signed-in
   // viewer's blocked authors are dropped here, client-side, after a
   // private lookup (see useHiddenMessageIds).
   const hiddenIds = useHiddenMessageIds(heroNotes.map((note) => note.id));
-  const localizedHeroNotes = heroNotes.filter((note) => !hiddenIds.has(note.id)).map((note) =>
-    note.authorName === "anonymous" ? { ...note, authorName: dictionary.write.previewAuthorFallback } : note
-  );
+  const visibleHeroNotes = heroNotes.filter((note) => !hiddenIds.has(note.id));
 
   return (
-    <section className="relative overflow-hidden bg-navy py-8 sm:py-10 lg:py-10">
+    <section className="relative flex flex-1 flex-col justify-center overflow-hidden bg-navy py-8 sm:py-10 lg:py-10">
       <StarField opacity={0.12} />
       <PageContainer className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[0.9fr_2.4fr_1.9fr] lg:gap-6">
-        <div className="order-2 flex flex-row items-center justify-center gap-6 lg:order-1 lg:flex-col lg:items-start lg:gap-5">
-          <Image
-            src="/Mindot Logo Dikdörtgen1.png"
-            alt="MINDOT"
-            width={1103}
-            height={411}
-            className="h-auto w-32 sm:w-36 lg:w-full"
-          />
+        <div className="order-2 flex justify-center lg:order-1 lg:justify-start">
+          {/* MB-01: the small "MINDOT" wordmark + tagline that sat above this was removed; the large D mark stays. */}
           <Image
             src="/D Logo.png"
             alt=""
@@ -81,11 +79,8 @@ export function HomeHero({ activeCount, heroNotes }: { activeCount: number; hero
         </div>
 
         <div className="order-1 flex flex-col items-start gap-4 text-left lg:order-2">
-          <Badge tone="onDark">{dictionary.hero.badge}</Badge>
-          <h1 className="text-balance font-display text-3xl font-medium leading-[1.2] text-white sm:text-4xl lg:text-5xl">
+          <h1 className="text-balance font-display text-4xl font-medium leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-6xl">
             {dictionary.hero.heading}
-            <br />
-            <span className="text-orange">{dictionary.hero.headingHighlight}</span>
           </h1>
           <p className="max-w-xl text-balance text-base leading-relaxed text-white/70 sm:text-lg">
             {dictionary.hero.description}
@@ -98,27 +93,15 @@ export function HomeHero({ activeCount, heroNotes }: { activeCount: number; hero
               {dictionary.nav.buyTokens}
             </Button>
           </div>
-          {/* EPIC: Ana Sayfada Gerçek Aktif Mesaj Sayacı — a genuine large
-              numeral, not a small social-proof line (that framing, with
-              decorative avatar circles, was explicitly what this EPIC
-              asked to move away from). The number carries the visual
-              weight; the label is a small caption beside it, never the
-              other way around. */}
-          <div className="flex items-baseline gap-2.5">
-            <span className="font-display text-4xl font-semibold leading-none text-orange tabular-nums sm:text-5xl">
-              {new Intl.NumberFormat(locale).format(activeCount)}
-            </span>
-            <span className="text-sm leading-tight text-white/60">{dictionary.hero.activeCountLabel}</span>
-          </div>
           {/* EPIC: Homepage Hero + 1,000,000 Points Compact Layout — the
-              1,000,000-dot goal lives inside the hero itself now, not a
+              1,000,000-dot goal lives inside the hero itself, not a
               separate section below it, so the first viewport stays short.
               No second CTA here; the button above already covers it. */}
           <PointsMilestone count={activeCount} />
         </div>
 
         <div className="order-3 flex flex-col items-center gap-3">
-          <HeroBrandComposition notes={localizedHeroNotes} />
+          <HeroBrandComposition notes={visibleHeroNotes} pinnedIds={pinnedIds} />
           {/* EPIC: "DUVAR'da en çok beğenilenler" — a small, secondary
               eyebrow caption naming what the 4 note cards above actually
               are (real, top-liked approved messages — see
@@ -126,9 +109,12 @@ export function HomeHero({ activeCount, heroNotes }: { activeCount: number; hero
               its own heading weight. Same muted/uppercase caption idiom
               already used for secondary labels on dark surfaces elsewhere
               (e.g. MePageContent's boardPage.slogan caption). */}
-          <p className="text-center text-xs font-medium uppercase tracking-wide text-white/50">
-            {dictionary.hero.topLikedLabel}
-          </p>
+          {/* MB-01: "latest" when fewer than 4 cards have likes (heroSelection.ts); no caption without cards. */}
+          {visibleHeroNotes.length > 0 && (
+            <p className="text-center text-xs font-medium uppercase tracking-wide text-white/50">
+              {heroMode === "top-liked" ? dictionary.hero.topLikedLabel : dictionary.hero.latestLabel}
+            </p>
+          )}
         </div>
       </PageContainer>
     </section>

@@ -148,6 +148,8 @@ function ReportCard({
         templateId: item.message.templateId,
         fontFamily: item.message.fontFamily,
         textAlign: item.message.textAlign,
+        isQuote: item.message.isQuote,
+        quoteAuthor: item.message.quoteAuthor,
         size: "sm",
         rotation: 0,
         position: { top: "0%", left: "0%" },

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { notifyMessageApproved, notifyMessageRejected } from "@/features/notifications/events";
+import { resolveQuoteAttribution, type QuoteAttributionError } from "./lib/quoteAttribution";
 import { messageRepository } from "./repository";
 import type { Message } from "./types";
 
@@ -166,6 +167,42 @@ export async function rejectMessageRevision(id: string, reason?: string): Promis
   revalidatePath("/admin/moderation");
   revalidatePath("/me/archive");
   return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
+}
+
+export type CorrectQuoteAuthorResult =
+  | { ok: true; message: Message }
+  | { ok: false; error: "unauthorized" | "not-found" | "not-a-quote" | QuoteAttributionError };
+
+/**
+ * MB-01: a moderator corrects a quote's author ("Sözün sahibi") — on a
+ * pending, published or archived note alike, and on a pending revision's
+ * proposed quote. Same rules as the writer's own input
+ * (`resolveQuoteAttribution`: 1–80 characters, or unknown). Never turns
+ * own words into a quote or back; that stays the writer's choice.
+ * `messageRepository.setQuoteAuthor`'s WHERE clause is the real boundary.
+ */
+export async function correctQuoteAuthor(
+  id: string,
+  input: { quoteAuthor: string | null; quoteAuthorUnknown: boolean }
+): Promise<CorrectQuoteAuthorResult> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: "unauthorized" };
+
+  const resolved = resolveQuoteAttribution({ isQuote: true, quoteAuthor: input.quoteAuthor, quoteAuthorUnknown: input.quoteAuthorUnknown });
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+
+  const existing = await messageRepository.getById(id);
+  if (!existing) return { ok: false, error: "not-found" };
+
+  const updated = await messageRepository.setQuoteAuthor(id, resolved.attribution.quoteAuthor);
+  if (!updated) return { ok: false, error: "not-a-quote" };
+
+  revalidatePath("/admin/moderation");
+  if (updated.status === "approved") {
+    revalidatePath("/board");
+    revalidatePath("/");
+  }
+  return { ok: true, message: updated };
 }
 
 export async function reconsiderMessage(id: string): Promise<ModerationResult> {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/cn";
+import { Note } from "./Note";
 import { SportsTemplateCard } from "./SportsTemplateCard";
 import type { NoteTemplate } from "../types";
 
@@ -215,32 +216,65 @@ export function HorizontalTemplateRail({
               onClick={() => onChange(template.id)}
               className="group/option relative w-32 shrink-0 rounded-lg p-1 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
             >
-              {/* Same mask-based selection glow as the picker used before
-                  this EPIC — unchanged, just moved into this file. */}
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "absolute -inset-1.5 bg-orange transition-opacity duration-[var(--motion-fast)]",
-                  selected ? "opacity-100" : "opacity-0 group-hover/option:opacity-40"
-                )}
-                style={{
-                  WebkitMaskImage: `url(${template.image})`,
-                  maskImage: `url(${template.image})`,
-                  WebkitMaskSize: "contain",
-                  maskSize: "contain",
-                  WebkitMaskRepeat: "no-repeat",
-                  maskRepeat: "no-repeat",
-                  WebkitMaskPosition: "center",
-                  maskPosition: "center",
-                }}
-              />
-              <Image
-                src={template.image!}
-                alt=""
-                width={template.imageWidth!}
-                height={template.imageHeight!}
-                className="relative h-auto w-full object-contain"
-              />
+              {template.contentArea ? (
+                <>
+                  {/* Same mask-based selection glow as the picker used before
+                      this EPIC — unchanged, just moved into this file. */}
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "absolute -inset-1.5 bg-orange transition-opacity duration-[var(--motion-fast)]",
+                      selected ? "opacity-100" : "opacity-0 group-hover/option:opacity-40"
+                    )}
+                    style={{
+                      WebkitMaskImage: `url(${template.image})`,
+                      maskImage: `url(${template.image})`,
+                      WebkitMaskSize: "contain",
+                      maskSize: "contain",
+                      WebkitMaskRepeat: "no-repeat",
+                      maskRepeat: "no-repeat",
+                      WebkitMaskPosition: "center",
+                      maskPosition: "center",
+                    }}
+                  />
+                  <Image
+                    src={template.image!}
+                    alt=""
+                    width={template.imageWidth!}
+                    height={template.imageHeight!}
+                    className="relative h-auto w-full object-contain"
+                  />
+                </>
+              ) : (
+                // MB-01: a CSS-drawn card's `image` is only a thumbnail, and
+                // those PNGs have the English name painted in ("— Classic
+                // Yellow Sticky"). The real card is drawn instead — "Aa" with
+                // the translated name as its byline, which is what that
+                // artwork imitated — at the rail's width (144px `sm` card
+                // zoomed to the 120px slot).
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "relative flex justify-center rounded-md p-1 transition-shadow duration-[var(--motion-fast)]",
+                    selected ? "ring-2 ring-orange" : "group-hover/option:ring-2 group-hover/option:ring-orange/40"
+                  )}
+                >
+                  <span className="pointer-events-none block" style={{ zoom: 112 / 144 }}>
+                    <Note
+                      variant="static"
+                      note={{
+                        id: `thumb-${template.id}`,
+                        content: "Aa",
+                        authorName: templateName(template),
+                        templateId: template.id,
+                        size: "sm",
+                        rotation: 0,
+                        position: { top: "0%", left: "0%" },
+                      }}
+                    />
+                  </span>
+                </span>
+              )}
             </button>
           );
         })}

@@ -85,14 +85,12 @@ export async function generateMemoryPdf(project: MemoryProject, options: { backg
     : renderUnframedMemoryPdf(primary, surrounding, message.language, new Date(), getPdfBackground(options.backgroundId));
 }
 
-/** The PDF footer's brand slogan — the same fixed phrase in every language, never a card/template name. */
-const PDF_DOWNLOAD_SLOGAN = "AKLINDA KALMASIN.";
-
 /**
  * PDF Download V2 (unframed projects — personal PDF / physical gift): the
  * card inside the background artwork (renderer.tsx's PdfDownloadDocument).
- * The share image is not involved. The slogan is fixed; the date follows
- * the note's own language. `now` is when the printed date is taken from —
+ * The share image is not involved. The slogan (MB-01: the one brand slogan,
+ * `boardPage.slogan`, never a card/template name) and the date follow the
+ * note's own language. `now` is when the printed date is taken from —
  * the real current time from `generateMemoryPdf`. `design` is the chosen
  * background. Expects its font/Yoga setup to have run.
  */
@@ -110,7 +108,7 @@ export async function renderUnframedMemoryPdf(
       design={design}
       background={background}
       card={card}
-      slogan={PDF_DOWNLOAD_SLOGAN}
+      slogan={sloganForLanguage(language)}
       date={formatPdfDownloadDate(now, locale, requestTimeZone())}
       domain={new URL(PRODUCTION_SITE_URL).host.toUpperCase()}
     />

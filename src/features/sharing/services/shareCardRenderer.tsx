@@ -1,16 +1,20 @@
 import { ImageResponse } from "next/og";
 import { getNoteTemplate } from "@/features/notes/config/templates";
+import { quoteBylineLines, type QuoteBylineLines } from "@/features/notes/lib/quoteByline";
+import { matchBrowserLocale } from "@/i18n/config";
+import { getDictionary } from "@/i18n/translations";
 import type { NoteTextAlign, NoteTextFontFamily } from "@/features/notes/types";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "@/features/memories/services/pdfPalette";
 import { ensurePdfMeasureFontsLoaded } from "@/features/memories/services/pdfTextMeasure";
 import type { FrameTemplate } from "@/features/memories/config/frameTemplates";
 import type { ShareFormat } from "../types";
+import type { BrandTagline } from "../lib/shareCardData";
 import { layoutWallCards, wallLayoutMetrics, type WallFormat } from "../lib/wallLayout";
 import { BrandLockup, logoToneFor, MemorySeal, MemoryWatermark } from "./brandMarkSatori";
 import { cardBackingFor, cardBackingStyle, type CardBacking } from "./cardBacking";
 import { estimateMemoryCardSize, loadTemplateArtwork, MemoryNoteCard } from "./noteCardSatori";
 import { BRAND_FONT_FAMILY, loadShareFonts, SHARE_FONT_FAMILY, type LoadedFont } from "./shareFonts";
-import { getMasterContentRegion, getMasterSafeArea, loadShareMasterImage, type LoadedMasterImage, type MasterSafeArea } from "./shareMasterImages";
+import { getMasterContentRegion, getMasterSafeArea, getMasterTextSlots, loadShareMasterImage, type LoadedMasterImage, type MasterSafeArea } from "./shareMasterImages";
 
 const SURROUNDING_EXCERPT_CHARS = 70;
 const SURROUNDING_PER_ROW = 3;
@@ -24,6 +28,8 @@ export interface ShareCardNote {
   /** Absent means "auto". */
   textAlign?: NoteTextAlign;
   authorName: string | null;
+  /** MB-01: a quote's two byline lines, already worded in the note's language (see shareCardData.ts). Absent/`null` means own words — the single "— {authorName}" line. */
+  quote?: QuoteBylineLines | null;
   /** `DD.MM.YYYY`, already formatted by the caller (see shareCardData.ts) — this renderer never touches a raw timestamp/UUID/template id. Optional: omitted entirely (not shown as "unknown") when unavailable. */
   date?: string | null;
 }
@@ -45,6 +51,8 @@ export interface ShareCardInput {
   frame?: FrameTemplate | null;
   /** Optional branded slogan line, in the note's own language — resolved by the caller from the Dictionary, since this renderer has no i18n context of its own. */
   slogan?: string | null;
+  /** MB-01: the wordmark's tagline in the note's language (`taglineForLanguage`) — drawn into the master's header, where the artwork used to carry it in Turkish. */
+  tagline?: BrandTagline | null;
 }
 
 function truncate(text: string, max: number): string {
@@ -118,7 +126,7 @@ export async function renderShareCard(input: ShareCardInput): Promise<ImageRespo
 }
 
 function renderWithMasterBackground(
-  { primary, surrounding = [], format }: ShareCardInput,
+  { primary, surrounding = [], format, slogan, tagline }: ShareCardInput,
   master: LoadedMasterImage,
   safeArea: MasterSafeArea,
   contentRegion: { top: number; bottom: number },
@@ -138,6 +146,13 @@ function renderWithMasterBackground(
   const scaledFullWidth = scaledFullHeight * (master.width / master.height);
   const masterOffsetY = -contentRegion.top * scaledFullHeight;
   const masterOffsetX = -(scaledFullWidth - format.width) / 2;
+  // MB-01: raw-file pixels → output pixels, for the text lines the clean master leaves out.
+  const masterScale = scaledFullHeight / master.height;
+  const textSlots = getMasterTextSlots(format.id);
+  const slotBox = (slot: { centerY: number; height: number }) => {
+    const height = slot.height * masterScale * 1.8;
+    return { top: masterOffsetY + slot.centerY * masterScale - height / 2, height, fontSize: slot.height * masterScale * 0.92 };
+  };
 
   const heroInsetX = format.width * safeArea.heroInsetX;
   const heroTop = format.height * safeArea.heroTop;
@@ -159,10 +174,11 @@ function renderWithMasterBackground(
   // correct), it's "never claim 100% of the room that exists".
   const availableCardHeight = Math.max(format.width * 0.15, (heroBottom - heroTop - surroundingReserve) * 0.85);
   let cardWidth = format.width * (1 - safeArea.heroInsetX * 2) * 0.86;
-  let cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily);
+  const hasQuoteByline = Boolean(primary.quote?.sharedByLine);
+  let cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily, hasQuoteByline);
   if (cardSize.height > availableCardHeight) {
     cardWidth *= availableCardHeight / cardSize.height;
-    cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily);
+    cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily, hasQuoteByline);
   }
 
   return new ImageResponse(
@@ -191,7 +207,7 @@ function renderWithMasterBackground(
             gap: sectionGap,
           }}
         >
-          <MemoryNoteCard content={primary.content} authorName={primary.authorName} templateId={primary.templateId} fontFamily={primary.fontFamily} textAlign={primary.textAlign} rotation={0} width={cardWidth} artworkDataUri={artworkDataUri} />
+          <MemoryNoteCard content={primary.content} authorName={primary.authorName} quote={primary.quote} templateId={primary.templateId} fontFamily={primary.fontFamily} textAlign={primary.textAlign} rotation={0} width={cardWidth} artworkDataUri={artworkDataUri} />
 
           {rows.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16, width: rowWidth, opacity: 0.82 }}>
@@ -217,6 +233,25 @@ function renderWithMasterBackground(
             </div>
           )}
         </div>
+
+        {/* MB-01: the two lines the clean master no longer carries, in the
+            note's language — the tagline under the wordmark (its middle
+            phrase in orange, as in the artwork) and the brand slogan above
+            the footer dot. */}
+        {textSlots && tagline && (
+          <div style={{ position: "absolute", left: 0, right: 0, top: slotBox(textSlots.tagline).top, height: slotBox(textSlots.tagline).height, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ display: "flex", gap: slotBox(textSlots.tagline).fontSize * 0.28, fontSize: slotBox(textSlots.tagline).fontSize, fontWeight: 700, color: "#E9ECF1" }}>
+              <span>{tagline.lead}</span>
+              <span style={{ color: PDF_COLORS.orange }}>{tagline.highlight}</span>
+              <span>{tagline.tail}</span>
+            </span>
+          </div>
+        )}
+        {textSlots && slogan && (
+          <div style={{ position: "absolute", left: 0, right: 0, top: slotBox(textSlots.slogan).top, height: slotBox(textSlots.slogan).height, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: slotBox(textSlots.slogan).fontSize * 0.85, fontWeight: 700, letterSpacing: 2, color: PDF_COLORS.navy }}>{slogan}</span>
+          </div>
+        )}
 
         {/* The one dynamic piece the master art can't contain — every
             other footer element ("Aklında kalmasın.", the dot) is
@@ -307,10 +342,11 @@ function renderFullyDrawnShareCard(
     format.height - outerPadding * 2 - headerHeight - footerHeight - sectionGap * 2 - surroundingReserve
   );
   let cardWidth = format.width * 0.62;
-  let cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily);
+  const hasQuoteByline = Boolean(primary.quote?.sharedByLine);
+  let cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily, hasQuoteByline);
   if (cardSize.height > availableCardHeight) {
     cardWidth *= availableCardHeight / cardSize.height;
-    cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily);
+    cardSize = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily, hasQuoteByline);
   }
 
   return new ImageResponse(
@@ -343,6 +379,7 @@ function renderFullyDrawnShareCard(
               <MemoryNoteCard
                 content={primary.content}
                 authorName={primary.authorName}
+                quote={primary.quote}
                 templateId={primary.templateId}
                 fontFamily={primary.fontFamily}
                 textAlign={primary.textAlign}
@@ -355,6 +392,7 @@ function renderFullyDrawnShareCard(
             <MemoryNoteCard
               content={primary.content}
               authorName={primary.authorName}
+              quote={primary.quote}
               templateId={primary.templateId}
               fontFamily={primary.fontFamily}
               textAlign={primary.textAlign}
@@ -525,6 +563,14 @@ export interface WallShareCardV2Note {
   fontFamily: NoteTextFontFamily;
   /** Absent means "auto". */
   textAlign?: NoteTextAlign;
+  /**
+   * MB-01: a quote still names its author here — the cards carry no
+   * sharer line (the owner is in the header), but a quote without its
+   * author would read as the owner's own words. Worded in `language`.
+   */
+  isQuote?: boolean;
+  quoteAuthor?: string | null;
+  language?: string;
 }
 
 export interface WallShareCardV2Input {
@@ -616,6 +662,7 @@ export async function renderWallShareCardV2({ displayName, notes, format, slogan
               <MemoryNoteCard
                 content={note.content}
                 authorName={null}
+                quote={note.isQuote ? quoteBylineLines(note.quoteAuthor, "", getDictionary(matchBrowserLocale(note.language)).quote) : null}
                 templateId={note.templateId}
                 fontFamily={note.fontFamily}
                 textAlign={note.textAlign}

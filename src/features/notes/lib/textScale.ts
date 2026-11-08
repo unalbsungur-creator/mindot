@@ -431,3 +431,14 @@ export function footballTextSizeRem(content: string, fontFamily: NoteTextFontFam
   const match = /text-\[([\d.]+)rem\]/.exec(FOOTBALL_TEXT_SCALE[fontFamily][noteTextSizeTier(content)]);
   return match ? Number(match[1]) : 0.65;
 }
+
+/**
+ * MB-01: a quote's message (and byline) size on the fixed-geometry cards whose text
+ * tiers leave no room for its extra "shared by" line — the compact image
+ * cards (Special Day) and the football disc. Measured in the browser over
+ * every such template at every size with near-limit Turkish, ALL-CAPS and
+ * multi-line text: at this scale no quote card clips where the same text
+ * as own words fits. Note.tsx (as CSS `zoom` on the text) and the share
+ * card / PDF (`MemoryNoteCard`, as font size) both read it.
+ */
+export const QUOTE_COMPACT_TEXT_SCALE = 0.85;

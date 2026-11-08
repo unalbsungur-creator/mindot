@@ -37,7 +37,8 @@ const PHOTOS = [
  */
 export function PanoStorySection({ t, slogan }: { t: Dictionary["panoStory"]; slogan: string }) {
   return (
-    <section className="border-t border-border pt-12 sm:pt-16">
+    // `id="story"`: the homepage's 1994 line links here (MB-01).
+    <section id="story" className="scroll-mt-24 border-t border-border pt-12 sm:pt-16">
       <div className="mx-auto flex max-w-2xl flex-col gap-4 text-center">
         <h2 className="font-display text-2xl font-medium text-navy sm:text-3xl">{t.heading}</h2>
         <p className="font-display text-lg italic text-ink-soft">{t.lead}</p>

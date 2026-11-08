@@ -15,15 +15,57 @@ export interface Dictionary {
     buyTokens: string;
   };
   hero: {
-    badge: string;
+    /** MB-01: the fixed slogan — "AKLINDA KALMASIN." and its own translation per locale, never rephrased. */
     heading: string;
-    headingHighlight: string;
     description: string;
     primaryCta: string;
-    /** Trailing text after the real, live active-message count — see app/page.tsx. The number itself is formatted, not translated. */
-    activeCountLabel: string;
     /** Small eyebrow caption directly under the hero's 4 note cards (HeroBrandComposition) — these are real top-liked messages (see listTopLikedApproved), and this label names that. */
     topLikedLabel: string;
+    /** MB-01: the same caption when fewer than 4 cards have likes and the newest fill the rest (app/_home/heroSelection.ts). */
+    latestLabel: string;
+    /** MB-01: the wordmark's tagline, drawn by the share images in the note's language (the artwork carries none); `highlight` is drawn in orange. */
+    brandTagline: { lead: string; highlight: string; tail: string };
+  };
+  /**
+   * MB-01: the site's default `<title>`/`og:title` and description /
+   * `og:description` / `twitter:description`. The root layout renders the
+   * default locale's (`tr`) into the server HTML; `LocalizedSiteMeta`
+   * swaps in the viewer's locale on the client.
+   */
+  siteMeta: {
+    title: string;
+    description: string;
+  };
+  /** MB-01 "Bu söz kimin?" — quote attribution, on the write form, the cards, the share image/PDF and moderation. */
+  quote: {
+    attributionLegend: string;
+    ownWordsLabel: string;
+    ownWordsHint: string;
+    quoteLabel: string;
+    quoteHint: string;
+    authorLabel: string;
+    authorPlaceholder: string;
+    /** The "Unknown" checkbox beside the author field. */
+    unknownAuthorOption: string;
+    /** What a card shows as the author of a quote whose author is unknown. */
+    unknownAuthor: string;
+    /** The small line under a quote's author on a card: "{name}" is the sharer's display name or `anonymousSharer`. */
+    sharedBy: string;
+    anonymousSharer: string;
+    errorChoiceRequired: string;
+    errorAuthorRequired: string;
+    /** "{max}" is QUOTE_AUTHOR_MAX_LENGTH. */
+    errorAuthorTooLong: string;
+    moderationQuoteBadge: string;
+    moderationAuthorLabel: string;
+    /** A pending revision's proposed attribution: "{value}" is the author, `unknownAuthor`, or `moderationOwnWords`. */
+    moderationProposed: string;
+    moderationOwnWords: string;
+    moderationEditAction: string;
+    moderationSaveAction: string;
+    moderationCancelAction: string;
+    moderationSaved: string;
+    moderationError: string;
   };
   homeInfoBand: {
     col1Line1: string;
@@ -44,11 +86,12 @@ export interface Dictionary {
    * The CTA reuses hero.primaryCta rather than a duplicate near-identical string.
    */
   pointsMilestone: {
-    /** e.g. "{target} Nokta" — the fixed 1,000,000 goal, not the live count. */
-    heading: string;
-    body: string;
-    /** Visible caption AND the progress bar's accessible label — "{count} / {target}". */
-    progressLabel: string;
+    /** MB-01: the visible caption AND the progress bar's accessible label — "{count}" is the live, formatted approved count. */
+    progress: string;
+    /** Under the bar: "{target}" is the next stop (app/_home/milestones.ts), formatted. */
+    nextStop: string;
+    /** Under the bar once the final goal is reached. */
+    goalReached: string;
   };
   /** Reused by /about — see AboutPageContent — not duplicated under a second key. */
   story: {
@@ -94,6 +137,8 @@ export interface Dictionary {
   write: {
     title: string;
     subtitle: string;
+    /** MB-01: the invitation line shown above the write form. */
+    invitation: string;
     contentLabel: string;
     contentPlaceholder: string;
     characterCount: string;
@@ -593,13 +638,6 @@ export interface Dictionary {
      * `write.templateNames`.
      */
     frameNames: Record<string, string>;
-    /**
-     * PDF Download V2's own slogan, printed uppercased under the card on the
-     * unframed Memory PDF ("Aklında kalsın." → "AKLINDA KALSIN."). A
-     * deliberately different line from `boardPage.slogan` ("Aklında
-     * kalmasın."), which the share image and the board keep using.
-     */
-    pdfDownloadSlogan: string;
   };
   adminAccessCodes: {
     title: string;
