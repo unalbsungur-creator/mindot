@@ -14,14 +14,8 @@
  */
 export const SITE_NAME = "MINDOT";
 
-export const SITE_TAGLINE = "A living wall of thought";
-
-/**
- * Concise, accurate product description — no exaggerated marketing claims.
- * Used as the default metadata description and in JSON-LD.
- */
-export const SITE_DESCRIPTION =
-  "MINDOT is a place to leave a thought as a note — shared anonymously or by name, reviewed by a person before it becomes public, and kept as a lasting memory.";
+// MB-01: the default title and description are the brand message, per
+// language — `siteMeta` in src/i18n/translations/, read by the root layout.
 
 /**
  * The intended production origin. Not a value to import and use directly

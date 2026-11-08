@@ -29,6 +29,9 @@ const message = (i: number): Message =>
     templateId: i % 2 ? "polaroid" : "celebration-spark",
     fontFamily: "handwritten",
     textAlign: i % 3 ? "center" : "auto",
+    // MB-01: one quote, to see its attribution reach the renderer.
+    isQuote: i === 1,
+    quoteAuthor: i === 1 ? "Orhan Veli" : null,
     rotation: 0,
     language: "tr",
     createdAt: new Date(Date.UTC(2026, 9, 14) - i * 60_000).toISOString(),
@@ -118,7 +121,11 @@ describe("wall share image route", () => {
       assert.equal(calls.v2[0].format.id, formatId);
       assert.equal(calls.v2[0].displayName, "Ayşe");
       assert.deepEqual(calls.v2[0].notes.map((n) => (n as { content: string }).content), Array.from({ length: limit }, (_, i) => `note ${i}`), "newest first, in order");
-      assert.deepEqual(calls.v2[0].notes[1], { id: "m1", content: "note 1", templateId: "polaroid", fontFamily: "handwritten", textAlign: "center", rotation: 0, language: "tr", createdAt: message(1).createdAt }, "the card's typeface and alignment reach the renderer");
+      assert.deepEqual(
+        calls.v2[0].notes[1],
+        { id: "m1", content: "note 1", templateId: "polaroid", fontFamily: "handwritten", textAlign: "center", isQuote: true, quoteAuthor: "Orhan Veli", rotation: 0, language: "tr", createdAt: message(1).createdAt },
+        "the card's typeface, alignment and quote attribution reach the renderer"
+      );
     }
     assert.deepEqual(calls.plain, []);
   });

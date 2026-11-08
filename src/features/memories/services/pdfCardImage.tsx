@@ -48,7 +48,7 @@ function paperColorFor(templateId: string): string {
 
 export async function renderPdfCardImage(primary: ShareCardNote, surrounding: ShareCardNote[]): Promise<PdfCardImage> {
   const cardWidth = PDF_CARD_RENDER_WIDTH;
-  const { height: cardHeight } = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily);
+  const { height: cardHeight } = estimateMemoryCardSize(primary.templateId, primary.content, cardWidth, primary.fontFamily, Boolean(primary.quote?.sharedByLine));
   const neighbours = surrounding.slice(0, MAX_SURROUNDING);
   const rows: ShareCardNote[][] = [];
   for (let i = 0; i < neighbours.length; i += SURROUNDING_PER_ROW) rows.push(neighbours.slice(i, i + SURROUNDING_PER_ROW));
@@ -72,6 +72,7 @@ export async function renderPdfCardImage(primary: ShareCardNote, surrounding: Sh
     <MemoryNoteCard
       content={primary.content}
       authorName={primary.authorName}
+      quote={primary.quote}
       templateId={primary.templateId}
       fontFamily={primary.fontFamily}
       textAlign={primary.textAlign}

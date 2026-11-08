@@ -65,10 +65,38 @@ export interface MasterContentRegion {
   bottom: number;
 }
 
+/**
+ * MB-01: the `-clean` copies — the designer's masters with their two
+ * baked-in Turkish lines (the "Bir düşünce. Bir nokta. Sonsuz hikâye."
+ * tagline and the "Aklında kalmasın" footer) painted out, nothing else
+ * changed (same size, same palette). Those two lines are text now, drawn
+ * by `renderShareCard` in the note's language at `MASTER_TEXT_SLOTS`. The
+ * original masters stay untouched next to them.
+ */
 const MASTER_FILES: Record<string, string> = {
-  square: "mindot-share-square.png",
-  story: "mindot-share-story.png",
+  square: "mindot-share-square-clean.png",
+  story: "mindot-share-story-clean.png",
 };
+
+/** Where a master's (now painted-out) text line sat, in the *raw file's* pixels: its vertical centre and its glyph height. */
+export interface MasterTextSlot {
+  centerY: number;
+  height: number;
+}
+
+/**
+ * Measured on the original masters (the bounding rows of the tagline's
+ * light pixels in the navy header, and of the footer's dark slogan pixels
+ * above the dot) — the same rows the `-clean` copies paint out.
+ */
+const MASTER_TEXT_SLOTS: Record<string, { tagline: MasterTextSlot; slogan: MasterTextSlot }> = {
+  square: { tagline: { centerY: 999, height: 88 }, slogan: { centerY: 3046, height: 62 } },
+  story: { tagline: { centerY: 1623, height: 88 }, slogan: { centerY: 4970, height: 61 } },
+};
+
+export function getMasterTextSlots(formatId: string): { tagline: MasterTextSlot; slogan: MasterTextSlot } | null {
+  return MASTER_TEXT_SLOTS[formatId] ?? null;
+}
 
 const CONTENT_REGIONS: Record<string, MasterContentRegion> = {
   square: { top: 0, bottom: 1 },

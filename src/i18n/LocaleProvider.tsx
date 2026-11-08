@@ -65,6 +65,11 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
 
+/** `useLocale()` for components that may also render outside the provider (e.g. in a test): `null` there instead of throwing. */
+export function useOptionalLocale(): LocaleContextValue | null {
+  return useContext(LocaleContext);
+}
+
 export function useLocale(): LocaleContextValue {
   const context = useContext(LocaleContext);
   if (!context) {

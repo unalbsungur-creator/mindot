@@ -52,6 +52,8 @@ export function WallNotes({ notes, profile, emptyMessage, cardLinkLabel }: WallN
               templateId: note.templateId,
               fontFamily: note.fontFamily,
               textAlign: note.textAlign,
+              isQuote: note.isQuote,
+              quoteAuthor: note.quoteAuthor,
               size: "md",
               rotation: note.rotation,
               position: { top: "0%", left: "0%" },

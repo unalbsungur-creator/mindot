@@ -6,7 +6,7 @@ import { resolveCaptureRegion } from "@/features/memories/lib/captureRegion";
 import { memoryRepository } from "@/features/memories/repository";
 import { checkMemoryOutputAccess } from "@/features/memories/services/outputAccess";
 import { getPublicShareFormat } from "@/features/sharing/config/shareFormats";
-import { sloganForLanguage, toShareCardNote } from "@/features/sharing/lib/shareCardData";
+import { sloganForLanguage, taglineForLanguage, toShareCardNote } from "@/features/sharing/lib/shareCardData";
 import { renderShareCard } from "@/features/sharing/services/shareCardRenderer";
 
 export const runtime = "nodejs";
@@ -61,6 +61,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
       format,
       frame,
       slogan: sloganForLanguage(message.language),
+      tagline: taglineForLanguage(message.language),
     });
   } catch (error) {
     console.error("renderShareCard failed", { formatId, error: error instanceof Error ? error.message : String(error) });

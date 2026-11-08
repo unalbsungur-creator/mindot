@@ -18,6 +18,8 @@ const dictionary = getDictionary(defaultLocale);
 const wallNote = (id: string, content: string): PersonalWallNote => ({
   id,
   content,
+  isQuote: false,
+  quoteAuthor: null,
   templateId: "classic-yellow",
   fontFamily: "modern",
   textAlign: "auto",

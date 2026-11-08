@@ -4,10 +4,12 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { getNoteTemplate } from "../config/templates";
 import { NoteActionTooltip } from "./NoteActionTooltip";
+import { AuthorName } from "./AuthorName";
+import { QuoteByline } from "./QuoteByline";
 import { FrostDrift, renderNoteDecoration } from "../lib/noteDecorations";
 import { footballBallBackground } from "../lib/sportsBall";
 import { effectiveTextAlign, textAlignClass } from "../lib/textAlign";
-import { footballTextSizeRem, noteFontFamilyClass, noteTextScaleClass, spaciousTextSizeCqw } from "../lib/textScale";
+import { footballTextSizeRem, noteFontFamilyClass, noteTextScaleClass, QUOTE_COMPACT_TEXT_SCALE, spaciousTextSizeCqw } from "../lib/textScale";
 import type { NoteData } from "../types";
 
 const paperClasses: Record<string, string> = {
@@ -263,6 +265,16 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
         ? "football"
         : "standard"
   );
+  // MB-01: a quote's byline is one line taller. The fixed-geometry cards
+  // whose text tiers leave no room for it — the compact image cards and the
+  // football disc — draw a quote's message at QUOTE_COMPACT_TEXT_SCALE
+  // (measured: no card clips a quote where its own-words twin fits). The
+  // spacious Standard cards keep their size; their box has the room.
+  const quoteTextStyle: CSSProperties | undefined =
+    note.isQuote && (isFootball || (isImageBacked && !isSpacious)) ? { zoom: QUOTE_COMPACT_TEXT_SCALE } : undefined;
+  // The football author line follows the message down to a smaller tier when it has line breaks.
+  const footballBylineStyle: CSSProperties | undefined =
+    isFootball && note.content.includes("\n") ? { fontSize: `min(0.65rem, ${footballTextSizeRem(note.content, fontFamily)}rem)` } : undefined;
 
   return (
     <article
@@ -487,14 +499,24 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
               <p
                 lang={note.language}
                 className={cn("whitespace-pre-line break-words text-ink", !isSpacious && textScaleClass, fontFamilyClass, alignClass)}
+                style={quoteTextStyle}
               >
                 {note.content}
               </p>
               {/* Spacious: the author line scales with the text (0.85em,
                   0.5em gap) exactly like the share card / PDF draw it. */}
-              <span className={cn("break-words text-ink-soft", isSpacious ? "mt-[0.5em] text-[0.85em]" : "text-xs", alignClass)}>
-                — {note.authorName}
-              </span>
+              {note.isQuote ? (
+                <QuoteByline
+                  quoteAuthor={note.quoteAuthor ?? null}
+                  sharerName={note.authorName}
+                  // Compact cards: 0.6rem, not text-xs — two byline lines at 12px don't fit their box (measured).
+                  className={cn("break-words text-ink-soft", isSpacious ? "mt-[0.5em] text-[0.85em]" : "text-[0.6rem]", alignClass)}
+                />
+              ) : (
+                <span className={cn("break-words text-ink-soft", isSpacious ? "mt-[0.5em] text-[0.85em]" : "text-xs", alignClass)}>
+                  — <AuthorName name={note.authorName} />
+                </span>
+              )}
             </div>
           </>
         ) : isFootball ? (
@@ -537,6 +559,7 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
           <div className="flex h-[82%] w-[82%] flex-col items-center justify-center gap-1 overflow-hidden rounded-full bg-paper-cream p-[18%] text-center shadow-inner">
             <p
               lang={note.language}
+              style={quoteTextStyle}
               className={cn(
                 // EPIC 045: `items-center` on this flex-col disc doesn't
                 // stretch its children to the disc's width the way the
@@ -560,13 +583,22 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
             >
               {note.content}
             </p>
-            <span
-              className="max-w-full shrink-0 break-words text-[0.65rem] text-ink-soft"
-              // With line breaks the message can drop to a smaller tier: the author line never ends up larger than it.
-              style={note.content.includes("\n") ? { fontSize: `min(0.65rem, ${footballTextSizeRem(note.content, fontFamily)}rem)` } : undefined}
-            >
-              — {note.authorName}
-            </span>
+            {note.isQuote ? (
+              <QuoteByline
+                quoteAuthor={note.quoteAuthor ?? null}
+                sharerName={note.authorName}
+                className="max-w-full shrink-0 break-words text-ink-soft"
+                style={{ fontSize: `calc(${footballBylineStyle?.fontSize ?? "0.65rem"} * ${QUOTE_COMPACT_TEXT_SCALE})` }}
+              />
+            ) : (
+              <span
+                className="max-w-full shrink-0 break-words text-[0.65rem] text-ink-soft"
+                // With line breaks the message can drop to a smaller tier: the author line never ends up larger than it.
+                style={footballBylineStyle}
+              >
+                — <AuthorName name={note.authorName} />
+              </span>
+            )}
           </div>
         ) : (
           <>
@@ -596,7 +628,11 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
             >
               {note.content}
             </p>
-            <span className={cn("break-words text-xs text-ink-soft", alignClass)}>— {note.authorName}</span>
+            {note.isQuote ? (
+              <QuoteByline quoteAuthor={note.quoteAuthor ?? null} sharerName={note.authorName} className={cn("break-words text-xs text-ink-soft", alignClass)} />
+            ) : (
+              <span className={cn("break-words text-xs text-ink-soft", alignClass)}>— <AuthorName name={note.authorName} /></span>
+            )}
           </>
         )}
       </div>

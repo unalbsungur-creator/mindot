@@ -2,7 +2,7 @@ import { messageRepository } from "@/features/messages/repository";
 import type { Message } from "@/features/messages/types";
 import type { NoteData } from "@/features/notes/types";
 import { isDatabaseConfigured } from "@/lib/env";
-import { HOME_FIXED_MESSAGE_IDS } from "./_home/fixedMessages";
+import { selectHomeHeroMessages, type HomeHeroMode } from "./_home/heroSelection";
 import { HomeHero } from "./_home/HomeHero";
 import { MeaningStrip } from "./_home/MeaningStrip";
 
@@ -21,6 +21,8 @@ function toHeroNoteData(message: Message): NoteData {
     templateId: message.templateId,
     fontFamily: message.fontFamily,
     textAlign: message.textAlign,
+    isQuote: message.isQuote,
+    quoteAuthor: message.quoteAuthor,
     size: "sm",
     rotation: message.rotation ?? 0,
     // Inert for variant="static" — see HeroBrandComposition/Note.
@@ -30,28 +32,15 @@ function toHeroNoteData(message: Message): NoteData {
 }
 
 /**
- * EPIC: Ana Sayfadaki 4 Mesajın Yeni Yapısı. Two fixed messages (real,
- * already-approved rows — see fixedMessages.ts) plus enough top-liked
- * approved messages to reach 4 total, excluding the fixed ones so nothing
- * duplicates. If a fixed message has since become unavailable (archived),
- * its slot is silently absorbed into the dynamic count instead of leaving
- * a gap or throwing — the same graceful-fallback spirit as the board's
- * own reference-point protection.
- *
- * EPIC: Make Database Dependency Safe for Cloudflare Build — the caller
- * (`Home`, below) only invokes this when `isDatabaseConfigured()` is
- * true, so this function itself can assume the database is reachable;
- * it never needs its own fallback branch.
+ * MB-01: the 4 most liked published cards from the Wall, filled up with
+ * the newest ones when fewer than 4 have likes (see heroSelection.ts —
+ * this replaced the two pinned message ids of "Ana Sayfadaki 4 Mesajın
+ * Yeni Yapısı"). The caller only invokes this when the database is
+ * configured.
  */
-async function getHomeHeroNotes(): Promise<NoteData[]> {
-  const fixedResults = await Promise.all(HOME_FIXED_MESSAGE_IDS.map((id) => messageRepository.getById(id)));
-  const fixedMessages = fixedResults.filter((message): message is Message => message !== null && message.status === "approved");
-
-  const dynamicNeeded = 4 - fixedMessages.length;
-  const excludeIds = fixedMessages.map((message) => message.id);
-  const dynamicMessages = dynamicNeeded > 0 ? await messageRepository.listTopLikedApproved(excludeIds, dynamicNeeded) : [];
-
-  return [...fixedMessages, ...dynamicMessages].map(toHeroNoteData);
+async function getHomeHeroNotes(): Promise<{ mode: HomeHeroMode; notes: NoteData[]; pinnedIds: string[] }> {
+  const { mode, messages, pinnedIds } = await selectHomeHeroMessages(messageRepository);
+  return { mode, notes: messages.map(toHeroNoteData), pinnedIds };
 }
 
 /**
@@ -75,14 +64,17 @@ async function getHomeHeroNotes(): Promise<NoteData[]> {
  * still surfaces normally, not swallowed.
  */
 export default async function Home() {
-  const [heroNotes, activeCount] = isDatabaseConfigured()
+  const [hero, activeCount] = isDatabaseConfigured()
     ? await Promise.all([getHomeHeroNotes(), messageRepository.countApproved()])
-    : [[] as NoteData[], 0];
+    : [{ mode: "latest" as const, notes: [] as NoteData[], pinnedIds: [] as string[] }, 0];
 
+  // MB-01: <main> is flex-1 and fills the viewport; without this wrapper the
+  // two sections kept their own height and the canvas showed as an empty
+  // band above the footer. The hero takes up the remaining height instead.
   return (
-    <>
-      <HomeHero activeCount={activeCount} heroNotes={heroNotes} />
+    <div data-fill-main="" className="flex flex-1 flex-col bg-navy">
+      <HomeHero activeCount={activeCount} heroNotes={hero.notes} heroMode={hero.mode} pinnedIds={hero.pinnedIds} />
       <MeaningStrip />
-    </>
+    </div>
   );
 }

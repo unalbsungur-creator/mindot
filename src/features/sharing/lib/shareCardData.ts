@@ -1,5 +1,6 @@
 import type { BoardTileMessage } from "@/features/board/types";
 import { matchBrowserLocale } from "@/i18n/config";
+import { quoteBylineLines } from "@/features/notes/lib/quoteByline";
 import { getDictionary } from "@/i18n/translations";
 import type { ShareCardNote } from "../services/shareCardRenderer";
 
@@ -10,6 +11,10 @@ export function toShareCardNote(message: BoardTileMessage): ShareCardNote {
     templateId: message.templateId,
     fontFamily: message.fontFamily,
     textAlign: message.textAlign,
+    // MB-01: worded in the note's own language, like the slogan — a share card travels with the note.
+    quote: message.isQuote
+      ? quoteBylineLines(message.quoteAuthor, message.author?.displayName ?? null, getDictionary(matchBrowserLocale(message.language)).quote)
+      : null,
     authorName: message.author?.displayName ?? null,
     date: formatMemoryDate(message.createdAt),
   };
@@ -33,3 +38,10 @@ function formatMemoryDate(iso: string): string {
 export function sloganForLanguage(language: string): string {
   return getDictionary(matchBrowserLocale(language)).boardPage.slogan;
 }
+
+/** MB-01: the wordmark's tagline ("A thought. A dot. An endless story."), in the note's own language — the share masters no longer carry it baked in Turkish. */
+export function taglineForLanguage(language: string): BrandTagline {
+  return getDictionary(matchBrowserLocale(language)).hero.brandTagline;
+}
+
+export type BrandTagline = { lead: string; highlight: string; tail: string };

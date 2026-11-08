@@ -78,8 +78,8 @@ export function MemoryPdfDocument({ imagePngBuffer }: MemoryPdfProps) {
 // 2. The real card (`renderPdfCardImage`, pdfCardImage.tsx — the share
 //    image's own `MemoryNoteCard`), centred inside the design's `cardWindow`.
 //    All placement comes from `layoutPdfDownload` (lib/pdfDownloadLayout.ts).
-// 3. Text the background deliberately leaves out: the fixed slogan
-//    ("AKLINDA KALMASIN."), the generation date, and the canonical domain,
+// 3. Text the background deliberately leaves out: the brand slogan
+//    in the note's language ("AKLINDA KALMASIN.", "DON'T LEAVE IT UNSAID."…), the generation date, and the canonical domain,
 //    in the design's palette. The card's template name is never printed.
 //
 // Nothing here is shared with the share image.
@@ -92,7 +92,7 @@ export interface PdfDownloadDocumentProps {
   background: Buffer;
   /** The rendered card block (pdfCardImage.tsx). */
   card: { png: Buffer; width: number; height: number };
-  /** The fixed brand slogan, already uppercased ("AKLINDA KALMASIN."). */
+  /** The brand slogan in the note's language (`boardPage.slogan`, e.g. "AKLINDA KALMASIN."). */
   slogan: string;
   /** The generation date, already formatted (lib/pdfDownloadDate.ts), e.g. "<D> EKİM <YYYY>" in Turkish. */
   date: string;

@@ -26,6 +26,8 @@ export function WritePageContent({ sessionUser, isSuspended = false }: WritePage
       <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 pb-8 text-center">
         <h1 className="font-display text-3xl font-medium text-navy sm:text-4xl">{dictionary.write.title}</h1>
         <p className="text-ink-soft">{dictionary.write.subtitle}</p>
+        {/* MB-01: the invitation directly above the form. */}
+        <p className="text-balance font-display text-lg text-orange-ink">{dictionary.write.invitation}</p>
       </div>
       <div className="mx-auto max-w-3xl">
         <WriteThoughtForm sessionUser={sessionUser} isSuspended={isSuspended} />

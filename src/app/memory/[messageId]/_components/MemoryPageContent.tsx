@@ -20,6 +20,7 @@ import type { NoteData } from "@/features/notes/types";
 import { ShareCardPicker } from "@/features/sharing/components/ShareCardPicker";
 import { useLocale } from "@/i18n/LocaleProvider";
 import type { Dictionary } from "@/i18n/translations";
+import { publicAuthorName } from "@/features/notes/lib/authorName";
 
 export interface ExistingProjectView {
   project: MemoryProject;
@@ -119,11 +120,13 @@ export function MemoryPageContent({ messageId, message, isSignedIn, existingProj
   const previewNote: NoteData = {
     id: message.id,
     content: message.content,
-    authorName: message.author?.displayName ?? "",
+    authorName: publicAuthorName(message.author),
     authorImage: message.author?.image ?? null,
     templateId: message.templateId,
     fontFamily: message.fontFamily,
     textAlign: message.textAlign,
+    isQuote: message.isQuote,
+    quoteAuthor: message.quoteAuthor,
     size: "lg",
     rotation: 0,
     position: { top: "0%", left: "0%" },

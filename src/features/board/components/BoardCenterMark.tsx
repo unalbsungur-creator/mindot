@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useLocale } from "@/i18n/LocaleProvider";
 
 /**
  * EPIC 042: Board Watermark Logo Replacement. Was a world-space marker at
@@ -76,29 +77,49 @@ import Image from "next/image";
  * atmosphere wash both already use the identical inline-style pattern for
  * the same reason.
  */
+/**
+ * MB-01: the artwork's baked-in Turkish "Aklında kalmasın" is gone
+ * (`images/brand/board-watermark.png`, the same mark with that line
+ * painted out, 600px). The slogan is text in the viewer's language —
+ * `boardPage.slogan`, the one brand slogan — below the mark, never over its
+ * dots, and with more contrast than the mark itself (it sits on the light
+ * board), so the watermark reads the same in every language.
+ */
 export function BoardCenterMark() {
+  const { dictionary } = useLocale();
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute flex items-center justify-center overflow-hidden"
+      className="pointer-events-none absolute flex flex-col items-center justify-center overflow-hidden"
       style={{ zIndex: 0, top: 0, right: 0, bottom: 0, left: 0 }}
     >
-      <Image
-        src="/images/backgrounds/aklında_kalmasın.png"
-        alt=""
-        width={1254}
-        height={1254}
-        className="h-44 w-44 object-contain"
-        style={{
-          opacity: 0.35,
-          // Fades the PNG's flat navy corners to transparent while
-          // staying fully opaque through the circular area the real
-          // dot-mark/wordmark content occupies — see the doc comment
-          // above for why this replaces `mix-blend-mode: screen`.
-          maskImage: "radial-gradient(circle at center, black 58%, transparent 96%)",
-          WebkitMaskImage: "radial-gradient(circle at center, black 58%, transparent 96%)",
-        }}
-      />
+      <div className="relative h-44 w-44">
+        <Image
+          src="/images/brand/board-watermark.png"
+          alt=""
+          width={600}
+          height={600}
+          className="h-44 w-44 object-contain"
+          style={{
+            opacity: 0.35,
+            // Fades the PNG's flat navy corners to transparent while
+            // staying fully opaque through the circular area the real
+            // dot-mark content occupies — see the doc comment above for
+            // why this replaces `mix-blend-mode: screen`.
+            // MB-01: tighter than before (58% → 96%) — the painted-out
+            // wordmark no longer needs the lower band kept opaque, so the
+            // navy square fades out right around the dot-mark.
+            maskImage: "radial-gradient(circle at center, black 46%, transparent 70%)",
+            WebkitMaskImage: "radial-gradient(circle at center, black 46%, transparent 70%)",
+          }}
+        />
+      </div>
+      {/* Under the mark, clear of its dots (they reach ~78% of the image's
+          height), on the light board — so a darker orange at near-full
+          opacity, still quieter than the cards around it. */}
+      <span className="-mt-3 whitespace-nowrap font-display text-sm font-semibold tracking-wide text-orange-ink" style={{ opacity: 0.85 }}>
+        {dictionary.boardPage.slogan}
+      </span>
     </div>
   );
 }

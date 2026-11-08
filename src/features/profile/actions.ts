@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/features/auth/auth";
 import { messageRepository } from "@/features/messages/repository";
+import type { QuoteAttributionError, QuoteAttributionInput } from "@/features/messages/lib/quoteAttribution";
 import { submitMessageRevisionForAuthor } from "@/features/messages/service";
 import { userRepository } from "@/features/users/repository";
 import { PUBLIC_WALL_CONSENT_VERSION } from "./lib/wallConsent";
 
-export type ProfileActionError = "auth-required" | "forbidden" | "empty-content" | "too-long" | "consent-required";
+export type ProfileActionError = "auth-required" | "forbidden" | "empty-content" | "too-long" | "consent-required" | QuoteAttributionError;
 
 export interface ProfileActionResult<T = undefined> {
   ok: boolean;
@@ -89,13 +90,20 @@ export async function setMessageWallVisibility(messageId: string, show: boolean)
  * against the same `MESSAGE_MAX_LENGTH`), so an edited note is held to the
  * identical bar a brand-new one already is — including its card's own,
  * stricter `maxCharacters` (read from the stored message, never from the
- * client). See `submitMessageRevisionForAuthor`.
+ * client). See `submitMessageRevisionForAuthor`. MB-01: `attribution`
+ * (optional — an older client sends none and keeps the live one) is part
+ * of the same pending revision.
  */
-export async function submitMessageRevision(messageId: string, content: string): Promise<ProfileActionResult> {
+export async function submitMessageRevision(messageId: string, content: string, attribution?: QuoteAttributionInput): Promise<ProfileActionResult> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "auth-required" };
 
-  const result = await submitMessageRevisionForAuthor({ messageId, authorId: session.user.id, content });
+  const result = await submitMessageRevisionForAuthor({
+    messageId,
+    authorId: session.user.id,
+    content,
+    ...(attribution ? { isQuote: attribution.isQuote, quoteAuthor: attribution.quoteAuthor, quoteAuthorUnknown: attribution.quoteAuthorUnknown } : {}),
+  });
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath("/me/archive");

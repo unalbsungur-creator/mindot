@@ -12,6 +12,7 @@ import { shareFormats } from "@/features/sharing/config/shareFormats";
 import { noteShareImageUrl } from "@/features/sharing/lib/shareImageUrl";
 import { claimFirstShareReward } from "@/features/tokens/reward-actions";
 import { useLocale } from "@/i18n/LocaleProvider";
+import { publicAuthorName } from "@/features/notes/lib/authorName";
 
 interface SharePageContentProps {
   messageId: string;
@@ -91,11 +92,13 @@ export function SharePageContent({
   const previewNote: NoteData = {
     id: message.id,
     content: message.content,
-    authorName: message.author?.displayName ?? "",
+    authorName: publicAuthorName(message.author),
     authorImage: message.author?.image ?? null,
     templateId: message.templateId,
     fontFamily: message.fontFamily,
     textAlign: message.textAlign,
+    isQuote: message.isQuote,
+    quoteAuthor: message.quoteAuthor,
     size: "md",
     rotation: 0,
     position: { top: "0%", left: "0%" },

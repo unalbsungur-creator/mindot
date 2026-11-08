@@ -3,13 +3,16 @@ import { Geist, Fraunces, Caveat, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SignInOptionsProvider } from "@/components/auth/SignInOptions";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { LocalizedSiteMeta } from "@/components/layout/LocalizedSiteMeta";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { OnboardingModal } from "@/features/onboarding/components/OnboardingModal";
 import { SOCIAL_LINKS } from "@/features/sharing/config/social";
+import { defaultLocale } from "@/i18n/config";
 import { LocaleProvider } from "@/i18n/LocaleProvider";
+import { getDictionary } from "@/i18n/translations";
 import { isStaging } from "@/lib/appEnvironment";
 import { getAppUrl, getAuthRuntimeConfig } from "@/lib/env";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE } from "@/lib/siteConfig";
+import { SITE_NAME } from "@/lib/siteConfig";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,23 +55,34 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+// MB-01: the default locale's (`tr`) — what the server HTML, and so every
+// link-preview crawler, carries; LocalizedSiteMeta swaps in the viewer's
+// language after hydration. `title`/`description` are the brand message
+// ("AKLINDA KALMASIN. …"), defined per locale in `siteMeta`.
+const SITE_META = getDictionary(defaultLocale).siteMeta;
+const OG_LOCALES: Record<string, string> = { tr: "tr_TR", en: "en_US", de: "de_DE", fr: "fr_FR", es: "es_ES" };
+
 export const metadata: Metadata = {
   // Resolves relative OG/Twitter image URLs (opengraph-image.tsx files)
   // and relative `alternates.canonical`/`openGraph.url` values (this file
   // and every route below) into absolute ones — see getAppUrl() for the
   // env-var precedence and production fallback.
   metadataBase: getAppUrl(),
-  title: { default: `${SITE_NAME} — ${SITE_TAGLINE}`, template: `%s — ${SITE_NAME}` },
-  description: SITE_DESCRIPTION,
+  title: { default: SITE_META.title, template: `%s — ${SITE_NAME}` },
+  description: SITE_META.description,
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
-    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
-    description: SITE_DESCRIPTION,
+    title: SITE_META.title,
+    description: SITE_META.description,
     url: "/",
+    locale: OG_LOCALES[defaultLocale],
+    alternateLocale: Object.entries(OG_LOCALES)
+      .filter(([code]) => code !== defaultLocale)
+      .map(([, ogLocale]) => ogLocale),
   },
-  twitter: { card: "summary_large_image" },
+  twitter: { card: "summary_large_image", title: SITE_META.title, description: SITE_META.description },
   // Staging: noindex on every page, on top of robots.ts disallowing everything.
   ...(isStaging() ? { robots: { index: false, follow: false } } : {}),
 };
@@ -111,9 +125,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col bg-canvas text-ink">
         <StructuredData />
         <LocaleProvider>
+          <LocalizedSiteMeta />
           <SignInOptionsProvider appleEnabled={getAuthRuntimeConfig().appleEnabled}>
             <SiteHeader />
-            <main className="flex-1">{children}</main>
+            {/* A page that should fill the space down to the footer (the homepage) marks its root `data-fill-main`; every other page is laid out as before. */}
+            <main className="flex-1 has-[>[data-fill-main]]:flex has-[>[data-fill-main]]:flex-col">{children}</main>
             <SiteFooter />
             <OnboardingModal />
           </SignInOptionsProvider>

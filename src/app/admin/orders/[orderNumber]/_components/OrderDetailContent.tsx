@@ -17,6 +17,7 @@ import { cn } from "@/lib/cn";
 import { useLocale } from "@/i18n/LocaleProvider";
 import type { Dictionary } from "@/i18n/translations";
 import { statusLabel } from "../../_components/OrdersPageContent";
+import { publicAuthorName } from "@/features/notes/lib/authorName";
 
 interface OrderDetailContentProps {
   authorized: boolean;
@@ -78,11 +79,13 @@ export function OrderDetailContent({ authorized, order, project, message, custom
     ? {
         id: message.id,
         content: message.content,
-        authorName: message.author?.displayName ?? "",
+        authorName: publicAuthorName(message.author),
         authorImage: message.author?.image ?? null,
         templateId: message.templateId,
         fontFamily: message.fontFamily,
         textAlign: message.textAlign,
+        isQuote: message.isQuote,
+        quoteAuthor: message.quoteAuthor,
         size: "md",
         rotation: 0,
         position: { top: "0%", left: "0%" },

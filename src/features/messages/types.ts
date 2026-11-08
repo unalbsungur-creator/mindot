@@ -17,6 +17,10 @@ export interface Message {
   fontFamily: NoteTextFontFamily;
   /** The writer's alignment, `"auto"` for every message written before it existed. */
   textAlign: NoteTextAlign;
+  /** MB-01: a quote rather than the writer's own words — see lib/quoteAttribution.ts. */
+  isQuote: boolean;
+  /** The quote's author; `null` for own words and for a quote whose author is unknown. */
+  quoteAuthor: string | null;
   /** EPIC 011: owner-controlled curation — eligible (approved + named) doesn't mean shown; see setShowOnPersonalWall. Never affects global board visibility. */
   showOnPersonalWall: boolean;
   /** Denormalized count kept in sync with message_likes — see repository.ts's like(). */
@@ -62,6 +66,9 @@ export interface Message {
   // value. `pendingContent === null` means no revision is in flight; that
   // is the one flag every revision-aware code path branches on.
   pendingContent: string | null;
+  /** MB-01: the attribution a pending revision proposes; `null` keeps the live one. */
+  pendingIsQuote: boolean | null;
+  pendingQuoteAuthor: string | null;
   revisionSubmittedAt: string | null;
   revisionReviewedAt: string | null;
   revisionReviewedBy: string | null;
@@ -78,6 +85,8 @@ export type NewMessageInput = Pick<
   | "templateId"
   | "fontFamily"
   | "textAlign"
+  | "isQuote"
+  | "quoteAuthor"
   | "invitationId"
   | "aiModerationStatus"
   | "aiModerationProvider"

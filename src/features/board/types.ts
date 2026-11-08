@@ -21,6 +21,14 @@ export interface BoardTileMessage {
   fontFamily: NoteTextFontFamily;
   /** Optional: a board response cached before alignment existed has none — read it as "auto". */
   textAlign?: NoteTextAlign;
+  /**
+   * MB-01: whose words these are — public card content, like `content`
+   * (the quote's author is printed on the card). Optional for the same
+   * reason as `textAlign`: a cached response from before has none, read as
+   * own words.
+   */
+  isQuote?: boolean;
+  quoteAuthor?: string | null;
   position: { x: number; y: number };
   rotation: number;
   language: string;
