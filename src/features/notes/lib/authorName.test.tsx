@@ -6,7 +6,7 @@ import type { NoteData } from "@/features/notes/types";
 import { locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/translations";
 import { ANONYMOUS_AUTHOR_NAME } from "@/features/messages/lib/quoteBackfill";
-import { ANONYMOUS_PLACEHOLDER, displayAuthorName } from "./authorName";
+import { ANONYMOUS_PLACEHOLDER, displayAuthorName, publicAuthorName } from "./authorName";
 
 const note = (overrides: Partial<NoteData>): NoteData => ({
   id: "n1",
@@ -43,5 +43,13 @@ describe("the stored “anonymous” placeholder on cards", () => {
     assert.match(quote, /paylaşan: anonim/);
     assert.doesNotMatch(quote, /anonymous/);
     assert.match(renderToStaticMarkup(<Note variant="static" note={note({ authorName: "Deniz Test" })} />), /— Deniz Test/);
+  });
+
+  it("gives an anonymous public card (author: null) the placeholder — so the board shows “— anonim”, not a bare “—”", () => {
+    assert.equal(publicAuthorName(null), ANONYMOUS_PLACEHOLDER);
+    assert.equal(publicAuthorName(undefined), ANONYMOUS_PLACEHOLDER);
+    assert.equal(publicAuthorName({ displayName: "Deniz" }), "Deniz");
+    const board = renderToStaticMarkup(<Note variant="world" note={note({ authorName: publicAuthorName(null) })} />);
+    assert.match(board, /— anonim/);
   });
 });

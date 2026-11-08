@@ -26,6 +26,7 @@ import {
 } from "../lib/worldGeometry";
 import { BoardControls } from "./BoardControls";
 import { BoardCenterMark } from "./BoardCenterMark";
+import { publicAuthorName } from "@/features/notes/lib/authorName";
 
 const KEY_PAN_SPEED = 480; // world px/sec
 const WHEEL_ZOOM_SENSITIVITY = 0.0018;
@@ -69,7 +70,7 @@ function tileToNoteData(message: BoardTile["messages"][number]): NoteData {
   return {
     id: message.id,
     content: message.content,
-    authorName: message.author?.displayName ?? "",
+    authorName: publicAuthorName(message.author),
     authorImage: message.author?.image ?? null,
     templateId: message.templateId,
     fontFamily: message.fontFamily,
