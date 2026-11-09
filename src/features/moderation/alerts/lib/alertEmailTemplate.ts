@@ -113,10 +113,11 @@ export function moderationAlertEmailContent(input: ModerationAlertEmailInput): M
   const banner = ENVIRONMENT_BANNER[input.environment];
   const countText = String(count);
 
+  // Product decision: every subject starts "[MINDOT] Moderasyon:" (after the staging/dev marker).
   const subject =
     input.kind === "initial"
-      ? `${prefix}${SITE_NAME}: Moderasyon kuyruğunda inceleme bekleyen içerik var (${countText})`
-      : `${prefix}${SITE_NAME} hatırlatma: ${countText} içerik hâlâ inceleme bekliyor`;
+      ? `${prefix}[${SITE_NAME}] Moderasyon: ${countText} içerik onay bekliyor`
+      : `${prefix}[${SITE_NAME}] Moderasyon: hatırlatma — ${countText} içerik hâlâ onay bekliyor`;
   const lead =
     input.kind === "initial"
       ? "Moderasyon kuyruğuna inceleme bekleyen yeni içerik geldi."

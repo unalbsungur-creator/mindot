@@ -25,8 +25,8 @@ function content(overrides: Partial<ModerationAlertEmailInput> = {}) {
 describe("moderationAlertEmailContent — production", () => {
   it("has no environment prefix, shows the count and links to /admin/moderation", () => {
     const { subject, html, text } = content();
-    assert.equal(subject, "MINDOT: Moderasyon kuyruğunda inceleme bekleyen içerik var (3)");
-    assert.ok(!subject.startsWith("["));
+    assert.equal(subject, "[MINDOT] Moderasyon: 3 içerik onay bekliyor");
+    assert.ok(subject.startsWith("[MINDOT] Moderasyon:"));
     assert.ok(html.includes(`href="${PROD_URL}"`));
     assert.ok(text.includes(PROD_URL));
     assert.ok(text.includes("Şu anda inceleme bekleyen içerik sayısı: 3."));
@@ -39,7 +39,7 @@ describe("moderationAlertEmailContent — production", () => {
   it("uses different wording for a reminder", () => {
     const initial = content();
     const reminder = content({ kind: "reminder", pendingReviewCount: 12 });
-    assert.equal(reminder.subject, "MINDOT hatırlatma: 12 içerik hâlâ inceleme bekliyor");
+    assert.equal(reminder.subject, "[MINDOT] Moderasyon: hatırlatma — 12 içerik hâlâ onay bekliyor");
     assert.notEqual(reminder.subject, initial.subject);
     assert.ok(reminder.text.startsWith("Moderasyon kuyruğunda hâlâ"));
     assert.ok(initial.text.startsWith("Moderasyon kuyruğuna inceleme bekleyen yeni"));
@@ -53,7 +53,7 @@ describe("moderationAlertEmailContent — production", () => {
 describe("moderationAlertEmailContent — environment labelling", () => {
   it("prefixes staging with [STAGING] in the subject and labels the body", () => {
     const { subject, html, text } = content({ environment: "staging", adminModerationUrl: STAGING_URL });
-    assert.ok(subject.startsWith("[STAGING] MINDOT"));
+    assert.ok(subject.startsWith("[STAGING] [MINDOT] Moderasyon:"));
     assert.ok(text.startsWith("[STAGING] STAGING ortamı"));
     assert.ok(html.includes("[STAGING] STAGING ortamı"));
     assert.ok(html.includes(`href="${STAGING_URL}"`));
@@ -61,7 +61,7 @@ describe("moderationAlertEmailContent — environment labelling", () => {
 
   it("prefixes development with [DEV] and accepts a loopback URL", () => {
     const { subject, text } = content({ environment: "development", adminModerationUrl: DEV_URL, kind: "reminder" });
-    assert.ok(subject.startsWith("[DEV] MINDOT hatırlatma"));
+    assert.ok(subject.startsWith("[DEV] [MINDOT] Moderasyon: hatırlatma"));
     assert.ok(text.startsWith("[DEV] DEV ortamı"));
     assert.ok(text.includes(DEV_URL));
   });

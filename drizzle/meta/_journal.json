@@ -211,6 +211,13 @@
       "when": 1794096000000,
       "tag": "0029_quote_attribution",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1794268800000,
+      "tag": "0030_moderation_alerts",
+      "breakpoints": true
     }
   ]
 }

@@ -215,6 +215,19 @@ function nextSendFor(row: RecipientDeliveryState | null, nowMs: number): DueSend
   };
 }
 
+/**
+ * When a completed recipient row's next send becomes due — its retry after a
+ * failure, or its reminder / fresh window — by the same rules as
+ * `decideModerationAlert`. Bookkeeping only (the `next_attempt_at` column and
+ * the cron's "anything due?" check); the decision never reads it back.
+ * `null` for a row with no defined next send (an attempt still in flight).
+ */
+export function nextDueAtFor(row: RecipientDeliveryState): Date | null {
+  if (row.inFlight || !isValidRow(row)) return null;
+  const dueAtMs = nextSendFor(row, 0).dueAtMs;
+  return Number.isFinite(dueAtMs) ? new Date(dueAtMs) : null;
+}
+
 const CLAIM_PRIORITY: readonly AlertClaimType[] = ["CLAIM_INITIAL", "RETRY_RECIPIENT", "CLAIM_REMINDER"];
 
 export function decideModerationAlert(input: ModerationAlertInput): ModerationAlertDecision {
