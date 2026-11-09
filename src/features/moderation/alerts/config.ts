@@ -1,3 +1,4 @@
+import { SUPPORT_REPLY_TO } from "@/features/email/addresses";
 import { resolveAppEnvironment, type AppEnvironment } from "@/lib/appEnvironment";
 import { PRODUCTION_SITE_URL, STAGING_SITE_URL } from "@/lib/siteConfig";
 import { ADMIN_MODERATION_PATH } from "./lib/alertEmailTemplate";
@@ -25,7 +26,7 @@ import type { AddressHash, AlertConfigState, AlertDisabledReason } from "./types
  */
 
 export const DEFAULT_ALERT_FROM = "MINDOT Bildirim <bildirim@mind-ot.com>";
-export const ALERT_REPLY_TO = "destek@mind-ot.com";
+export const ALERT_REPLY_TO = SUPPORT_REPLY_TO;
 
 export type AlertEnv = Readonly<Record<string, string | undefined>>;
 

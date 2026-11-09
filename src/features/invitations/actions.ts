@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getEmailService } from "@/features/email/service";
+import { SUPPORT_REPLY_TO } from "@/features/email/addresses";
 import { getAppUrl } from "@/lib/env";
 import { inviteEmailContent } from "./emailTemplate";
 import { invitationRepository } from "./repository";
@@ -51,7 +52,8 @@ export async function createInvitation(input: CreateInvitationInput): Promise<In
   if (recipientEmail) {
     const inviteUrl = new URL(`/invite/${invitation.token}`, getAppUrl()).toString();
     const { subject, html, text } = inviteEmailContent(inviteUrl);
-    const result = await getEmailService().send({ to: recipientEmail, subject, html, text });
+    // Replies go to the support mailbox, not the send-only EMAIL_FROM address.
+    const result = await getEmailService().send({ to: recipientEmail, subject, html, text, replyTo: SUPPORT_REPLY_TO });
     const emailStatus = result.ok ? "sent" : result.reason === "not-configured" ? "not_configured" : "failed";
     const updated = await invitationRepository.updateEmailStatus(invitation.id, emailStatus);
     if (updated) invitation = updated;
