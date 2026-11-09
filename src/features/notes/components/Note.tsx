@@ -4,12 +4,13 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { getNoteTemplate } from "../config/templates";
 import { NoteActionTooltip } from "./NoteActionTooltip";
-import { AuthorName } from "./AuthorName";
-import { QuoteByline } from "./QuoteByline";
+import { CardByline } from "./CardByline";
 import { FrostDrift, renderNoteDecoration } from "../lib/noteDecorations";
 import { footballBallBackground } from "../lib/sportsBall";
+import { noteDisplayContent } from "../lib/displayContent";
 import { effectiveTextAlign, textAlignClass } from "../lib/textAlign";
-import { footballTextSizeRem, noteFontFamilyClass, noteTextScaleClass, QUOTE_COMPACT_TEXT_SCALE, spaciousTextSizeCqw } from "../lib/textScale";
+import { cardCqw, GROWING_PADDING, HEART_TEXT_BOX, layoutCardText } from "../lib/cardText";
+import { noteFontFamilyClass } from "../lib/textScale";
 import type { NoteData } from "../types";
 
 const paperClasses: Record<string, string> = {
@@ -233,7 +234,8 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
   // path (currently just "birthday-confetti"); every other template is
   // byte-for-byte unaffected.
   const isImageBacked = Boolean(template.image && template.contentArea);
-  const isSpacious = isImageBacked && template.contentTextSize === "spacious";
+  // The text as drawn — e.g. without the quote marks a "standard-quote" card already prints (lib/displayContent.ts).
+  const content = noteDisplayContent(note.templateId, note.content);
   // `note.id` is already unique per rendered note (real message id, or a
   // stable "template-preview-<id>"/"preview" id for picker/write-flow
   // previews) — reused as the clip-path id's uniqueness source rather than
@@ -250,31 +252,25 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
   // The writer's alignment, as a class on the text and its author line — none for "auto" (the card's own
   // alignment) and none on the football disc, which always stays centered (lib/textAlign.ts).
   const alignClass = textAlignClass(effectiveTextAlign(note.textAlign, template.shape));
-  // EPIC 045: card geometry (width, and heart/football's fixed
-  // aspect-ratio height) never changes with content — only this tier does,
-  // so long text (up to MESSAGE_MAX_LENGTH) stays inside the same fixed
-  // box instead of deforming or overflowing it. See lib/textScale.ts.
-  const textScaleClass = noteTextScaleClass(
-    note.content,
-    fontFamily,
-    isSpacious
-      ? "imageBackedSpacious"
-      : isImageBacked
-        ? "imageBacked"
-      : isFootball
-        ? "football"
-        : "standard"
+  // The one card-text rule (lib/cardText.ts), shared with the share image
+  // and the PDF: the signature is reserved at the bottom of a fixed box, the
+  // message gets the largest size that fits the rest (within the card's
+  // bounds), already broken into lines; every size is `cqw` of the card.
+  const bylineRows = { main: !note.isQuote || note.quoteAuthor !== "", sharer: Boolean(note.isQuote && note.authorName !== "") };
+  const textLayout = layoutCardText({ templateId: note.templateId, content, fontFamily, rows: bylineRows });
+  const textStyle: CSSProperties = { fontSize: cardCqw(textLayout.fontSize), lineHeight: textLayout.lineHeight };
+  const textLines = textLayout.lines.join("\n");
+  const byline = (className?: string, withGap = true) => (
+    <CardByline
+      authorName={note.authorName}
+      isQuote={Boolean(note.isQuote)}
+      quoteAuthor={note.quoteAuthor ?? null}
+      px={textLayout.geometry.bylinePx}
+      maxWidth={textLayout.geometry.bylineWidth}
+      withGap={withGap}
+      className={className}
+    />
   );
-  // MB-01: a quote's byline is one line taller. The fixed-geometry cards
-  // whose text tiers leave no room for it — the compact image cards and the
-  // football disc — draw a quote's message at QUOTE_COMPACT_TEXT_SCALE
-  // (measured: no card clips a quote where its own-words twin fits). The
-  // spacious Standard cards keep their size; their box has the room.
-  const quoteTextStyle: CSSProperties | undefined =
-    note.isQuote && (isFootball || (isImageBacked && !isSpacious)) ? { zoom: QUOTE_COMPACT_TEXT_SCALE } : undefined;
-  // The football author line follows the message down to a smaller tier when it has line breaks.
-  const footballBylineStyle: CSSProperties | undefined =
-    isFootball && note.content.includes("\n") ? { fontSize: `min(0.65rem, ${footballTextSizeRem(note.content, fontFamily)}rem)` } : undefined;
 
   return (
     <article
@@ -286,7 +282,7 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
       data-note-card=""
       onClick={onActivate}
       className={cn(
-        "group flex shrink-0 flex-col",
+        "group @container flex shrink-0 flex-col",
         // BUG FIX: DUVAR Post-it Rendering Fix. `variant === "world"` needs
         // `position: absolute` unconditionally (no responsive fallback,
         // unlike "board"'s `sm:absolute`). Tailwind's plain (non-responsive)
@@ -413,7 +409,7 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
         className={cn(
           "relative flex flex-1 flex-col gap-3",
           "shadow-note group-hover:shadow-note-hover",
-          isHeart && "justify-center px-7 pb-10 pt-7",
+          isHeart && "justify-center",
           // EPIC 047: `overflow-hidden`+`min-h-0` here (not just on the
           // outer `<article>`/inner cream disc) is load-bearing, not
           // decorative — confirmed by a real rendering defect this fixes.
@@ -438,23 +434,31 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
           // here already assumes.
           isFootball && "items-center justify-center overflow-hidden rounded-full p-0",
           isImageBacked && "overflow-hidden rounded-sm p-0",
-          // Spacious image-backed text is sized in cqw of this box (the
-          // card's own width) — see SPACIOUS_IMAGE_BACKED_TEXT_SCALE.
-          isSpacious && "@container",
-          !isHeart && !isFootball && !isImageBacked && "p-4",
           !isFootball && !isImageBacked && paperClasses[template.paper],
           !isHeart && !isFootball && !isImageBacked && shapeClasses[template.shape]
         )}
         style={
           heartClipId
-            ? { clipPath: `url(#${heartClipId})` }
+            ? {
+                clipPath: `url(#${heartClipId})`,
+                // The heart's text box (lib/cardText.ts): padding in % resolves against the card's width.
+                padding: (["top", "right", "bottom", "left"] as const).map((side) => `${(HEART_TEXT_BOX[side] / 176) * 100}%`).join(" "),
+              }
             : isFootball
               ? footballBallBackground(template.primaryColor!, template.secondaryColor!, template.accentColor)
-              : undefined
+              : isImageBacked
+                ? undefined
+                : // A growing card's 16px padding (at the baseline width) in cqw, so a smaller or larger
+                  // card keeps the text box the card-text fit measured (lib/cardText.ts).
+                  { padding: cardCqw(GROWING_PADDING), ...(template.shape === "polaroid" ? { paddingBottom: "2rem" } : {}) }
         }
       >
         {!isImageBacked && template.shape === "polaroid" && (
-          <span aria-hidden="true" className="-mx-4 -mt-4 mb-1 block h-24 bg-navy/10" />
+          <span
+            aria-hidden="true"
+            className="mb-1 block h-24 bg-navy/10"
+            style={{ marginLeft: `-${cardCqw(GROWING_PADDING)}`, marginRight: `-${cardCqw(GROWING_PADDING)}`, marginTop: `-${cardCqw(GROWING_PADDING)}` }}
+          />
         )}
         {!isImageBacked && template.shape === "folded" && (
           <span
@@ -486,37 +490,21 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
                 rasterized into the image, so it stays selectable/accessible
                 and never touches the PNG's own pixels. */}
             <div
-              className={cn("absolute flex flex-col justify-center overflow-hidden", isSpacious && textScaleClass)}
+              className="absolute flex flex-col overflow-hidden"
               style={{
                 top: template.contentArea!.top,
                 left: template.contentArea!.left,
                 width: template.contentArea!.width,
                 height: template.contentArea!.height,
-                // Spacious: the tier size, fitted for line breaks, in cqw of the card (lib/textScale.ts).
-                ...(isSpacious ? { fontSize: `${spaciousTextSizeCqw(note.content, fontFamily, template)}cqw` } : {}),
               }}
             >
-              <p
-                lang={note.language}
-                className={cn("whitespace-pre-line break-words text-ink", !isSpacious && textScaleClass, fontFamilyClass, alignClass)}
-                style={quoteTextStyle}
-              >
-                {note.content}
-              </p>
-              {/* Spacious: the author line scales with the text (0.85em,
-                  0.5em gap) exactly like the share card / PDF draw it. */}
-              {note.isQuote ? (
-                <QuoteByline
-                  quoteAuthor={note.quoteAuthor ?? null}
-                  sharerName={note.authorName}
-                  // Compact cards: 0.6rem, not text-xs — two byline lines at 12px don't fit their box (measured).
-                  className={cn("break-words text-ink-soft", isSpacious ? "mt-[0.5em] text-[0.85em]" : "text-[0.6rem]", alignClass)}
-                />
-              ) : (
-                <span className={cn("break-words text-ink-soft", isSpacious ? "mt-[0.5em] text-[0.85em]" : "text-xs", alignClass)}>
-                  — <AuthorName name={note.authorName} />
-                </span>
-              )}
+              <div className="flex min-h-0 flex-1 flex-col justify-center">
+                <p lang={note.language} className={cn("whitespace-pre-line break-words text-ink", fontFamilyClass, alignClass)} style={textStyle}>
+                  {textLines}
+                </p>
+              </div>
+              {/* The signature sits at the bottom of the box, whatever the message's length. */}
+              {byline(alignClass)}
             </div>
           </>
         ) : isFootball ? (
@@ -556,83 +544,36 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
           // the disc's fixed `clientHeight`) confirms MESSAGE_MAX_LENGTH
           // content still fits with no clipping — `overflow-hidden` stays a
           // safety net, never an active truncation.
-          <div className="flex h-[82%] w-[82%] flex-col items-center justify-center gap-1 overflow-hidden rounded-full bg-paper-cream p-[18%] text-center shadow-inner">
-            <p
-              lang={note.language}
-              style={quoteTextStyle}
-              className={cn(
-                // EPIC 045: `items-center` on this flex-col disc doesn't
-                // stretch its children to the disc's width the way the
-                // standard (non-football) card's wrapper does — without an
-                // explicit width cap, a flex item with no cross-axis stretch
-                // sizes to its own max-content width, so `break-words`
-                // (overflow-wrap: break-word) never gets a constrained box
-                // to actually wrap inside — confirmed by a real 150-char
-                // unbroken-run stress test spilling the text far outside the
-                // disc/card entirely. `max-w-full` caps the paragraph at the
-                // disc's own rendered width, giving break-words something to
-                // wrap against, exactly like the standard shape's
-                // full-width wrapper already does implicitly.
-                // `shrink-0` (here and on the author line): the disc is a
-                // fixed box, so text and author keep their own heights and
-                // never overlap — any overflow is the disc's clip instead.
-                "max-w-full shrink-0 whitespace-pre-line break-words text-ink",
-                textScaleClass,
-                fontFamilyClass
-              )}
-            >
-              {note.content}
-            </p>
-            {note.isQuote ? (
-              <QuoteByline
-                quoteAuthor={note.quoteAuthor ?? null}
-                sharerName={note.authorName}
-                className="max-w-full shrink-0 break-words text-ink-soft"
-                style={{ fontSize: `calc(${footballBylineStyle?.fontSize ?? "0.65rem"} * ${QUOTE_COMPACT_TEXT_SCALE})` }}
-              />
-            ) : (
-              <span
-                className="max-w-full shrink-0 break-words text-[0.65rem] text-ink-soft"
-                // With line breaks the message can drop to a smaller tier: the author line never ends up larger than it.
-                style={footballBylineStyle}
-              >
-                — <AuthorName name={note.authorName} />
-              </span>
-            )}
+          <div className="flex h-[82%] w-[82%] flex-col overflow-hidden rounded-full bg-paper-cream p-[18%] text-center shadow-inner">
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+              <p lang={note.language} className={cn("max-w-full whitespace-pre-line break-words text-ink", fontFamilyClass)} style={textStyle}>
+                {textLines}
+              </p>
+            </div>
+            {/* The signature at the bottom of the disc's text box. */}
+            {byline("items-center")}
           </div>
         ) : (
           <>
-            <p
-              lang={note.language}
-              className={cn(
-                // BUG FIX (same audit as the clip-path fix above): a single
-                // word longer than the card's own width — a long German
-                // compound, a URL, anything with no natural break point —
-                // doesn't wrap under the browser's default `overflow-wrap:
-                // normal`; it overflows the box instead, and since this
-                // element sits inside the shape's own clip-path, that overflow
-                // was silently cut off rather than visibly spilling out
-                // (confirmed: "Verantwortungsbewusstsein" lost its own tail on
-                // a real clip-path template). `break-words` lets a genuinely
-                // unbreakable word wrap mid-word as a last resort, matching
-                // the PDF renderer's own guaranteed-fit text handling
-                // (pdfTextMeasure.ts) — never truncated/hidden, always visible.
-                // `whitespace-pre-line` keeps the writer's own line breaks
-                // (normalized server-side, see messages/lib/messageContent.ts)
-                // in all three text branches, as the share card and PDF do.
-                "whitespace-pre-line break-words text-ink",
-                textScaleClass,
-                fontFamilyClass,
-                alignClass
-              )}
-            >
-              {note.content}
-            </p>
-            {note.isQuote ? (
-              <QuoteByline quoteAuthor={note.quoteAuthor ?? null} sharerName={note.authorName} className={cn("break-words text-xs text-ink-soft", alignClass)} />
+            {/* A word wider than the card is already split by the line breaker (lib/cardText.ts);
+                `break-words` stays as a last resort. `whitespace-pre-line` draws the computed lines. */}
+            {isHeart ? (
+              <div className="flex min-h-0 flex-1 flex-col justify-center">
+                <p lang={note.language} className={cn("whitespace-pre-line break-words text-ink", fontFamilyClass, alignClass)} style={textStyle}>
+                  {textLines}
+                </p>
+              </div>
             ) : (
-              <span className={cn("break-words text-xs text-ink-soft", alignClass)}>— <AuthorName name={note.authorName} /></span>
+              // A growing card (its height follows its text): the size and the signature follow the
+              // card-text rule, but the browser breaks the lines with the font it actually draws (Geist
+              // runs ~3% narrower than the measured Noto Sans), so the card is never taller than the
+              // board's placement footprint expects. `text-pretty` keeps a lone last word off its own line.
+              <p lang={note.language} className={cn("whitespace-pre-line break-words text-pretty text-ink", fontFamilyClass, alignClass)} style={textStyle}>
+                {content}
+              </p>
             )}
+            {/* Heart: the signature at the bottom of its box, where the point narrows. Growing: under the text (the card's gap). */}
+            {isHeart ? byline(cn("mx-auto text-center"), true) : byline(alignClass, false)}
           </>
         )}
       </div>

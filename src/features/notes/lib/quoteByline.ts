@@ -2,7 +2,7 @@ import type { Dictionary } from "@/i18n/translations";
 
 /**
  * MB-01: the two text lines a quote card shows, shared by the DOM card
- * (`QuoteByline`), the share image and the PDF (`MemoryNoteCard`), so all
+ * (`CardByline`), the share image and the PDF (`MemoryNoteCard`), so all
  * of them word it the same way.
  *
  * - `authorLine`: "— {quote author}", or "— {Unknown}" in the given language

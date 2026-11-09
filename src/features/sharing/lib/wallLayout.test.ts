@@ -134,8 +134,11 @@ describe("wall layout — real cards (Alt iş 3A mix)", () => {
   // too, so those grids ran 7.9px / 33.9px past the card area. Fitting the
   // cards exactly (gaps fixed) gives 335px / 285px — the grid then fills the
   // card area to the pixel.
-  it("fits the reference cards exactly: square 4 → 335px, story 8 → 285px (3A's 339/292 overflowed)", () => {
-    for (const [format, cards, expected] of [["square", aspects.slice(0, 4), 335], ["story", aspects, 285]] as const) {
+  // The card-text fit (features/notes/lib/cardText.ts) draws a growing card's
+  // text at its length tier and measures its real lines, so the long
+  // torn-kraft card is shorter than the old fixed-size estimate: story 318px.
+  it("fits the reference cards exactly: square 4 → 335px, story 8 → 318px (3A's 339/292 overflowed)", () => {
+    for (const [format, cards, expected] of [["square", aspects.slice(0, 4), 335], ["story", aspects, 318]] as const) {
       const layout = layoutWallCards(format, [...cards], metricsFor(format));
       assert.equal(Math.round(layout.cardWidth), expected, format);
       const m = metricsFor(format);

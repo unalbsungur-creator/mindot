@@ -141,7 +141,8 @@ describe("/me wall preview", () => {
         }}
       />
     );
-    assert.match(html, /Bugün denize baktım\./, "the preview renders the cards");
+    // The card-text fit draws each message as its computed lines (a break may fall between any two words).
+    assert.match(html, /Bugün\sdenize\sbaktım\./, "the preview renders the cards");
     assert.equal(shareLinks(html).length, 0);
   });
 });

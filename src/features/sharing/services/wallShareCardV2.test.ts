@@ -3,6 +3,7 @@ import { before, describe, it } from "node:test";
 import { decodePng, type DecodedPng } from "@/lib/assets/png";
 import { ensurePdfMeasureFontsLoaded } from "@/features/memories/services/pdfTextMeasure";
 import { getNoteTemplate } from "@/features/notes/config/templates";
+import { CARD_BASELINE_WIDTH, layoutCardText } from "@/features/notes/lib/cardText";
 import { getShareFormat } from "../config/shareFormats";
 import { layoutWallCards, wallLayoutMetrics } from "../lib/wallLayout";
 import { estimateMemoryCardSize } from "./noteCardSatori";
@@ -50,8 +51,13 @@ describe("renderWallShareCardV2", () => {
         const template = getNoteTemplate(notesFor(formatId)[placed.index].templateId);
         if (!template.id.startsWith("celebration") && !template.id.startsWith("congratulations")) continue;
         const area = template.contentArea!;
+        // In the card's see-through centre, halfway between the text box's top and the message (which the
+        // card-text fit centres in the room above the signature — lib/cardText.ts): only the backing is drawn here.
+        const note = notesFor(formatId)[placed.index];
+        const text = layoutCardText({ templateId: note.templateId, content: note.content, fontFamily: note.fontFamily, rows: { main: false, sharer: false } });
+        const freeAbove = (text.geometry.box.height! - text.bylineReserve - text.textHeight) / 2;
         const x = placed.x + ((parseFloat(area.left) + parseFloat(area.width) / 2) / 100) * placed.width;
-        const y = placed.y + ((parseFloat(area.top) + parseFloat(area.height) / 2) / 100) * placed.height;
+        const y = placed.y + (parseFloat(area.top) / 100) * placed.height + (freeAbove / 2) * (placed.width / CARD_BASELINE_WIDTH);
         // The navy page would show here without the backing; #f3efe4 is the board's canvas.
         assert.ok(near(rgb(png, x, y), [243, 239, 228]), `${template.id} centre ${rgb(png, x, y)}`);
       }

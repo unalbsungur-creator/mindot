@@ -202,3 +202,13 @@ export function wrapTextToLines(text: string, font: PdfMeasureFont, fontSizePt: 
   }
   return lines;
 }
+
+/**
+ * A `measure` for `layoutSlogan` (sharing/lib/sloganLayout.ts): `text` in
+ * `font` at a given size, plus letter spacing (`letterSpacingEm` × size after
+ * every character, as react-pdf and Satori both draw it). Fonts must be
+ * loaded (`ensurePdfMeasureFontsLoaded`).
+ */
+export function sloganMeasure(font: PdfMeasureFont, letterSpacingEm = 0): (text: string, fontSize: number) => number {
+  return (text, fontSize) => measureTextWidth(text, font, fontSize) + [...text].length * letterSpacingEm * fontSize;
+}

@@ -56,7 +56,7 @@ export function HomeHero({
 }) {
   const { dictionary } = useLocale();
 
-  // MB-01: the stored "anonymous" placeholder is translated by `Note` itself (AuthorName/QuoteByline).
+  // MB-01: the stored "anonymous" placeholder is translated by `Note` itself (CardByline).
   // User blocking: this page is one shared ISR render, so a signed-in
   // viewer's blocked authors are dropped here, client-side, after a
   // private lookup (see useHiddenMessageIds).

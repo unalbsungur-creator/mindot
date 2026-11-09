@@ -245,15 +245,22 @@ export const noteTemplates: NoteTemplate[] = [
   // boundary. At 90 characters (the largest "spacious" tier) the worst case
   // (German long words) just fits, exactly like Classic at 90; at the
   // 100-character limit there is ~10% to spare.
-  defineStandardCard({
-    id: "standard-quote",
-    name: "Quote",
-    paper: "cream",
-    image: "/images/standard/web/quote.png",
-    imageWidth: 600,
-    imageHeight: 601,
-    contentArea: { top: "15%", left: "10%", width: "80%", height: "70%" },
-  }),
+  //
+  // The artwork prints its own gold quote marks, so marks the writer typed
+  // around the whole message are not drawn a second time
+  // (`decorativeQuoteMarks`, lib/displayContent.ts).
+  {
+    ...defineStandardCard({
+      id: "standard-quote",
+      name: "Quote",
+      paper: "cream",
+      image: "/images/standard/web/quote.png",
+      imageWidth: 600,
+      imageHeight: 601,
+      contentArea: { top: "15%", left: "10%", width: "80%", height: "70%" },
+    }),
+    decorativeQuoteMarks: true,
+  },
   // Asset: `web/archive.png` (identical to the master
   // `public/images/standard/archive.png`; 500×500 RGBA, no metadata, SHA-256
   // d46d42f9b9ef119f9f684421fdb875d0dc368f7ae70471cef89621df30eab447) — a

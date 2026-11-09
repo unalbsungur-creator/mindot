@@ -68,6 +68,7 @@ test("Minimal and Quote keep their exact registered values", () => {
     contentArea: { top: "15%", left: "10%", width: "80%", height: "70%" },
     contentTextSize: "spacious",
     maxCharacters: 100,
+    decorativeQuoteMarks: true,
   });
 });
 
