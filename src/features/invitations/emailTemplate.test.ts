@@ -57,7 +57,7 @@ describe("inviteEmailContent", () => {
     for (const part of [html, text]) {
       assert.ok(part.includes("AKLINDA KALMASIN."));
       assert.ok(part.includes("Söyleyemediğin bir söz, bir anı, bir duygu"));
-      assert.ok(part.includes("Bu e-postayı, biri sizi MINDOT'a davet ettiği için aldınız.".replace("'", part === html ? "&#39;" : "'")));
+      assert.ok(part.includes("Bu e-postayı, biri seni MINDOT'a davet ettiği için aldın.".replace("'", part === html ? "&#39;" : "'")));
       assert.ok(part.includes("destek@mind-ot.com"));
       assert.ok(part.includes("mind-ot.com"));
       assert.ok(!part.includes("yaşayan düşünce duvarı"));
@@ -77,6 +77,14 @@ describe("inviteEmailContent", () => {
       assert.ok(html.includes(`lang="${locale}"`));
     }
     assert.equal(inviteEmailContent({ ...BASE, locale: "xx" }).subject, "Ünal Büyüksungur seni MINDOT'a davet etti", "unknown → default");
+  });
+
+  it("addresses the reader as \"sen\" throughout in Turkish (never \"siz\")", () => {
+    for (const inviterName of ["Ünal Büyüksungur", null]) {
+      const { text } = inviteEmailContent({ ...BASE, inviterName });
+      assert.doesNotMatch(text, /siz(i|in|e)?|[nN][ıi]z|sınız|siniz|sanız|seniz/, text);
+    }
+    assert.ok(inviteEmailContent(BASE).text.includes("Bu e-postayı, biri seni MINDOT'a davet ettiği için aldın. İlgilenmiyorsan bu e-postayı yok sayabilirsin."));
   });
 
   it("shows the environment's own host in the footer and logo", () => {

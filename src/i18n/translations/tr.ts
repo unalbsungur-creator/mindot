@@ -508,7 +508,7 @@ export const tr: Dictionary = {
     subjectAnonymous: "Bir arkadaşın seni MINDOT'a davet etti",
     ctaButton: "Daveti kabul et",
     linkHint: "Buton çalışmazsa bu bağlantıyı tarayıcına yapıştır:",
-    footerReason: "Bu e-postayı, biri sizi MINDOT'a davet ettiği için aldınız. İlgilenmiyorsanız bu e-postayı yok sayabilirsiniz.",
+    footerReason: "Bu e-postayı, biri seni MINDOT'a davet ettiği için aldın. İlgilenmiyorsan bu e-postayı yok sayabilirsin.",
   },
   memory: {
     preserveAction: "Bu düşünceyi sakla",
