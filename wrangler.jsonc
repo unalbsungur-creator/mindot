@@ -13,7 +13,9 @@
         "compatibility_flags": [
                 "nodejs_compat"
         ],
-        "main": ".open-next/worker.js",
+        // worker.ts wraps OpenNext's generated .open-next/worker.js (its fetch,
+        // unchanged) and adds MN-01's scheduled handler (moderation-alert cron).
+        "main": "worker.ts",
         "assets": {
                 "directory": ".open-next/assets",
                 "binding": "ASSETS"
@@ -24,6 +26,19 @@
                         "id": "8c1d28bf42b047c1954fd3108ece3d0f"
                 }
         ],
+        // MN-01 moderation alerts: the "something is due" flag the 5-minute
+        // cron reads instead of the database (src/features/moderation/alerts/
+        // cron.ts) — an empty queue never wakes Neon. Not inherited by
+        // env.staging, which has its own namespace and cron below.
+        "kv_namespaces": [
+                {
+                        "binding": "MODERATION_ALERTS_KV",
+                        "id": "7bff41fca07544a8b9c9e05098a1abf2"
+                }
+        ],
+        "triggers": {
+                "crons": ["*/5 * * * *"]
+        },
         // Share-card PNG generation (next/og's Satori renderer: multiple custom
         // web fonts + a large embedded master-image data URI, composited and
         // rasterized via WASM) is genuinely CPU-heavy — confirmed via direct
@@ -75,7 +90,17 @@
                                         "binding": "HYPERDRIVE",
                                         "id": "1c8e1d72a9584615bcbb1150f7b2a9b5"
                                 }
-                        ]
+                        ],
+                        // MN-01: staging's own alert flag (never production's) and cron.
+                        "kv_namespaces": [
+                                {
+                                        "binding": "MODERATION_ALERTS_KV",
+                                        "id": "00ff8748fe014261bb70b15121263dc4"
+                                }
+                        ],
+                        "triggers": {
+                                "crons": ["*/5 * * * *"]
+                        }
                 }
         }
 }

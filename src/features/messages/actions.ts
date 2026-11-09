@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/features/auth/auth";
+import { scheduleModerationAlert } from "@/features/moderation/alerts/trigger";
 import { submitMessageForAuthor, type SubmitMessageError, type SubmitMessageInput } from "./service";
 import type { Message } from "./types";
 
@@ -26,9 +27,14 @@ export async function submitMessage(input: SubmitMessageInput): Promise<SubmitMe
     return { ok: false, error: "auth-required" };
   }
 
-  return submitMessageForAuthor({
+  const result = await submitMessageForAuthor({
     ...input,
     authorId: session.user.id,
     fallbackAuthorName: session.user.name ?? null,
   });
+  // MN-01: a new card joined the review queue — alert the admins after the
+  // response. With the queue empty before it, the first alert goes out now;
+  // the run never throws and never changes this result.
+  if (result.ok) scheduleModerationAlert();
+  return result;
 }

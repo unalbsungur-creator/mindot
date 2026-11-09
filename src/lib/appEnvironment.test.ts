@@ -105,6 +105,9 @@ type WorkerConfig = {
   routes?: { pattern: string; custom_domain?: boolean }[];
   vars?: Record<string, string>;
   hyperdrive?: { binding: string; id: string }[];
+  kv_namespaces?: { binding: string; id: string }[];
+  triggers?: { crons?: string[] };
+  main?: string;
   env?: Record<string, WorkerConfig>;
 };
 
@@ -140,9 +143,19 @@ describe("wrangler.jsonc", () => {
     }
   });
 
+  it("runs the moderation-alert cron every 5 minutes on both Workers, each with its own KV flag", () => {
+    assert.equal(config.main, "worker.ts");
+    const kvId = (worker?: WorkerConfig) => worker?.kv_namespaces?.find((kv) => kv.binding === "MODERATION_ALERTS_KV")?.id;
+    assert.ok(kvId(config), "production MODERATION_ALERTS_KV");
+    assert.ok(kvId(staging), "staging MODERATION_ALERTS_KV (not inherited)");
+    assert.notEqual(kvId(staging), kvId(config), "staging never shares production's alert flag");
+    assert.deepEqual(config.triggers?.crons, ["*/5 * * * *"]);
+    assert.deepEqual(staging?.triggers?.crons, ["*/5 * * * *"]);
+  });
+
   it("keeps secrets out of the committed config", () => {
     const names = [config.vars, staging?.vars].flatMap((vars) => Object.keys(vars ?? {}));
-    for (const secret of ["AUTH_SECRET", "DATABASE_URL", "GOOGLE_CLIENT_SECRET", "AUTH_APPLE_SECRET", "AUTH_APPLE_TOKEN_KEY", "MOBILE_JWT_SECRET"]) {
+    for (const secret of ["AUTH_SECRET", "DATABASE_URL", "GOOGLE_CLIENT_SECRET", "AUTH_APPLE_SECRET", "AUTH_APPLE_TOKEN_KEY", "MOBILE_JWT_SECRET", "RESEND_API_KEY", "MODERATION_ALERT_HASH_KEY", "MODERATION_ALERT_CRON_SECRET"]) {
       assert.ok(!names.includes(secret), `${secret} must be a wrangler secret, not a var`);
     }
   });

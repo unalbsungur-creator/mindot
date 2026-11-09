@@ -9,6 +9,8 @@ import { readModerationAlertConfig, type ModerationAlertRuntime } from "./config
 import { MIN_HASH_KEY_BYTES } from "./lib/addressHash";
 import { completeAlertSend, evaluateAndClaimAlerts, releaseAlertLease, type AlertDb, type ClaimedSend } from "./repository";
 import { runModerationAlerts } from "./service";
+import { ALERT_FLAG_KEY, moderationAlertCronTick, parseAlertDueFlag, type AlertFlagKv } from "./cron";
+import { runModerationAlertsAndRecord } from "./dueFlag";
 import type { AlertConfigState } from "./types";
 
 // MN-01 moderation alerts (migration 0030) against real PostgreSQL: the
@@ -271,6 +273,59 @@ describe("moderation alerts on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TE
     assert.equal(result.status === "idle" && result.reason, "alerts-disabled");
     const [{ rows }] = await sql`select count(*)::int as rows from moderation_alert_recipients`;
     assert.equal(rows, 0);
+  });
+
+  it("event sends the first alert at once; the cron then wakes the database only when due, and never with an empty queue", async () => {
+    const store = new Map<string, string>();
+    const kv: AlertFlagKv = {
+      get: async (key) => store.get(key) ?? null,
+      put: async (key, value) => void store.set(key, value),
+      delete: async (key) => void store.delete(key),
+    };
+    const { sent, email } = recordingEmail();
+    let databaseRuns = 0;
+    const run = () => {
+      databaseRuns += 1;
+      return runModerationAlertsAndRecord({
+        config: runtime,
+        email,
+        kv,
+        evaluate: (s) => evaluateAndClaimAlerts(s, workerA),
+        complete: (c, s, d) => completeAlertSend(c, s, d, workerA),
+        release: (c) => releaseAlertLease(c, workerA),
+      });
+    };
+
+    // A card reaches an empty queue: the event run sends at once and flags the 30-minute reminder.
+    await submitPending(1);
+    await run();
+    assert.equal(sent.length, 2);
+    const due = parseAlertDueFlag(store.get(ALERT_FLAG_KEY) ?? null)!;
+    assert.ok(due.getTime() - Date.now() > 29 * 60_000, "flag at the 30-minute reminder");
+
+    // A second card within 30 minutes: no new email.
+    await submitPending(1);
+    await run();
+    assert.equal(sent.length, 2);
+
+    // Cron ticks before the reminder: KV only.
+    for (let minute = 5; minute < 30; minute += 5) {
+      assert.equal(await moderationAlertCronTick({ kv, now: new Date(Date.now() + minute * 60_000), invoke: async () => (await run(), true) }), "not-due");
+    }
+    const before = databaseRuns;
+
+    // The admin clears the queue; at the flagged time the cron looks once, resets the cycle and clears the flag.
+    await sql`update messages set status = 'approved'`;
+    assert.equal(await moderationAlertCronTick({ kv, now: new Date(due.getTime() + 1000), invoke: async () => (await run(), true) }), "invoked");
+    assert.equal(databaseRuns, before + 1);
+    assert.equal(store.has(ALERT_FLAG_KEY), false);
+    assert.equal(sent.length, 2, "no reminder for an empty queue");
+
+    // From now on, with the queue empty, a whole day of ticks never reaches the database.
+    for (let tick = 0; tick < 288; tick++) {
+      assert.equal(await moderationAlertCronTick({ kv, now: new Date(due.getTime() + tick * 300_000), invoke: async () => (await run(), true) }), "no-flag");
+    }
+    assert.equal(databaseRuns, before + 1);
   });
 
   it("never stores an email address", async () => {
