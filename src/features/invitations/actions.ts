@@ -13,7 +13,8 @@ import type { Invitation } from "./types";
 export type InvitationActionError = "unauthorized" | "invalid-input" | "not-found" | "recently-invited";
 
 /** MN-01: one invitation email per recipient per this many hours. */
-export const INVITE_EMAIL_INTERVAL_HOURS = 24;
+// Not exported: a "use server" file may export async functions only.
+const INVITE_EMAIL_INTERVAL_HOURS = 24;
 
 export interface CreateInvitationInput {
   recipientEmail: string;
