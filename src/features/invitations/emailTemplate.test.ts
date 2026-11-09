@@ -87,6 +87,19 @@ describe("inviteEmailContent", () => {
     assert.ok(inviteEmailContent(BASE).text.includes("Bu e-postayı, biri seni MINDOT'a davet ettiği için aldın. İlgilenmiyorsan bu e-postayı yok sayabilirsin."));
   });
 
+  it("sends a plain-text part next to the HTML, and a logo whose alt text stays readable on the dark band", () => {
+    for (const locale of locales) {
+      const { html, text } = inviteEmailContent({ ...BASE, locale });
+      assert.ok(text.trim().length > 80, locale);
+      assert.ok(!/<[a-z]/i.test(text), `${locale} text part carries no markup`);
+      assert.ok(text.includes(BASE.inviteUrl), `${locale} text part carries the link`);
+      assert.ok(html.length > text.length);
+    }
+    const img = /<img [^>]*>/.exec(inviteEmailContent(BASE).html)![0];
+    for (const attr of ['width="280"', 'height="98"', 'alt="MINDOT"', "color:#ffffff", "font-weight:700"]) assert.ok(img.includes(attr), attr);
+    assert.ok(inviteEmailContent(BASE).html.includes('bgcolor="#031225"'), "dark band even without CSS");
+  });
+
   it("shows the environment's own host in the footer and logo", () => {
     const { html, text } = inviteEmailContent({ ...BASE, siteUrl: "https://staging.mind-ot.com", inviteUrl: "https://staging.mind-ot.com/invite/t" });
     assert.ok(html.includes("https://staging.mind-ot.com/images/email/mindot-logo.png"));

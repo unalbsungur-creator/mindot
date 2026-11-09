@@ -87,8 +87,8 @@ export function inviteEmailContent(input: InviteEmailInput): { subject: string; 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3efe4;padding:24px 12px;">
 <tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fffdf8;border-radius:16px;overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#201d18;">
-<tr><td align="center" style="background:#031225;padding:20px 24px;">
-<img src="${e(logoUrl)}" width="280" height="98" alt="MINDOT" style="display:block;border:0;width:280px;max-width:100%;height:auto;">
+<tr><td align="center" bgcolor="#031225" style="background:#031225;padding:20px 24px;color:#ffffff;">
+<img src="${e(logoUrl)}" width="280" height="98" alt="MINDOT" style="display:block;margin:0 auto;border:0;outline:none;width:280px;max-width:100%;height:auto;color:#ffffff;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:32px;font-weight:700;letter-spacing:0.12em;line-height:98px;text-align:center;">
 </td></tr>
 <tr><td style="padding:32px 32px 8px;">
 <h1 style="margin:0 0 16px;font-size:22px;line-height:1.35;font-weight:700;color:#0d1b2a;">${e(headline)}</h1>
