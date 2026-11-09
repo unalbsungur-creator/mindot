@@ -7,6 +7,7 @@ import { SUPPORT_REPLY_TO } from "@/features/email/addresses";
 import { defaultLocale, locales } from "@/i18n/config";
 import { getAppUrl } from "@/lib/env";
 import { inviteEmailContent } from "./emailTemplate";
+import { userRepository } from "@/features/users/repository";
 import { invitationRepository } from "./repository";
 import type { Invitation } from "./types";
 
@@ -63,8 +64,10 @@ export async function createInvitation(input: CreateInvitationInput): Promise<In
   // invalidates the invitation itself.
   if (recipientEmail) {
     const inviteUrl = new URL(`/invite/${invitation.token}`, getAppUrl()).toString();
-    // The inviter is the signed-in admin; only their display name is shown (never an address — see emailTemplate.ts).
-    const { subject, html, text } = inviteEmailContent({ inviteUrl, inviterName: admin.name ?? null, locale: language, siteUrl: getAppUrl().origin });
+    // The inviter is the signed-in admin; only their current display name (from the users row, not the
+    // sign-in-time session) is shown — never an address (see emailTemplate.ts).
+    const inviter = await userRepository.getById(admin.id).catch(() => null);
+    const { subject, html, text } = inviteEmailContent({ inviteUrl, inviterName: inviter?.name ?? null, locale: language, siteUrl: getAppUrl().origin });
     // Replies go to the support mailbox, not the send-only EMAIL_FROM address.
     const result = await getEmailService().send({ to: recipientEmail, subject, html, text, replyTo: SUPPORT_REPLY_TO });
     const emailStatus = result.ok ? "sent" : result.reason === "not-configured" ? "not_configured" : "failed";
