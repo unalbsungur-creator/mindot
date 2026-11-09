@@ -35,6 +35,7 @@ import {
 import { getNoteTemplate } from "@/features/notes/config/templates";
 import type { NoteDecoration, NoteShape, NoteTextFontFamily } from "@/features/notes/types";
 import { PDF_FONT_FAMILY, PDF_HAND_FONT_FAMILY, PDF_BRAND_FONT_FAMILY, PDF_MONO_FONT_FAMILY } from "./fonts";
+import { noteDisplayContent } from "@/features/notes/lib/displayContent";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "./pdfPalette";
 import { PDF_LETTER_SPACING_EM, safeTextScale, wrapTextToLines } from "./pdfTextMeasure";
 
@@ -392,8 +393,10 @@ function ShadowLayer({ shape, width, height }: { shape: ShapeDescriptor; width: 
   );
 }
 
-export function MemoryNoteCardPdf({ content, authorName, templateId, fontFamily, rotation, width, artworkDataUri }: MemoryNoteCardPdfInput) {
+export function MemoryNoteCardPdf({ content: rawContent, authorName, templateId, fontFamily, rotation, width, artworkDataUri }: MemoryNoteCardPdfInput) {
   const template = getNoteTemplate(templateId);
+  // The text as drawn (lib/displayContent.ts) — the same rule Note.tsx applies.
+  const content = noteDisplayContent(templateId, rawContent);
 
   // EPIC: Special Day Clean Artwork + Share Visual Consistency — same real
   // artwork + contentArea as Note.tsx/MemoryNoteCard (Satori), never this

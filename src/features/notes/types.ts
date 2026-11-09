@@ -198,6 +198,14 @@ export interface NoteTemplate {
    */
   contentTextSize?: "compact" | "spacious";
   /**
+   * The artwork itself prints decorative quote marks around the text area
+   * ("standard-quote"), so marks the writer typed around the whole message
+   * are left out when it is drawn (`noteDisplayContent`,
+   * lib/displayContent.ts) — on the board, previews, share images and PDFs
+   * alike. Display only; the stored message keeps them.
+   */
+  decorativeQuoteMarks?: boolean;
+  /**
    * A per-card message length limit, below the global `MESSAGE_MAX_LENGTH`
    * (150). Omitted on every card that predates it, so those keep 150
    * unchanged; the new illustrated Standard cards after "standard-classic"

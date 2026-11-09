@@ -8,6 +8,7 @@ import { AuthorName } from "./AuthorName";
 import { QuoteByline } from "./QuoteByline";
 import { FrostDrift, renderNoteDecoration } from "../lib/noteDecorations";
 import { footballBallBackground } from "../lib/sportsBall";
+import { noteDisplayContent } from "../lib/displayContent";
 import { effectiveTextAlign, textAlignClass } from "../lib/textAlign";
 import { footballTextSizeRem, noteFontFamilyClass, noteTextScaleClass, QUOTE_COMPACT_TEXT_SCALE, spaciousTextSizeCqw } from "../lib/textScale";
 import type { NoteData } from "../types";
@@ -234,6 +235,8 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
   // byte-for-byte unaffected.
   const isImageBacked = Boolean(template.image && template.contentArea);
   const isSpacious = isImageBacked && template.contentTextSize === "spacious";
+  // The text as drawn — e.g. without the quote marks a "standard-quote" card already prints (lib/displayContent.ts).
+  const content = noteDisplayContent(note.templateId, note.content);
   // `note.id` is already unique per rendered note (real message id, or a
   // stable "template-preview-<id>"/"preview" id for picker/write-flow
   // previews) — reused as the clip-path id's uniqueness source rather than
@@ -255,7 +258,7 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
   // so long text (up to MESSAGE_MAX_LENGTH) stays inside the same fixed
   // box instead of deforming or overflowing it. See lib/textScale.ts.
   const textScaleClass = noteTextScaleClass(
-    note.content,
+    content,
     fontFamily,
     isSpacious
       ? "imageBackedSpacious"
@@ -274,7 +277,7 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
     note.isQuote && (isFootball || (isImageBacked && !isSpacious)) ? { zoom: QUOTE_COMPACT_TEXT_SCALE } : undefined;
   // The football author line follows the message down to a smaller tier when it has line breaks.
   const footballBylineStyle: CSSProperties | undefined =
-    isFootball && note.content.includes("\n") ? { fontSize: `min(0.65rem, ${footballTextSizeRem(note.content, fontFamily)}rem)` } : undefined;
+    isFootball && content.includes("\n") ? { fontSize: `min(0.65rem, ${footballTextSizeRem(content, fontFamily)}rem)` } : undefined;
 
   return (
     <article
@@ -493,7 +496,7 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
                 width: template.contentArea!.width,
                 height: template.contentArea!.height,
                 // Spacious: the tier size, fitted for line breaks, in cqw of the card (lib/textScale.ts).
-                ...(isSpacious ? { fontSize: `${spaciousTextSizeCqw(note.content, fontFamily, template)}cqw` } : {}),
+                ...(isSpacious ? { fontSize: `${spaciousTextSizeCqw(content, fontFamily, template)}cqw` } : {}),
               }}
             >
               <p
@@ -501,7 +504,7 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
                 className={cn("whitespace-pre-line break-words text-ink", !isSpacious && textScaleClass, fontFamilyClass, alignClass)}
                 style={quoteTextStyle}
               >
-                {note.content}
+                {content}
               </p>
               {/* Spacious: the author line scales with the text (0.85em,
                   0.5em gap) exactly like the share card / PDF draw it. */}
@@ -581,7 +584,7 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
                 fontFamilyClass
               )}
             >
-              {note.content}
+              {content}
             </p>
             {note.isQuote ? (
               <QuoteByline
@@ -626,7 +629,7 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
                 alignClass
               )}
             >
-              {note.content}
+              {content}
             </p>
             {note.isQuote ? (
               <QuoteByline quoteAuthor={note.quoteAuthor ?? null} sharerName={note.authorName} className={cn("break-words text-xs text-ink-soft", alignClass)} />

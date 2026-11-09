@@ -14,6 +14,7 @@ import { BrandLockup, logoToneFor, MemorySeal, MemoryWatermark } from "./brandMa
 import { cardBackingFor, cardBackingStyle, type CardBacking } from "./cardBacking";
 import { estimateMemoryCardSize, loadTemplateArtwork, MemoryNoteCard } from "./noteCardSatori";
 import { BRAND_FONT_FAMILY, loadShareFonts, SHARE_FONT_FAMILY, type LoadedFont } from "./shareFonts";
+import { layoutShareSlogan, shareSloganHeight, SloganSatori, type ShareSloganStyle } from "./sloganSatori";
 import { getMasterContentRegion, getMasterSafeArea, getMasterTextSlots, loadShareMasterImage, type LoadedMasterImage, type MasterSafeArea } from "./shareMasterImages";
 
 const SURROUNDING_EXCERPT_CHARS = 70;
@@ -155,6 +156,18 @@ function renderWithMasterBackground(
   };
 
   const heroInsetX = format.width * safeArea.heroInsetX;
+  // The slogan above the footer dot: one centred line (or two balanced ones),
+  // as wide as the hero column — lib/sloganLayout.ts. Centred on the master's
+  // own slogan row; a second line grows the box evenly up and down.
+  const sloganBox = (() => {
+    if (!textSlots || !slogan) return null;
+    const slot = slotBox(textSlots.slogan);
+    const fontSize = slot.fontSize * 0.85;
+    const style: ShareSloganStyle = { font: "bold", fontFamily: SHARE_FONT_FAMILY, fontWeight: 700, fontSize, letterSpacingEm: 2 / fontSize };
+    const layout = layoutShareSlogan(slogan, style, format.width - heroInsetX * 2);
+    const height = Math.max(slot.height, shareSloganHeight(layout));
+    return { layout, style, top: slot.top + slot.height / 2 - height / 2, height };
+  })();
   const heroTop = format.height * safeArea.heroTop;
   const heroBottom = format.height * safeArea.heroBottom;
   const rows = chunk(surrounding.slice(0, MAX_SURROUNDING), SURROUNDING_PER_ROW);
@@ -247,9 +260,9 @@ function renderWithMasterBackground(
             </span>
           </div>
         )}
-        {textSlots && slogan && (
-          <div style={{ position: "absolute", left: 0, right: 0, top: slotBox(textSlots.slogan).top, height: slotBox(textSlots.slogan).height, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: slotBox(textSlots.slogan).fontSize * 0.85, fontWeight: 700, letterSpacing: 2, color: PDF_COLORS.navy }}>{slogan}</span>
+        {sloganBox && (
+          <div style={{ position: "absolute", left: 0, right: 0, top: sloganBox.top, height: sloganBox.height, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <SloganSatori layout={sloganBox.layout} style={sloganBox.style} color={PDF_COLORS.navy} />
           </div>
         )}
 
@@ -318,6 +331,8 @@ function renderFullyDrawnShareCard(
   // keep every format's whitespace *proportionate to what actually fits*.
   const minEdge = Math.min(format.width, format.height);
   const outerPadding = minEdge * 0.08;
+  const sloganStyle: ShareSloganStyle = { font: "serif", fontFamily: BRAND_FONT_FAMILY, fontWeight: 600, fontSize: format.width * 0.02 };
+  const sloganLayout = slogan ? layoutShareSlogan(slogan, sloganStyle, format.width - outerPadding * 2) : null;
   const headerHeight = minEdge * 0.09;
   const footerHeight = minEdge * (primary.date ? 0.24 : 0.19);
   const sectionGap = minEdge * 0.05;
@@ -435,11 +450,7 @@ function renderFullyDrawnShareCard(
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, height: footerHeight, justifyContent: "flex-end" }}>
-          {slogan && (
-            <span style={{ fontFamily: BRAND_FONT_FAMILY, fontWeight: 600, fontSize: format.width * 0.02, color: inkColor, opacity: 0.9 }}>
-              {slogan}
-            </span>
-          )}
+          {sloganLayout && <SloganSatori layout={sloganLayout} style={sloganStyle} color={inkColor} opacity={0.9} />}
           <div style={{ display: "flex", width: format.width * 0.014, height: format.width * 0.014, borderRadius: "50%", background: PDF_COLORS.orange }} />
           {primary.date && (
             <span style={{ fontSize: format.width * 0.013, color: inkColor, opacity: 0.55, letterSpacing: 1 }}>{primary.date}</span>
@@ -500,7 +511,10 @@ export async function renderWallShareCard({ displayName, notes, format, slogan }
   const rows = chunk(notes.slice(0, WALL_MAX_NOTES), WALL_NOTES_PER_ROW);
   const rowWidth = format.width - outerPadding * 2;
   const cardWidth = (rowWidth - (WALL_NOTES_PER_ROW - 1) * 20) / WALL_NOTES_PER_ROW;
-  const fonts = await loadShareFonts();
+  // The measure fonts: the slogan's size and line breaks are measured with them.
+  const [fonts] = await Promise.all([loadShareFonts(), ensurePdfMeasureFontsLoaded()]);
+  const sloganStyle: ShareSloganStyle = { font: "modern", fontFamily: SHARE_FONT_FAMILY, fontWeight: 400, fontSize: 20 };
+  const sloganLayout = slogan ? layoutShareSlogan(slogan, sloganStyle, rowWidth) : null;
 
   return new ImageResponse(
     (
@@ -544,7 +558,7 @@ export async function renderWallShareCard({ displayName, notes, format, slogan }
         </div>
 
         <div style={{ display: "flex", justifyContent: "center", marginTop: 28 }}>
-          {slogan && <span style={{ fontSize: 20, color: PDF_COLORS.surface, opacity: 0.75 }}>{slogan}</span>}
+          {sloganLayout && <SloganSatori layout={sloganLayout} style={sloganStyle} color={PDF_COLORS.surface} opacity={0.75} />}
         </div>
       </div>
     ),
@@ -605,6 +619,8 @@ export async function renderWallShareCardV2({ displayName, notes, format, slogan
   const metrics = wallLayoutMetrics(format.width, format.height);
   const aspects = notes.map((note) => estimateMemoryCardSize(note.templateId, note.content, 1000, note.fontFamily).height / 1000);
   const layout = layoutWallCards(format.id as WallFormat, aspects, metrics);
+  const wallSloganStyle: ShareSloganStyle = { font: "modern", fontFamily: SHARE_FONT_FAMILY, fontWeight: 400, fontSize: format.width * 0.018 };
+  const sloganLayout = slogan ? layoutShareSlogan(slogan, wallSloganStyle, format.width - metrics.padding * 2) : null;
 
   const templateIds = [...new Set(layout.cards.map((card) => notes[card.index].templateId))];
   const [fonts, prepared] = await Promise.all([
@@ -674,7 +690,7 @@ export async function renderWallShareCardV2({ displayName, notes, format, slogan
           );
         })}
 
-        {slogan && (
+        {sloganLayout && (
           <div
             style={{
               position: "absolute",
@@ -687,7 +703,7 @@ export async function renderWallShareCardV2({ displayName, notes, format, slogan
               alignItems: "flex-end",
             }}
           >
-            <span style={{ fontSize: format.width * 0.018, color: PDF_COLORS.surface, opacity: 0.75 }}>{slogan}</span>
+            <SloganSatori layout={sloganLayout!} style={wallSloganStyle} color={PDF_COLORS.surface} opacity={0.75} />
           </div>
         )}
       </div>

@@ -38,6 +38,7 @@ import { noteTextLengthTier, noteTextSizeTier, QUOTE_COMPACT_TEXT_SCALE, spaciou
 import type { NoteDecoration, NoteShape, NoteTemplate, NoteTextAlign, NoteTextFontFamily, SportsColorKey } from "@/features/notes/types";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "@/features/memories/services/pdfPalette";
 import { measureTextWidth, wrapTextToLines } from "@/features/memories/services/pdfTextMeasure";
+import { noteDisplayContent } from "@/features/notes/lib/displayContent";
 import { readPublicAsset } from "./publicAsset";
 
 /**
@@ -161,13 +162,14 @@ function estimateLineCount(content: string, charsPerLine: number): number {
  */
 export function estimateMemoryCardSize(
   templateId: string,
-  content: string,
+  rawContent: string,
   width: number,
   fontFamily: NoteTextFontFamily,
   /** MB-01: a quote's extra "shared by" line under the author line. */
   hasQuoteByline = false
 ): { width: number; height: number } {
   const template = getNoteTemplate(templateId);
+  const content = noteDisplayContent(templateId, rawContent);
   const isHeart = template.shape === "heart";
   const isPolaroid = template.shape === "polaroid";
   const isFootball = template.shape === "football";
@@ -589,8 +591,10 @@ function textAlignStyle(align: NoteTextAlign): { textAlign?: "left" | "center" |
   return { textAlign: align, justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center" };
 }
 
-export function MemoryNoteCard({ content, authorName, quote, templateId, fontFamily, textAlign, rotation, width, artworkDataUri }: MemoryNoteCardInput): ReactNode {
+export function MemoryNoteCard({ content: rawContent, authorName, quote, templateId, fontFamily, textAlign, rotation, width, artworkDataUri }: MemoryNoteCardInput): ReactNode {
   const template = getNoteTemplate(templateId);
+  // The text as drawn (lib/displayContent.ts) — the same rule Note.tsx applies.
+  const content = noteDisplayContent(templateId, rawContent);
   const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily, Boolean(quote?.sharedByLine));
   const alignStyle = textAlignStyle(effectiveTextAlign(textAlign, template.shape));
 

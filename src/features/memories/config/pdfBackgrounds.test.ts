@@ -3,7 +3,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { readImageSize } from "../lib/imageSize";
-import { INSIDE_FOOTER_HEIGHT_PT, layoutPdfDownload, V2_PAGE_HEIGHT_PT, V2_PAGE_WIDTH_PT, type PdfRect } from "../lib/pdfDownloadLayout";
+import { INSIDE_FOOTER_HEIGHT_PT, insideFooterHeight, layoutPdfDownload, PDF_SLOGAN_EXTRA_LINE_PT, V2_PAGE_HEIGHT_PT, V2_PAGE_WIDTH_PT, type PdfRect } from "../lib/pdfDownloadLayout";
 import {
   DEFAULT_PDF_BACKGROUND_ID,
   getPdfBackground,
@@ -116,24 +116,33 @@ test("each design's card window sits on the page, and the card never leaves it o
   }
 });
 
-test("the slogan/date/domain block never overlaps the card or leaves the frame or page", () => {
+test("the slogan/date/domain block never overlaps the card or leaves the frame or page — slogan on one line or two", () => {
   for (const background of pdfBackgrounds) {
     for (const card of CARD_SIZES) {
-      const layout = layoutPdfDownload(background, card);
-      const cardBottom = layout.card.top + layout.card.height;
-      if (layout.footer.placement === "inside") {
-        assert.equal(layout.footer.box.height, INSIDE_FOOTER_HEIGHT_PT);
-        assert.ok(layout.footer.box.top >= cardBottom, `${background.id}: text overlaps the card`);
-        assert.ok(within(layout.footer.box, layout.window), `${background.id} ${card.width}x${card.height}: text leaves the frame`);
-      } else {
-        const frameBottomPt = (background.footer.placement === "below" ? background.footer.frameBottom : 0) * (V2_PAGE_WIDTH_PT / PDF_BACKGROUND_SIZE.width);
-        assert.ok(layout.footer.top > frameBottomPt && layout.footer.top > cardBottom, `${background.id}: text starts inside the frame`);
-        // The below block is ~84pt tall (rule 2 + 16 + slogan ~20 + 16 + 6 + 14 + date ~9) and must clear the domain line.
-        assert.ok(layout.footer.top + 84 < layout.footer.domainTop, `${background.id}: slogan block runs into the domain`);
-        assert.ok(layout.footer.domainTop + 10 < V2_PAGE_HEIGHT_PT, `${background.id}: domain off the page`);
+      for (const sloganLines of [1, 2]) {
+        const layout = layoutPdfDownload(background, card, { sloganLines });
+        const cardBottom = layout.card.top + layout.card.height;
+        const label = `${background.id} ${card.width}x${card.height}, ${sloganLines} slogan line(s)`;
+        if (layout.footer.placement === "inside") {
+          assert.equal(layout.footer.box.height, insideFooterHeight(sloganLines));
+          assert.ok(layout.footer.box.top >= cardBottom, `${label}: text overlaps the card`);
+          assert.ok(within(layout.footer.box, layout.window), `${label}: text leaves the frame`);
+        } else {
+          const frameBottomPt = (background.footer.placement === "below" ? background.footer.frameBottom : 0) * (V2_PAGE_WIDTH_PT / PDF_BACKGROUND_SIZE.width);
+          assert.ok(layout.footer.top > frameBottomPt && layout.footer.top > cardBottom, `${label}: text starts inside the frame`);
+          // The below block is ~84pt tall (rule 2 + 16 + slogan ~20 + 16 + 6 + 14 + date ~9), plus a second slogan line, and must clear the domain line.
+          const blockHeight = 84 + (sloganLines - 1) * PDF_SLOGAN_EXTRA_LINE_PT;
+          assert.ok(layout.footer.top + blockHeight < layout.footer.domainTop, `${label}: slogan block runs into the domain`);
+          assert.ok(layout.footer.domainTop + 10 < V2_PAGE_HEIGHT_PT, `${label}: domain off the page`);
+        }
       }
     }
   }
+});
+
+test("a one-line slogan keeps the inside text block at its original height", () => {
+  assert.equal(insideFooterHeight(1), INSIDE_FOOTER_HEIGHT_PT);
+  assert.equal(insideFooterHeight(2), INSIDE_FOOTER_HEIGHT_PT + PDF_SLOGAN_EXTRA_LINE_PT);
 });
 
 test("a design keeps the card readable — the window never shrinks a lone card below ~250pt wide", () => {

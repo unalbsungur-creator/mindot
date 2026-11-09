@@ -1,7 +1,9 @@
 import { Circle, Document, Image, Page, Rect, Svg, Text, View } from "@react-pdf/renderer";
 import type { PdfBackground, PdfBackgroundPalette } from "../config/pdfBackgrounds";
-import { layoutPdfDownload, V2_PAGE_HEIGHT_PT, V2_PAGE_WIDTH_PT } from "../lib/pdfDownloadLayout";
+import type { SloganLayout } from "@/features/sharing/lib/sloganLayout";
+import { layoutPdfDownload, PDF_SLOGAN_LETTER_SPACING_EM, PDF_SLOGAN_LINE_HEIGHT, V2_PAGE_HEIGHT_PT, V2_PAGE_WIDTH_PT } from "../lib/pdfDownloadLayout";
 import { PDF_FONT_FAMILY } from "./fonts";
+import { layoutPdfSlogan } from "./pdfSlogan";
 
 /**
  * The Memory Print PDF's real page size: 9.6in x 12in, a 4:5 portrait —
@@ -100,15 +102,10 @@ export interface PdfDownloadDocumentProps {
   domain: string;
 }
 
-/** Last word in orange, the rest in ink — the background design's two-tone slogan treatment, for any language. */
-function splitSlogan(slogan: string): [string, string] {
-  const index = slogan.lastIndexOf(" ");
-  return index === -1 ? ["", slogan] : [slogan.slice(0, index + 1), slogan.slice(index + 1)];
-}
-
 export function PdfDownloadDocument({ design, background, card, slogan, date, domain }: PdfDownloadDocumentProps) {
   const { palette } = design;
-  const layout = layoutPdfDownload(design, card);
+  const sloganLayout = layoutPdfSlogan(design, slogan);
+  const layout = layoutPdfDownload(design, card, { sloganLines: sloganLayout.lines.length });
 
   return (
     <Document title="MINDOT" author="MINDOT">
@@ -130,7 +127,7 @@ export function PdfDownloadDocument({ design, background, card, slogan, date, do
         {layout.footer.placement === "inside" ? (
           <FooterText
             palette={palette}
-            slogan={slogan}
+            slogan={sloganLayout}
             date={date}
             domain={domain}
             style={layout.footer.box}
@@ -139,7 +136,7 @@ export function PdfDownloadDocument({ design, background, card, slogan, date, do
           <>
             <FooterText
               palette={palette}
-              slogan={slogan}
+              slogan={sloganLayout}
               date={date}
               style={{ left: layout.footer.left, top: layout.footer.top, width: layout.footer.width }}
             />
@@ -180,21 +177,37 @@ function FooterText({
   style,
 }: {
   palette: PdfBackgroundPalette;
-  slogan: string;
+  slogan: SloganLayout;
   date: string;
   domain?: string;
   style: { left: number; top: number; width: number; height?: number };
 }) {
-  const [sloganHead, sloganTail] = splitSlogan(slogan);
   return (
     <View style={{ position: "absolute", ...style, display: "flex", flexDirection: "column", alignItems: "center" }}>
       <Svg width={34} height={2} viewBox="0 0 34 2">
         <Rect x={0} y={0} width={34} height={1.6} fill={palette.ornament} />
       </Svg>
-      <Text style={{ marginTop: 16, fontFamily: PDF_FONT_FAMILY, fontWeight: "bold", fontSize: 17, letterSpacing: 4.2, color: palette.ink }}>
-        {sloganHead}
-        <Text style={{ color: palette.accent }}>{sloganTail}</Text>
-      </Text>
+      {/* One centred line per `layoutSlogan` line — never a single <Text> react-pdf would wrap on its own. The last word stays orange. */}
+      <View style={{ marginTop: 16, display: "flex", flexDirection: "column", alignItems: "center" }}>
+        {slogan.lines.map((line, index) => (
+          <Text
+            key={index}
+            style={{
+              fontFamily: PDF_FONT_FAMILY,
+              fontWeight: "bold",
+              fontSize: slogan.fontSize,
+              lineHeight: PDF_SLOGAN_LINE_HEIGHT,
+              letterSpacing: PDF_SLOGAN_LETTER_SPACING_EM * slogan.fontSize,
+              color: palette.ink,
+              textAlign: "center",
+            }}
+          >
+            {line.head}
+            {line.head && line.tail ? " " : ""}
+            {line.tail && <Text style={{ color: palette.accent }}>{line.tail}</Text>}
+          </Text>
+        ))}
+      </View>
       <Svg width={150} height={6} viewBox="0 0 150 6" style={{ marginTop: 16 }}>
         <Rect x={0} y={2.7} width={66} height={0.6} fill={palette.mist} fillOpacity={0.35} />
         <Circle cx={75} cy={3} r={3} fill={palette.ornament} />
