@@ -496,6 +496,17 @@ export const es: Dictionary = {
     emailStatusNotConfigured: "No configurado",
     emailStatusNotRequested: "Sin correo especificado",
     emailNotConfiguredNotice: "Invitación creada, pero el envío de correo no está configurado.",
+    languageLabel: "Idioma del correo",
+    recentlyInvitedError: "Ya se envió una invitación a esta dirección en las últimas 24 horas.",
+  },
+  // MN-01: the invitation email, in the language the admin picks for the recipient.
+  // The slogan and the one-line description reuse hero.heading / hero.description.
+  inviteEmail: {
+    subjectNamed: "{name} te invitó a MINDOT",
+    subjectAnonymous: "Alguien que conoces te invitó a MINDOT",
+    ctaButton: "Aceptar la invitación",
+    linkHint: "Si el botón no funciona, pega este enlace en tu navegador:",
+    footerReason: "Recibiste este correo porque alguien te invitó a MINDOT. Si no te interesa, puedes ignorar este correo.",
   },
   memory: {
     preserveAction: "Guardar este pensamiento",

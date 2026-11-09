@@ -498,6 +498,17 @@ export const en: Dictionary = {
     emailStatusNotConfigured: "Not configured",
     emailStatusNotRequested: "No email specified",
     emailNotConfiguredNotice: "Invitation created, but email delivery isn't configured.",
+    languageLabel: "Email language",
+    recentlyInvitedError: "An invitation was already sent to this address in the last 24 hours.",
+  },
+  // MN-01: the invitation email, in the language the admin picks for the recipient.
+  // The slogan and the one-line description reuse hero.heading / hero.description.
+  inviteEmail: {
+    subjectNamed: "{name} invited you to MINDOT",
+    subjectAnonymous: "A friend invited you to MINDOT",
+    ctaButton: "Accept the invitation",
+    linkHint: "If the button doesn't work, paste this link into your browser:",
+    footerReason: "You received this email because someone invited you to MINDOT. If you're not interested, you can ignore this email.",
   },
   memory: {
     preserveAction: "Keep this thought",

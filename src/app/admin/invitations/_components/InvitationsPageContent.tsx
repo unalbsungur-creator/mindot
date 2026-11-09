@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { cn } from "@/lib/cn";
+import { localeLabels, locales } from "@/i18n/config";
 import { useLocale } from "@/i18n/LocaleProvider";
 import type { Dictionary } from "@/i18n/translations";
 import { createInvitation, revokeInvitation } from "@/features/invitations/actions";
@@ -71,12 +72,14 @@ export function InvitationsPageContent({ authorized, invitations: initial }: Inv
 }
 
 function CreateInvitationForm({ onCreated }: { onCreated: (invitation: Invitation) => void }) {
-  const { dictionary } = useLocale();
+  const { dictionary, locale } = useLocale();
   const [email, setEmail] = useState("");
+  // MN-01: the email's language — the recipient's, chosen here (defaults to the admin's own interface language).
+  const [language, setLanguage] = useState<string>(locale);
   const [maxUses, setMaxUses] = useState(1);
   const [expiresInDays, setExpiresInDays] = useState<number | null>(30);
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<false | "generic" | "recently-invited">(false);
   // EPIC: E-mail Gönderimi İçin Güvenli Mimari — a distinct, one-time
   // notice (not the row's own persistent badge, see InvitationRow) so an
   // admin who just asked for an email immediately understands why none
@@ -88,9 +91,9 @@ function CreateInvitationForm({ onCreated }: { onCreated: (invitation: Invitatio
     setError(false);
     setEmailNotConfiguredNotice(false);
     startTransition(async () => {
-      const result = await createInvitation({ recipientEmail: email, maxUses, expiresInDays });
+      const result = await createInvitation({ recipientEmail: email, maxUses, expiresInDays, language });
       if (!result.ok || !result.invitation) {
-        setError(true);
+        setError(result.error === "recently-invited" ? "recently-invited" : "generic");
         return;
       }
       onCreated(result.invitation);
@@ -107,7 +110,7 @@ function CreateInvitationForm({ onCreated }: { onCreated: (invitation: Invitatio
     >
       <h2 className="font-display text-lg font-medium text-navy">{dictionary.invitationsAdmin.createHeading}</h2>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-4">
         <div className="flex flex-col gap-2 sm:col-span-1">
           <label htmlFor="invitation-email" className="text-sm font-medium text-navy">
             {dictionary.invitationsAdmin.emailLabel}
@@ -151,9 +154,31 @@ function CreateInvitationForm({ onCreated }: { onCreated: (invitation: Invitatio
             <option value="none">{dictionary.invitationsAdmin.expiryNone}</option>
           </select>
         </div>
+
+        <div className="flex flex-col gap-2">
+          <label htmlFor="invitation-language" className="text-sm font-medium text-navy">
+            {dictionary.invitationsAdmin.languageLabel}
+          </label>
+          <select
+            id="invitation-language"
+            value={language}
+            onChange={(event) => setLanguage(event.target.value)}
+            className="w-full rounded-md border border-border bg-surface p-2.5 text-sm text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
+          >
+            {locales.map((code) => (
+              <option key={code} value={code}>
+                {localeLabels[code]}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {error && <p className="text-sm text-red-600">{dictionary.invitationsAdmin.createError}</p>}
+      {error && (
+        <p className="text-sm text-red-600">
+          {error === "recently-invited" ? dictionary.invitationsAdmin.recentlyInvitedError : dictionary.invitationsAdmin.createError}
+        </p>
+      )}
       {emailNotConfiguredNotice && (
         <p className="rounded-md border border-orange/30 bg-orange-tint/50 p-2.5 text-sm text-orange-ink">
           {dictionary.invitationsAdmin.emailNotConfiguredNotice}
