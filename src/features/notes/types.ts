@@ -46,9 +46,9 @@ export type NoteFont = "hand" | "sans";
  * outside `config/templates.ts`/`TemplatePicker`'s own preview swatches).
  * Stored on the message itself (`NoteData.fontFamily`/`Message.fontFamily`,
  * see features/messages/types.ts), defaulting to `"modern"` for any
- * message that predates this feature — see `noteTextScaleClasses` in
- * `lib/textScale.ts`, the one place both this and the EPIC 045 length-based
- * size tiering come together.
+ * message that predates this feature — see `layoutCardText` in
+ * `lib/cardText.ts`, the one place this and the card's text size come
+ * together.
  */
 export type NoteTextFontFamily =
   | "modern"
@@ -187,14 +187,14 @@ export interface NoteTemplate {
    */
   contentArea?: { top: string; left: string; width: string; height: string };
   /**
-   * Which text-size table an image-backed template's `contentArea` uses.
-   * `"compact"` (the default when omitted) is the small Special Day tiers,
+   * Which size range an image-backed template's `contentArea` uses.
+   * `"compact"` (the default when omitted) is the small Special Day range,
    * sized for their narrow clean regions; `"spacious"` is for artwork whose
    * clean region is most of the card (the new Standard cards, e.g.
    * "standard-classic"), so text reads at roughly a normal note's size.
-   * Every renderer reads it the same way — `noteTextScaleClass` (DOM) and
-   * `imageBackedFontSizePx` (Satori share card + PDF) — so web, share card
-   * and PDF never disagree about how big the text is.
+   * Every renderer reads it through the one card-text rule
+   * (`layoutCardText`, lib/cardText.ts) — so web, share card and PDF never
+   * disagree about how big the text is.
    */
   contentTextSize?: "compact" | "spacious";
   /**

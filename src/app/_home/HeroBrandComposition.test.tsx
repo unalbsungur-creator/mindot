@@ -30,7 +30,8 @@ describe("HeroBrandComposition (MB-01: cards never overlap)", () => {
   });
 
   it("keeps the pinned card first in the left column and every card exactly once", () => {
-    const order = [...html.matchAll(/Merhaba Dünya|Bugün denize|En iyi intikam|Kısa\./g)].map((m) => m[0]);
+    // The card-text fit draws each message as its computed lines, so a phrase may continue on the next line.
+    const order = [...html.matchAll(/Merhaba\sDünya|Bugün\sdenize|En\siyi\sintikam|Kısa\./g)].map((m) => m[0].replace(/\s/, " "));
     assert.equal(order[0], "Merhaba Dünya");
     assert.equal(order.length, 4);
     assert.equal(new Set(order).size, 4);

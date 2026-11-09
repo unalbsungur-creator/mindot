@@ -28,14 +28,13 @@ import { Circle, Image, Path, Polygon, Rect, Svg, Text, View } from "@react-pdf/
 import {
   scaleHeartPathData,
   estimateMemoryCardSize as estimateMemoryCardSizeShared,
-  imageBackedFontSizePx,
-  imageBackedLineHeight,
   isImageBacked,
 } from "@/features/sharing/services/noteCardSatori";
 import { getNoteTemplate } from "@/features/notes/config/templates";
 import type { NoteDecoration, NoteShape, NoteTextFontFamily } from "@/features/notes/types";
 import { PDF_FONT_FAMILY, PDF_HAND_FONT_FAMILY, PDF_BRAND_FONT_FAMILY, PDF_MONO_FONT_FAMILY } from "./fonts";
 import { noteDisplayContent } from "@/features/notes/lib/displayContent";
+import { layoutCardText } from "@/features/notes/lib/cardText";
 import { PDF_COLORS, PDF_PAPER_COLORS } from "./pdfPalette";
 import { PDF_LETTER_SPACING_EM, safeTextScale, wrapTextToLines } from "./pdfTextMeasure";
 
@@ -408,7 +407,9 @@ export function MemoryNoteCardPdf({ content: rawContent, authorName, templateId,
     }
     const { height } = estimateMemoryCardSize(templateId, content, width, fontFamily);
     const area = template.contentArea!;
-    const fontSize = imageBackedFontSizePx(content, template, fontFamily) * (width / BASELINE_WIDTH);
+    // The shared card-text rule's size (features/notes/lib/cardText.ts).
+    const cardLayout = layoutCardText({ templateId, content, fontFamily, rows: { main: Boolean(authorName), sharer: false } });
+    const fontSize = cardLayout.fontSize * (width / BASELINE_WIDTH);
     // Same guaranteed-fit text as the CSS-card branch below: without it a
     // word wider than `contentArea` ran past the box, and react-pdf's own
     // wrapping split ordinary words mid-character.
@@ -433,7 +434,7 @@ export function MemoryNoteCardPdf({ content: rawContent, authorName, templateId,
             height: `${parseFloat(area.height)}%`,
           }}
         >
-          <Text style={{ ...noteTextFontStyle(fontFamily, contentFontSize), fontSize: contentFontSize, lineHeight: imageBackedLineHeight(template, fontFamily), color: PDF_COLORS.ink }}>{pdfSafeText(wrappedContent)}</Text>
+          <Text style={{ ...noteTextFontStyle(fontFamily, contentFontSize), fontSize: contentFontSize, lineHeight: cardLayout.lineHeight, color: PDF_COLORS.ink }}>{pdfSafeText(wrappedContent)}</Text>
           {authorName && (
             <Text style={{ marginTop: fontSize * 0.5, fontSize: fontSize * 0.85, color: PDF_COLORS.inkSoft }}>{pdfSafeText(`— ${authorName}`)}</Text>
           )}
