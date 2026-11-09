@@ -10,6 +10,7 @@ import {
   pgTable,
   primaryKey,
   real,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -879,5 +880,65 @@ export const tokenRefunds = pgTable(
       "token_refunds_external_reference_pair",
       sql`(${table.status} = 'external_refund_confirmed') = (${table.externalRefundReference} is not null)`
     ),
+  ]
+);
+
+
+// MN-01 moderation alerts (migration 0030, hand-written SQL — keep the two in
+// step). No email address is stored: recipients are HMAC-SHA256 digests
+// (features/moderation/alerts/lib/addressHash.ts). See that feature's
+// repository.ts for how the cycle, the lease and the fencing token are used.
+export const moderationAlertState = pgTable(
+  "moderation_alert_state",
+  {
+    id: smallint("id").primaryKey().default(1),
+    phase: text("phase", { enum: ["idle", "active"] }).notNull().default("idle"),
+    generation: integer("generation").notNull().default(0),
+    cycleStartedAt: timestamp("cycle_started_at", { withTimezone: true }),
+    leaseToken: text("lease_token"),
+    leaseGeneration: integer("lease_generation"),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("moderation_alert_state_singleton_check", sql`${table.id} = 1`),
+    check(
+      "moderation_alert_state_phase_check",
+      sql`(${table.phase} = 'idle' and ${table.cycleStartedAt} is null) or (${table.phase} = 'active' and ${table.cycleStartedAt} is not null and ${table.generation} >= 1)`
+    ),
+    check("moderation_alert_state_generation_check", sql`${table.generation} >= 0`),
+    check(
+      "moderation_alert_state_lease_check",
+      sql`(${table.leaseToken} is null and ${table.leaseGeneration} is null and ${table.leaseExpiresAt} is null) or (${table.leaseToken} is not null and char_length(${table.leaseToken}) between 16 and 128 and ${table.leaseGeneration} >= 1 and ${table.leaseExpiresAt} is not null)`
+    ),
+  ]
+);
+
+export const moderationAlertRecipients = pgTable(
+  "moderation_alert_recipients",
+  {
+    generation: integer("generation").notNull(),
+    addressHash: text("address_hash").notNull(),
+    sendSequence: integer("send_sequence").notNull(),
+    templateKind: text("template_kind", { enum: ["initial", "reminder"] }).notNull(),
+    claimedCount: integer("claimed_count").notNull(),
+    lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }).notNull(),
+    consecutiveFailures: smallint("consecutive_failures").notNull().default(0),
+    inFlight: boolean("in_flight").notNull(),
+    leaseToken: text("lease_token").notNull(),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ name: "moderation_alert_recipients_pk", columns: [table.generation, table.addressHash] }),
+    check("moderation_alert_recipients_hash_check", sql`${table.addressHash} ~ '^[0-9a-f]{64}$'`),
+    check("moderation_alert_recipients_generation_check", sql`${table.generation} >= 1`),
+    check("moderation_alert_recipients_sequence_check", sql`${table.sendSequence} >= 1`),
+    check("moderation_alert_recipients_template_check", sql`${table.templateKind} in ('initial', 'reminder')`),
+    check("moderation_alert_recipients_count_check", sql`${table.claimedCount} between 1 and 1000000`),
+    check("moderation_alert_recipients_failures_check", sql`${table.consecutiveFailures} between 0 and 4`),
+    check("moderation_alert_recipients_success_check", sql`${table.lastSuccessAt} is null or ${table.lastSuccessAt} <= ${table.lastAttemptAt}`),
+    check("moderation_alert_recipients_token_check", sql`char_length(${table.leaseToken}) between 16 and 128`),
   ]
 );

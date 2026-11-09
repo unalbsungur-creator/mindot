@@ -5,6 +5,7 @@ import { auth } from "@/features/auth/auth";
 import { messageRepository } from "@/features/messages/repository";
 import type { QuoteAttributionError, QuoteAttributionInput } from "@/features/messages/lib/quoteAttribution";
 import { submitMessageRevisionForAuthor } from "@/features/messages/service";
+import { scheduleModerationAlert } from "@/features/moderation/alerts/trigger";
 import { userRepository } from "@/features/users/repository";
 import { PUBLIC_WALL_CONSENT_VERSION } from "./lib/wallConsent";
 
@@ -106,6 +107,8 @@ export async function submitMessageRevision(messageId: string, content: string, 
   });
   if (!result.ok) return { ok: false, error: result.error };
 
+  // MN-01: an edit request joined the review queue — alert the admins after the response (never affects this result).
+  scheduleModerationAlert();
   revalidatePath("/me/archive");
   return { ok: true };
 }

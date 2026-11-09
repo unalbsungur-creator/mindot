@@ -3,18 +3,31 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { getEmailService } from "@/features/email/service";
+import { SUPPORT_REPLY_TO } from "@/features/email/addresses";
+import { defaultLocale, locales } from "@/i18n/config";
 import { getAppUrl } from "@/lib/env";
 import { inviteEmailContent } from "./emailTemplate";
 import { invitationRepository } from "./repository";
 import type { Invitation } from "./types";
 
-export type InvitationActionError = "unauthorized" | "invalid-input" | "not-found";
+export type InvitationActionError = "unauthorized" | "invalid-input" | "not-found" | "recently-invited";
+
+/** MN-01: one invitation email per recipient per this many hours. */
+// Not exported: a "use server" file may export async functions only.
+const INVITE_EMAIL_INTERVAL_HOURS = 24;
+
+/** The inviter name invitation emails show (INVITE_SENDER_NAME); null → the anonymous wording. */
+function inviteSenderName(): string | null {
+  return process.env.INVITE_SENDER_NAME?.trim() || null;
+}
 
 export interface CreateInvitationInput {
   recipientEmail: string;
   maxUses: number;
   /** Days from now, or null for no expiry. */
   expiresInDays: number | null;
+  /** MN-01: the recipient's language for the email (one of the app's locales); defaults to the default locale. */
+  language?: string;
 }
 
 export interface InvitationActionResult {
@@ -34,6 +47,11 @@ export async function createInvitation(input: CreateInvitationInput): Promise<In
   const expiresAt =
     input.expiresInDays !== null ? new Date(Date.now() + input.expiresInDays * 24 * 60 * 60 * 1000) : null;
   const recipientEmail = input.recipientEmail.trim() || null;
+  const language = input.language && (locales as readonly string[]).includes(input.language) ? input.language : defaultLocale;
+  // MN-01: at most one invitation email per recipient per 24 hours — checked before anything is created.
+  if (recipientEmail && (await invitationRepository.hasRecentSentEmail(recipientEmail, INVITE_EMAIL_INTERVAL_HOURS))) {
+    return { ok: false, error: "recently-invited" };
+  }
 
   let invitation = await invitationRepository.create({
     recipientEmail,
@@ -50,8 +68,12 @@ export async function createInvitation(input: CreateInvitationInput): Promise<In
   // invalidates the invitation itself.
   if (recipientEmail) {
     const inviteUrl = new URL(`/invite/${invitation.token}`, getAppUrl()).toString();
-    const { subject, html, text } = inviteEmailContent(inviteUrl);
-    const result = await getEmailService().send({ to: recipientEmail, subject, html, text });
+    // Only admins create invitations, so the name the email shows is a setting of its own
+    // (INVITE_SENDER_NAME, e.g. "Ünal Büyüksungur") — never the admin account's display name or an
+    // address. Unset or empty: the "a friend invited you" wording (see emailTemplate.ts).
+    const { subject, html, text } = inviteEmailContent({ inviteUrl, inviterName: inviteSenderName(), locale: language, siteUrl: getAppUrl().origin });
+    // Replies go to the support mailbox, not the send-only EMAIL_FROM address.
+    const result = await getEmailService().send({ to: recipientEmail, subject, html, text, replyTo: SUPPORT_REPLY_TO });
     const emailStatus = result.ok ? "sent" : result.reason === "not-configured" ? "not_configured" : "failed";
     const updated = await invitationRepository.updateEmailStatus(invitation.id, emailStatus);
     if (updated) invitation = updated;

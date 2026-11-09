@@ -1,28 +1,31 @@
 /**
- * Guarded production migration — current release: MB-01 (0029_quote_attribution).
+ * Guarded production migration — current release: MN-01 (0030_moderation_alerts).
  * Take and verify a Neon restore point first. Uses only an explicit direct
  * production URL; never reads .env.local, and never performs a Shopier refund.
  *
- * Release order (MB-01): staging 0029 → staging verification → production
- * 0029 (this script) → code deploy → quote backfill script
- * (`npm run db:quotes:backfill`, dry-run first).
- * Only a known journal state (0024–0028) is accepted as the starting point;
- * an already-applied 0029 is accepted too, so a re-run is a no-op.
+ * Release order (MN-01): staging 0030 → staging verification → Neon backup
+ * branch → production 0030 (this script) → PR merge (code deploy) → alerts
+ * start disabled (MODERATION_ALERTS_ENABLED unset) → enabled on the product
+ * owner's decision.
+ * Only a known journal state (0024–0029) is accepted as the starting point;
+ * an already-applied 0030 is accepted too, so a re-run is a no-op.
  */
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 
 async function main(): Promise<void> {
-const CONFIRMATION = "MINDOT-PRODUCTION-QUOTES-0029";
+const CONFIRMATION = "MINDOT-PRODUCTION-ALERTS-0030";
 const PRODUCTION_HOST_PREFIX = "ep-cool-art-b2nhe8o2";
 const ALLOWED_LATEST = new Set([
   "1791809597974", "1791975595810", "1791989814430",
   "1792032000000", "1792032300000", "1792166400000",
-  // 0029_quote_attribution — already applied: the migrator skips it.
+  // 0029_quote_attribution (MB-01, applied 2026-11-08).
   "1794096000000",
+  // 0030_moderation_alerts — already applied: the migrator skips it.
+  "1794268800000",
 ]);
-const EXPECTED_LATEST = "1794096000000";
+const EXPECTED_LATEST = "1794268800000";
 function fail(message: string): never { throw new Error(message); }
 const urlText = process.env.PRODUCTION_DATABASE_URL?.trim();
 if (!urlText) fail("Set PRODUCTION_DATABASE_URL in the shell; .env.local is never read.");
@@ -82,15 +85,16 @@ try {
   const after = await walletLedgerViolations(db);
   if (after !== 0) fail(`After migration, wallet/ledger invariant failed for ${after} account(s).`);
   const [verified] = await db.unsafe(`SELECT max(created_at)::text AS latest FROM "${safeSchema}"."__drizzle_migrations"`);
-  if (String(verified?.latest ?? "") !== EXPECTED_LATEST) fail("Migrations returned without expected 0029 journal marker.");
-  const columns = await db`
-    SELECT column_name FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'messages'
-      AND column_name IN ('is_quote', 'quote_author', 'pending_is_quote', 'pending_quote_author')
+  if (String(verified?.latest ?? "") !== EXPECTED_LATEST) fail("Migrations returned without expected 0030 journal marker.");
+  const tables = await db`
+    SELECT table_name FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name IN ('moderation_alert_state', 'moderation_alert_recipients')
   `;
-  if (columns.length !== 4) fail(`Expected 4 quote attribution columns on messages, found ${columns.length}.`);
-  const [quotes] = await db`SELECT count(*) FILTER (WHERE is_quote)::int AS quotes, count(*)::int AS messages FROM public.messages`;
-  console.log(`Production migration complete: 0029 applied; ${quotes.messages} messages, ${quotes.quotes} marked as quotes; balances reconcile.`);
+  if (tables.length !== 2) fail(`Expected the 2 moderation alert tables, found ${tables.length}.`);
+  const [state] = await db`SELECT count(*)::int AS rows, count(*) FILTER (WHERE id = 1 AND phase = 'idle')::int AS idle FROM public.moderation_alert_state`;
+  if (state.rows !== 1) fail(`Expected exactly one moderation_alert_state row, found ${state.rows}.`);
+  const [messageCount] = await db`SELECT count(*)::int AS messages FROM public.messages`;
+  console.log(`Production migration complete: 0030 applied; alert state row present (${state.idle === 1 ? "idle" : "not idle"}); ${messageCount.messages} messages untouched; balances reconcile.`);
 } catch (error) {
   const safeMessage = error instanceof Error ? error.message.replaceAll(urlText, "[redacted connection string]") : "Unknown error";
   console.error(`Production migration failed: ${safeMessage}`);

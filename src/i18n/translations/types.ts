@@ -549,6 +549,20 @@ export interface Dictionary {
     emailStatusNotConfigured: string;
     emailStatusNotRequested: string;
     emailNotConfiguredNotice: string;
+    languageLabel: string;
+    recentlyInvitedError: string;
+  };
+  /**
+   * MN-01: the invitation email. `subjectNamed` carries "{name}" (the
+   * inviter's display name, escaped and capped at 40 characters); without a
+   * name, `subjectAnonymous`. Also the email's headline.
+   */
+  inviteEmail: {
+    subjectNamed: string;
+    subjectAnonymous: string;
+    ctaButton: string;
+    linkHint: string;
+    footerReason: string;
   };
   memory: {
     preserveAction: string;

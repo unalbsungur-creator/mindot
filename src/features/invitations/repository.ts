@@ -26,6 +26,13 @@ export interface InvitationRepository {
   revoke(id: string): Promise<Invitation | null>;
   /** EPIC: E-mail Daveti — set once, right after create(), by the same Server Action (see actions.ts). */
   updateEmailStatus(id: string, status: InvitationEmailStatus): Promise<Invitation | null>;
+  /**
+   * MN-01: whether an invitation email was already sent to this address
+   * (case-insensitive) within the last `hours` — the "one invitation per
+   * recipient per 24 hours" limit. Only sends that went out count; a failed
+   * or unconfigured one doesn't.
+   */
+  hasRecentSentEmail(recipientEmail: string, hours: number): Promise<boolean>;
 }
 
 /** URL-safe, unguessable — not the row id, and not derived from anything predictable. */
@@ -123,6 +130,18 @@ class DrizzleInvitationRepository implements InvitationRepository {
       .where(eq(invitations.id, id))
       .returning();
     return row ? toInvitation(row) : null;
+  }
+
+  async hasRecentSentEmail(recipientEmail: string, hours: number): Promise<boolean> {
+    const db = getDb();
+    const [row] = await db
+      .select({ id: invitations.id })
+      .from(invitations)
+      .where(
+        sql`lower(${invitations.recipientEmail}) = lower(${recipientEmail}) and ${invitations.emailStatus} = 'sent' and ${invitations.createdAt} > now() - make_interval(hours => ${hours})`
+      )
+      .limit(1);
+    return Boolean(row);
   }
 }
 

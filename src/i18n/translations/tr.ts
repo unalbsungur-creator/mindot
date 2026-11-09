@@ -498,6 +498,17 @@ export const tr: Dictionary = {
     emailStatusNotConfigured: "Yapılandırılmamış",
     emailStatusNotRequested: "E-mail belirtilmedi",
     emailNotConfiguredNotice: "Davet oluşturuldu ancak e-mail gönderimi yapılandırılmamış.",
+    languageLabel: "E-posta dili",
+    recentlyInvitedError: "Bu adrese son 24 saat içinde zaten bir davet gönderildi.",
+  },
+  // MN-01: the invitation email, in the language the admin picks for the recipient.
+  // The slogan and the one-line description reuse hero.heading / hero.description.
+  inviteEmail: {
+    subjectNamed: "{name} seni MINDOT'a davet etti",
+    subjectAnonymous: "Bir arkadaşın seni MINDOT'a davet etti",
+    ctaButton: "Daveti kabul et",
+    linkHint: "Buton çalışmazsa bu bağlantıyı tarayıcına yapıştır:",
+    footerReason: "Bu e-postayı, biri seni MINDOT'a davet ettiği için aldın. İlgilenmiyorsan bu e-postayı yok sayabilirsin.",
   },
   memory: {
     preserveAction: "Bu düşünceyi sakla",
