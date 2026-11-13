@@ -1,4 +1,6 @@
 import type { Session } from "next-auth";
+import { userRepository } from "@/features/users/repository";
+import { resolveCurrentAdmin } from "./adminAuthorization";
 import { auth } from "./auth";
 
 /**
@@ -26,9 +28,13 @@ import { auth } from "./auth";
  * lesser-privileged account) — callers already uniformly treat "no admin
  * user" as one outcome (e.g. `{ ok: false, error: "unauthorized" }"`),
  * exactly as every existing duplicated copy of this function did.
+ *
+ * Security review 2026-11-13: the session's `role` is only a first filter.
+ * The account's *current* row decides (role "admin", status "active", not
+ * deleted — see ./adminAuthorization.ts), so a demoted or suspended admin
+ * loses access on their very next request, not when their JWT expires.
  */
 export async function requireAdmin(): Promise<Session["user"] | null> {
   const session = await auth();
-  if (session?.user?.role !== "admin") return null;
-  return session.user;
+  return resolveCurrentAdmin(session?.user, (id) => userRepository.getAuthorizationState(id));
 }

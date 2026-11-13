@@ -22,6 +22,7 @@ import {
 } from "@/lib/db/schema";
 import { generatePublicId } from "./lib/identifiers";
 import { appleUserId } from "./lib/providerIds";
+import type { AdminAuthorizationState } from "@/features/auth/adminAuthorization";
 import type { CredentialsUser, GoogleProfile, User } from "./types";
 
 const MAX_GENERATION_ATTEMPTS = 5;
@@ -37,6 +38,12 @@ export const LOCKOUT_MINUTES = 15;
 
 export interface UserRepository {
   getById(id: string): Promise<User | null>;
+  /**
+   * Role, status and deletion of one account — the fields admin
+   * authorization is decided on (features/auth/adminAuthorization.ts), read
+   * fresh on every admin request. One primary-key lookup; `null` = no row.
+   */
+  getAuthorizationState(id: string): Promise<AdminAuthorizationState | null>;
   /** Batched lookup — used by the board's tile query to resolve avatars for a page of messages in one round trip instead of N. */
   getByIds(ids: string[]): Promise<User[]>;
   /** Like getByIds, but never returns a deleted account's tombstone row (same `deleted_at IS NULL` rule as isActiveAccount). */
@@ -414,6 +421,16 @@ class DrizzleUserRepository implements UserRepository {
       .update(users)
       .set({ failedLoginAttempts: 0, lockedUntil: null, updatedAt: new Date() })
       .where(eq(users.id, userId));
+  }
+
+  async getAuthorizationState(id: string): Promise<AdminAuthorizationState | null> {
+    const db = getDb();
+    const [row] = await db
+      .select({ role: users.role, status: users.status, deletedAt: users.deletedAt })
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+    return row ? { role: row.role, status: row.status, deleted: row.deletedAt !== null } : null;
   }
 
   async isActiveAccount(id: string): Promise<boolean> {

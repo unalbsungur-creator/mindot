@@ -63,6 +63,7 @@ let orderResult: PhysicalOrder | null;
 let projectResult: MemoryProject | null;
 let messageResult: PublicMessageDetail | null;
 let customerResult: User | null;
+let accountState: { role: "admin" | "user"; status: "active" | "suspended"; deleted: boolean } | null;
 const calls = { order: [] as string[], project: [] as string[], message: [] as string[], customer: [] as string[], statusAction: 0 };
 
 function StubContent(props: ContentProps) {
@@ -87,7 +88,16 @@ before(async () => {
     namedExports: { getPublicMessageById: async (id: string) => (calls.message.push(id), messageResult) },
   });
   mock.module("@/features/users/repository", {
-    namedExports: { userRepository: { getById: async (id: string) => (calls.customer.push(id), customerResult) } },
+    namedExports: {
+      userRepository: {
+        getById: async (id: string) => (calls.customer.push(id), customerResult),
+        // requireAdmin's fresh admin check: the current users row. By
+        // default it agrees with the session; a test overrides it to model
+        // an admin demoted or suspended after signing in.
+        getAuthorizationState: async () =>
+          accountState ?? (session ? { role: session.user.role, status: "active" as const, deleted: false } : null),
+      },
+    },
   });
   mock.module("@/features/memories/actions", {
     namedExports: { updatePhysicalOrderStatus: async () => (calls.statusAction++, { ok: false, error: "unauthorized" }) },
@@ -105,6 +115,7 @@ beforeEach(() => {
   projectResult = project;
   messageResult = message;
   customerResult = customer;
+  accountState = null;
   calls.order = [];
   calls.project = [];
   calls.message = [];
@@ -163,6 +174,18 @@ describe("admin order detail page", () => {
     session = { user: { id: "user-1", role: "user" } };
     assertAdminsOnly(await renderPage());
     assertNoProtectedReads();
+  });
+
+  it("refuses an admin session whose account was demoted or suspended after sign-in", async () => {
+    session = { user: { id: "admin-1", role: "admin" } };
+    for (const state of [
+      { role: "user" as const, status: "active" as const, deleted: false },
+      { role: "admin" as const, status: "suspended" as const, deleted: false },
+    ]) {
+      accountState = state;
+      assertAdminsOnly(await renderPage());
+      assertNoProtectedReads();
+    }
   });
 
   it("shows the not-found panel to an admin for an unknown order number", async () => {

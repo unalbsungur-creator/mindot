@@ -3,6 +3,7 @@ import { auth } from "@/features/auth/auth";
 import { parsePdfBackgroundParam } from "@/features/memories/config/pdfBackgrounds";
 import { memoryRepository } from "@/features/memories/repository";
 import { checkMemoryOutputAccess } from "@/features/memories/services/outputAccess";
+import { requireAdmin } from "@/features/auth/requireAdmin";
 import { generateMemoryPdf, MemoryPdfSourceUnavailableError } from "@/features/memories/services/pdf";
 
 /**
@@ -67,7 +68,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
   // Owner + per-outputType entitlement, deny by default — see
   // features/memories/lib/outputPolicy.ts. Read-only: this GET never spends
   // a token; unlocking (and paying) happens only in `unlockMemoryPdf`.
-  const access = await checkMemoryOutputAccess(project, session.user, "pdf", { adminBypass: true });
+  // The admin bypass trusts only a fresh admin check (requireAdmin reads the
+  // current users row), never the role frozen in the session's JWT.
+  const principal = session.user.role === "admin" && !(await requireAdmin()) ? { ...session.user, role: "user" as const } : session.user;
+  const access = await checkMemoryOutputAccess(project, principal, "pdf", { adminBypass: true });
   if (!access.allowed) {
     return NextResponse.json({ error: access.reason }, { status: 403 });
   }
