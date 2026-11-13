@@ -3,6 +3,7 @@ import { before, beforeEach, describe, it, mock } from "node:test";
 import type { Message } from "@/features/messages/types";
 import { PUBLIC_WALL_CONSENT_VERSION } from "@/features/profile/lib/wallConsent";
 import type { User } from "@/features/users/types";
+import { SHARE_IMAGE_BROWSER_CACHE_CONTROL } from "@/features/sharing/services/renderCache";
 
 // The wall share image route: the newest eligible cards drawn by the V2
 // renderer, behind the same gate as the wall page, falling back to the
@@ -130,9 +131,10 @@ describe("wall share image route", () => {
     assert.deepEqual(calls.plain, []);
   });
 
-  it("keeps the wall image's 5-minute cache, not ImageResponse's default", async () => {
+  it("sends the short revalidating cache + ETag, not ImageResponse's immutable default", async () => {
     const response = await request(PUBLIC_ID, "square");
-    assert.equal(response.headers.get("cache-control"), "public, max-age=300, stale-while-revalidate=3600");
+    assert.equal(response.headers.get("cache-control"), SHARE_IMAGE_BROWSER_CACHE_CONTROL);
+    assert.match(response.headers.get("etag") ?? "", /^"[0-9a-f]{32}"$/);
     assert.equal(response.headers.get("content-type"), "image/png");
   });
 
@@ -143,7 +145,7 @@ describe("wall share image route", () => {
     assert.equal(await response.text(), "plain-png");
     assert.equal(calls.plain.length, 1);
     assert.deepEqual(calls.plain[0].notes, Array.from({ length: 8 }, (_, i) => ({ content: `note ${i}`, templateId: message(i).templateId })));
-    assert.equal(response.headers.get("cache-control"), "public, max-age=300, stale-while-revalidate=3600");
+    assert.equal(response.headers.get("cache-control"), SHARE_IMAGE_BROWSER_CACHE_CONTROL);
   });
 
   it("falls back when V2 fails while rendering (it is buffered, not streamed)", async () => {

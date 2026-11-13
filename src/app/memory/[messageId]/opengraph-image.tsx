@@ -2,6 +2,7 @@ import { getPublicMessageById } from "@/features/board/repository";
 import { getDictionary } from "@/i18n/translations";
 import { OG_IMAGE_SIZE, renderBrandOgImage } from "@/features/sharing/services/brandOgImage";
 import { sloganForLanguage, taglineForLanguage, toShareCardNote } from "@/features/sharing/lib/shareCardData";
+import { cachedImageRender } from "@/features/sharing/services/renderCache";
 import { renderShareCard } from "@/features/sharing/services/shareCardRenderer";
 
 export const runtime = "nodejs";
@@ -27,10 +28,12 @@ export default async function Image({ params }: { params: Promise<{ messageId: s
     return await renderBrandOgImage(getDictionary("en").boardPage.slogan);
   }
 
-  return await renderShareCard({
+  const input = {
     primary: toShareCardNote(message),
     format: { id: "og", name: "OG", width: OG_IMAGE_SIZE.width, height: OG_IMAGE_SIZE.height },
     slogan: sloganForLanguage(message.language),
     tagline: taglineForLanguage(message.language),
-  });
+  };
+  // Edge-cached per input + deploy (services/renderCache.ts).
+  return await cachedImageRender(null, "og-memory", input, () => renderShareCard(input));
 }

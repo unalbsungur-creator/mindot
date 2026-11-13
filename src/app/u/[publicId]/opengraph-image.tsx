@@ -2,6 +2,7 @@ import { getPublicWall } from "@/features/profile/repository";
 import { curateWallSelection } from "@/features/profile/lib/curateWallSelection";
 import { getDictionary } from "@/i18n/translations";
 import { OG_IMAGE_SIZE, renderBrandOgImage } from "@/features/sharing/services/brandOgImage";
+import { cachedImageRender } from "@/features/sharing/services/renderCache";
 import { renderWallShareCard } from "@/features/sharing/services/shareCardRenderer";
 
 export const runtime = "nodejs";
@@ -30,10 +31,12 @@ export default async function Image({ params }: { params: Promise<{ publicId: st
 
   const curated = curateWallSelection(wall.notes, 4);
 
-  return await renderWallShareCard({
+  const input = {
     displayName: wall.profile.displayName,
     notes: curated.map((note) => ({ content: note.content, templateId: note.templateId })),
     format: { id: "og", name: "OG", width: OG_IMAGE_SIZE.width, height: OG_IMAGE_SIZE.height },
     slogan: getDictionary("en").boardPage.slogan,
-  });
+  };
+  // Edge-cached per input + deploy (services/renderCache.ts).
+  return await cachedImageRender(null, "og-wall", input, () => renderWallShareCard(input));
 }
