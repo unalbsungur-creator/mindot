@@ -52,6 +52,18 @@ describe("Resend provider", () => {
     assert.ok(calls[0].init.signal instanceof AbortSignal);
   });
 
+  it("always sends both an HTML and a plain-text part, and refuses an email missing either", async () => {
+    const { calls, fetchImpl } = stubFetch(async () => new Response("{}", { status: 200 }));
+    await createResendEmailService(fetchImpl).send(BASE);
+    const body = JSON.parse(String(calls[0].init.body));
+    assert.equal(body.html, BASE.html);
+    assert.equal(body.text, BASE.text);
+    for (const missing of [{ text: "" }, { text: "  " }, { html: "" }]) {
+      assert.deepEqual(await createResendEmailService(fetchImpl).send({ ...BASE, ...missing }), { ok: false, reason: "missing-body-part" });
+    }
+    assert.equal(calls.length, 1, "nothing sent without both parts");
+  });
+
   it("does not need EMAIL_FROM when the email names its own sender", async () => {
     delete process.env.EMAIL_FROM;
     const { fetchImpl } = stubFetch(async () => new Response("{}", { status: 200 }));

@@ -38,6 +38,10 @@ class ResendEmailService implements EmailService {
       return { ok: false, reason: "not-configured" };
     }
 
+    // Every email carries a plain-text part next to the HTML (deliverability:
+    // HTML-only mail scores worse with Outlook.com/Gmail filters).
+    if (!input.text?.trim() || !input.html?.trim()) return { ok: false, reason: "missing-body-part" };
+
     const headers: Record<string, string> = {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
