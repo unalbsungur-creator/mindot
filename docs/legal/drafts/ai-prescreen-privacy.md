@@ -1,6 +1,8 @@
 # DRAFT — Privacy Policy paragraph: automatic pre-screen
 
-> **LEGAL REVIEW REQUIRED — not published.** Draft for the legal package (security pack 2b, item 5). Nothing here is shown on the site. It describes the behavior of `src/features/moderation/providers/workersAi.ts` (shadow mode) at the time of writing; re-check before publishing.
+> **PUBLISHED 2026-11-14 (owner approved before legal review) — LEGAL REVIEW REQUIRED.** The live text, in the formal register of the Privacy Policy, is in `src/i18n/translations/*.ts` ("Automatic pre-screen"); this file keeps the original draft and the review points.
+>
+> Earlier note: Draft for the legal package (security pack 2b, item 5). Nothing here is shown on the site. It describes the behavior of `src/features/moderation/providers/workersAi.ts` (shadow mode) at the time of writing; re-check before publishing.
 
 Points the lawyer should confirm: legal basis (legitimate interest in safe moderation vs. consent), Cloudflare's role as processor under the existing Cloudflare DPA, international transfer wording, whether the "possible crisis" flag counts as processing of special-category (health) data, retention, and the closing statement that Cloudflare does not train models on this content (check against Cloudflare's current Workers AI terms before publishing).
 
