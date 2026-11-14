@@ -1,12 +1,12 @@
 import { resolveAppEnvironment } from "@/lib/appEnvironment";
 import { optionalEnv } from "@/lib/env";
 import { PRODUCTION_SITE_URL, STAGING_SITE_URL } from "@/lib/siteConfig";
-import { MAX_TURNSTILE_TOKEN_LENGTH, TURNSTILE_ADMIN_LOGIN_ACTION } from "./turnstileConstants";
+import { MAX_TURNSTILE_TOKEN_LENGTH, TURNSTILE_ADMIN_LOGIN_ACTION, TURNSTILE_REPORT_ACTION } from "./turnstileConstants";
 
 // Re-exported so existing server-side importers keep a single entry point;
 // the client imports these from ./turnstileConstants directly (this module is
 // server-only — it pulls next/headers via @/lib/env).
-export { MAX_TURNSTILE_TOKEN_LENGTH, TURNSTILE_ADMIN_LOGIN_ACTION };
+export { MAX_TURNSTILE_TOKEN_LENGTH, TURNSTILE_ADMIN_LOGIN_ACTION, TURNSTILE_REPORT_ACTION };
 
 /**
  * Cloudflare Turnstile server-side verification for the admin login
@@ -164,6 +164,26 @@ export async function verifyAdminLoginTurnstile(token: string, remoteIp: string 
   });
   if (!result.ok) {
     console.warn(`[auth] admin Turnstile rejected: ${result.reason}`);
+  }
+  return result.ok;
+}
+
+/**
+ * Security pack 2b: the signed-out report check — same keys, same
+ * environment-specific hostname rule and the same fail-closed verifier as
+ * the admin login, but its own `report` action, so a token solved on one
+ * form can't be spent on the other.
+ */
+export async function verifyReportTurnstile(token: string, remoteIp: string | null): Promise<boolean> {
+  const { secret, allowedHostnames } = adminLoginTurnstileRuntime();
+  const result = await verifyTurnstileToken(token, {
+    secret,
+    allowedHostnames,
+    expectedAction: TURNSTILE_REPORT_ACTION,
+    remoteIp,
+  });
+  if (!result.ok) {
+    console.warn(`[reports] Turnstile rejected: ${result.reason}`);
   }
   return result.ok;
 }

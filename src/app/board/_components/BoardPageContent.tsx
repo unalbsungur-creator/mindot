@@ -32,10 +32,12 @@ export function BoardPageContent({
   initialTile,
   centerPoint,
   viewerSignedIn,
+  turnstileSiteKey,
 }: {
   initialTile: BoardTile;
   centerPoint: { x: number; y: number };
   viewerSignedIn: boolean;
+  turnstileSiteKey: string | null;
 }) {
   const { dictionary } = useLocale();
   const [filter, setFilter] = useState<BoardFilterResult>({ status: "idle", matchedIds: null });
@@ -44,7 +46,7 @@ export function BoardPageContent({
     <div className="flex min-h-board-shell flex-col">
       <h1 className="sr-only">{dictionary.boardPage.title}</h1>
       <BoardDiscoveryPanel onFilterChange={setFilter} personal={viewerSignedIn} />
-      <InfiniteBoard initialTile={initialTile} centerPoint={centerPoint} filter={filter} viewerSignedIn={viewerSignedIn} />
+      <InfiniteBoard initialTile={initialTile} centerPoint={centerPoint} filter={filter} viewerSignedIn={viewerSignedIn} turnstileSiteKey={turnstileSiteKey} />
     </div>
   );
 }

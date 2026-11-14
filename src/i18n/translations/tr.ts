@@ -327,6 +327,8 @@ export const tr: Dictionary = {
     successBody: "Bu düşünceyi incelemesi için ekibimize ilettik.",
     errorAlreadyReported: "Bu düşünceyi zaten bildirmişsin.",
     errorRateLimited: "Çok fazla bildirim gönderdin — birkaç dakika sonra tekrar dene.",
+    errorVerification: "Güvenlik doğrulaması tamamlanamadı — lütfen tekrar dene.",
+    errorAnonymousRateLimited: "Bu bağlantıdan birkaç bildirim gönderildi — bir saat sonra tekrar dene ya da giriş yap.",
     errorNotFound: "Bu düşünce artık bildirilebilir değil.",
     errorGeneric: "Bir şeyler ters gitti. Lütfen tekrar dene.",
   },

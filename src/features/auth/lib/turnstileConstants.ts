@@ -8,5 +8,8 @@
 /** The `action` the admin login widget renders with and siteverify must echo back. */
 export const TURNSTILE_ADMIN_LOGIN_ACTION = "admin-login";
 
+/** The `action` the signed-out report widget renders with (security pack 2b). */
+export const TURNSTILE_REPORT_ACTION = "report";
+
 /** Cloudflare documents the response token as at most 2048 characters. */
 export const MAX_TURNSTILE_TOKEN_LENGTH = 2048;

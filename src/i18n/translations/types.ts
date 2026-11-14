@@ -364,6 +364,10 @@ export interface Dictionary {
     errorGeneric: string;
     /** EPIC 018: reportMessage's server-side rate-limit rejection. */
     errorRateLimited: string;
+    /** Security pack 2b: a signed-out report whose Turnstile check failed. */
+    errorVerification: string;
+    /** Security pack 2b: a signed-out report over its per-connection hourly limit. */
+    errorAnonymousRateLimited: string;
   };
   /** EPIC 012: the admin report queue at /admin/reports. */
   reportsAdmin: {

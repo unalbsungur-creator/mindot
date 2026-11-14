@@ -1,6 +1,7 @@
 import { auth } from "@/features/auth/auth";
 import { getTile } from "@/features/board/repository";
 import { resolveBoardCenterPoint } from "@/features/board/lib/worldGeometry";
+import { optionalEnv } from "@/lib/env";
 import { BoardPageContent } from "./_components/BoardPageContent";
 import type { Metadata } from "next";
 
@@ -27,5 +28,14 @@ export default async function BoardPage() {
   // doc comment for the fallback behavior if the reference message is
   // ever archived/missing.
   const centerPoint = resolveBoardCenterPoint(initialTile.messages.map((message) => message.id));
-  return <BoardPageContent initialTile={initialTile} centerPoint={centerPoint} viewerSignedIn={Boolean(viewerId)} />;
+  // The public Turnstile site key, read at runtime (like /admin/login) — the
+  // report dialog needs it for signed-out reports.
+  return (
+    <BoardPageContent
+      initialTile={initialTile}
+      centerPoint={centerPoint}
+      viewerSignedIn={Boolean(viewerId)}
+      turnstileSiteKey={optionalEnv("TURNSTILE_SITE_KEY") ?? null}
+    />
+  );
 }
