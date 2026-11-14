@@ -1,5 +1,16 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { devFallbackModerationService } from "./providers/devFallback";
+import { createWorkersAiModerationService, type WorkersAiBinding } from "./providers/workersAi";
 import type { ModerationService } from "./types";
+
+/** The Worker's Workers AI binding (wrangler.jsonc `ai`), or null outside the Worker. */
+function workersAiBinding(): WorkersAiBinding | null {
+  try {
+    return (getCloudflareContext().env as { AI?: WorkersAiBinding }).AI ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Provider selection. `AI_MODERATION_PROVIDER` names which one to use;
@@ -18,9 +29,9 @@ export function getModerationService(): ModerationService {
   const provider = process.env.AI_MODERATION_PROVIDER;
 
   switch (provider) {
-    // Extension point for a real provider, e.g.:
-    // case "openai":
-    //   return openAiModerationService;
+    // Security pack 2b: Cloudflare Workers AI, shadow mode (providers/workersAi.ts).
+    case "workers-ai":
+      return createWorkersAiModerationService(workersAiBinding);
     default:
       return devFallbackModerationService;
   }

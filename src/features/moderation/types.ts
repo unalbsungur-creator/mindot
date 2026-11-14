@@ -27,5 +27,13 @@ export interface ModerationContext {
  * implementation available without external credentials.
  */
 export interface ModerationService {
+  /**
+   * "inline" (default): analyzed before the message is stored, as part of
+   * the submission (the instant dev fallback). "deferred": a slow external
+   * model — the message is stored without a result and analyzed after the
+   * response (messages/actions.ts), so the writer never waits for it and a
+   * failure can't touch the submission.
+   */
+  mode?: "inline" | "deferred";
   analyzeMessage(content: string, context: ModerationContext): Promise<ModerationResult>;
 }

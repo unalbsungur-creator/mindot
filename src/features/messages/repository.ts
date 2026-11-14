@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, ilike, inArray, lte, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, ilike, inArray, isNull, lte, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { messageLikes, messages } from "@/lib/db/schema";
 import { computePlacement, findEmptyTile, hasCollision, neighborTiles, tileForSequence, type NoteFootprint, type OccupantFootprint } from "@/features/board/lib/placement";
@@ -7,6 +7,16 @@ import { toNoteTextAlign } from "@/features/notes/lib/textAlign";
 import { CONTENT_CONSENT_VERSION } from "./consent";
 import type { QuoteAttribution } from "./lib/quoteAttribution";
 import type { Message, NewMessageInput } from "./types";
+
+/** The ai_* fields of one pre-screen result (features/moderation ModerationResult). */
+export interface PrescreenRecord {
+  decision: "safe" | "review" | "blocked";
+  provider: string;
+  categories: string[];
+  reason: string | null;
+  confidence: number | null;
+  moderatedAt: string;
+}
 
 /**
  * Repository abstraction over message storage — same shape as EPIC 002's
@@ -159,6 +169,13 @@ export interface MessageRepository {
   listLikedMessageIds(userId: string, messageIds: string[]): Promise<string[]>;
   /** Total currently-approved (live, unarchived) messages — a single aggregate query, reused by both the homepage's active-message counter and its 1,000,000-dot milestone strip (see app/page.tsx). */
   countApproved(): Promise<number>;
+  /**
+   * Security pack 2b: stores a deferred AI pre-screen result — only once, and
+   * only on a card that has none yet (`ai_moderation_status is null`). Touches
+   * nothing but the ai_* columns: never status, placement or anything a
+   * human decided. `false` when the card already had a result or is gone.
+   */
+  recordPrescreen(id: string, result: PrescreenRecord): Promise<boolean>;
   /** EPIC 022: total currently-pending messages — a single aggregate query, AdminNav's Moderation badge. */
   countPending(): Promise<number>;
   /**
@@ -1037,6 +1054,23 @@ class DrizzleMessageRepository implements MessageRepository {
       .where(and(eq(messages.id, id), sql`${messages.pendingContent} is not null`))
       .returning();
     return row ? toMessage(row) : null;
+  }
+
+  async recordPrescreen(id: string, result: PrescreenRecord): Promise<boolean> {
+    const db = getDb();
+    const updated = await db
+      .update(messages)
+      .set({
+        aiModerationStatus: result.decision,
+        aiModerationProvider: result.provider,
+        aiModerationCategories: result.categories,
+        aiModerationReason: result.reason,
+        aiModerationConfidence: result.confidence,
+        aiModeratedAt: new Date(result.moderatedAt),
+      })
+      .where(and(eq(messages.id, id), isNull(messages.aiModerationStatus)))
+      .returning({ id: messages.id });
+    return updated.length > 0;
   }
 
   async setQuoteAuthor(id: string, quoteAuthor: string | null): Promise<Message | null> {

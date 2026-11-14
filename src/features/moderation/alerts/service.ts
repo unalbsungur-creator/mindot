@@ -4,6 +4,7 @@ import { readModerationAlertConfig, type ModerationAlertRuntime } from "./config
 import { moderationAlertEmailContent } from "./lib/alertEmailTemplate";
 import {
   completeAlertSend,
+  countPendingPriority,
   evaluateAndClaimAlerts,
   releaseAlertLease,
   type AlertClaim,
@@ -50,14 +51,17 @@ export interface AlertRunDependencies {
   evaluate?: (config: ModerationAlertRuntime["state"]) => Promise<AlertEvaluation>;
   complete?: (claim: AlertClaim, send: ClaimedSend, delivered: boolean) => Promise<boolean>;
   release?: (claim: AlertClaim) => Promise<boolean>;
+  /** Security pack 2b: pending cards flagged PRIORITY by the AI pre-screen (a count only). */
+  countPriority?: () => Promise<number>;
 }
 
-async function deliver(runtime: ModerationAlertRuntime, email: EmailService, send: ClaimedSend): Promise<boolean> {
+async function deliver(runtime: ModerationAlertRuntime, email: EmailService, send: ClaimedSend, priorityCount: number): Promise<boolean> {
   const address = runtime.addresses.get(send.addressHash);
   if (!address) return false;
   const content = moderationAlertEmailContent({
     kind: send.templateKind,
     pendingReviewCount: send.claimedCount,
+    priorityCount: Math.min(priorityCount, send.claimedCount),
     adminModerationUrl: runtime.adminModerationUrl,
     environment: runtime.environment,
   });
@@ -98,7 +102,14 @@ export async function runModerationAlerts(deps: AlertRunDependencies = {}): Prom
         break;
       }
       const { claim } = evaluation;
-      const outcomes = await Promise.all(claim.sends.map((send) => deliver(runtime, email, send)));
+      // A count only — never which cards. A failed count must not stop the alert.
+      let priorityCount = 0;
+      try {
+        priorityCount = await (deps.countPriority ?? countPendingPriority)();
+      } catch {
+        priorityCount = 0;
+      }
+      const outcomes = await Promise.all(claim.sends.map((send) => deliver(runtime, email, send, priorityCount)));
       for (let i = 0; i < claim.sends.length; i++) {
         summary.attempted += 1;
         if (outcomes[i]) summary.delivered += 1;
