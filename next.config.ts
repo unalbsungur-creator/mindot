@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
+import { SECURITY_HEADERS } from "./src/lib/securityHeaders";
 
 const nextConfig: NextConfig = {
+  // Security review 2026-11-13: don't advertise the framework, and send the
+  // hardening headers (incl. a Report-Only CSP) on every route — values and
+  // rationale in src/lib/securityHeaders.ts.
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/(.*)", headers: [...SECURITY_HEADERS] }];
+  },
   /* config options here */
   // Allows the dev server (HMR/RSC/dev-only assets) to accept requests from
   // these origins when testing on a real phone: the plain LAN IP
