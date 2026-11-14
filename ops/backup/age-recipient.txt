@@ -1,0 +1,3 @@
+# MINDOT weekly backup — age PUBLIC key (recipient). Only the public key ever
+# belongs here; the private key exists offline with the owner only.
+# The workflow reads the first line matching ^age1[0-9a-z]{58}$ below.
