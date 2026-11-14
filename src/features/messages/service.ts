@@ -287,14 +287,12 @@ export async function submitMessageRevisionForAuthor(
   return { ok: true };
 }
 
-export interface LikeResult {
-  ok: boolean;
-  likeCount: number;
-  alreadyLiked: boolean;
-}
+export type LikeResult =
+  | { ok: true; liked: boolean; likeCount: number }
+  | { ok: false; error: "sign-in-required" | "unavailable" };
 
 export interface LikeMessageDeps {
-  messages: Pick<MessageRepository, "like">;
+  messages: Pick<MessageRepository, "like" | "unlike">;
 }
 
 const defaultLikeDeps: LikeMessageDeps = {
@@ -302,24 +300,27 @@ const defaultLikeDeps: LikeMessageDeps = {
 };
 
 /**
- * EPIC: Message Like System. Who is liking, decided by the caller: a
- * signed-in account's `userId` always wins — the `anonymousId` is then
- * never even passed on, so a signed-in user can't end up split across two
- * identities. `anonymousId` (from src/lib/anonymousId.ts) is the fallback
- * for a visitor with no session at all. The real state boundary is
- * `messageRepository.like()`'s atomic insert against message_likes' unique
- * index — this function is identity resolution, not the guarantee itself,
- * and passes the repository's result (or error) through unchanged.
+ * EPIC: Message Like System, security pack 2b. Sets *this account's* like
+ * on a message to `liked` (like or take back) — a desired state, not a
+ * toggle, so a double click or a retry can't flip it twice. Likes need an
+ * account: `userId` is always the server session's (the caller reads it),
+ * and without one nothing is read or written. The guarantees live in the
+ * repository: one like per account per message (unique index), the count
+ * changes in the same transaction, approved messages only.
  */
-export async function likeMessageAsVisitor(
-  params: { messageId: string; userId: string | null; anonymousId?: string },
+export async function setMessageLike(
+  params: { messageId: string; userId: string | null; liked: boolean },
   deps: LikeMessageDeps = defaultLikeDeps
 ): Promise<LikeResult> {
-  const { messageId, userId, anonymousId } = params;
+  const { userId, liked } = params;
+  if (!userId) return { ok: false, error: "sign-in-required" };
+  const messageId = typeof params.messageId === "string" ? params.messageId.trim() : "";
+  if (!messageId || messageId.length > 100) return { ok: false, error: "unavailable" };
 
-  if (!userId && !anonymousId) {
-    return { ok: false, likeCount: 0, alreadyLiked: false };
+  if (liked) {
+    const result = await deps.messages.like(messageId, { userId });
+    return result.ok ? { ok: true, liked: true, likeCount: result.likeCount } : { ok: false, error: "unavailable" };
   }
-
-  return deps.messages.like(messageId, userId ? { userId } : { anonymousId });
+  const result = await deps.messages.unlike(messageId, { userId });
+  return result.ok ? { ok: true, liked: false, likeCount: result.likeCount } : { ok: false, error: "unavailable" };
 }

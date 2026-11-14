@@ -5,9 +5,8 @@ import { Note } from "@/features/notes/components/Note";
 import type { NoteData } from "@/features/notes/types";
 import { StarField } from "@/components/ui/StarField";
 import { cn } from "@/lib/cn";
-import { getAnonymousId } from "@/lib/anonymousId";
 import { useLocale } from "@/i18n/LocaleProvider";
-import { likeMessage } from "@/features/messages/like-actions";
+import { setLike } from "@/features/messages/like-actions";
 import { ReportDialog } from "@/features/reports/components/ReportDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { blockUser } from "@/features/blocks/actions";
@@ -32,19 +31,14 @@ const KEY_PAN_SPEED = 480; // world px/sec
 const WHEEL_ZOOM_SENSITIVITY = 0.0018;
 const BUTTON_ZOOM_STEP = 0.25;
 const EMPTY_HINT_DELAY_MS = 4000;
-// EPIC: Message Like System — which message ids *this browser* has
-// already liked, purely a client UX convenience (don't show a likeable
-// button as clickable again) — the real dedup guarantee is server-side,
-// see message_likes' unique index. Wrapped in try/catch like every other
-// localStorage read in this codebase.
-const LIKED_STORAGE_KEY = "mindot:liked-messages:v1";
+// Security pack 2b: how long the "sign in to like" notice stays up.
+const SIGN_IN_NOTICE_MS = 5000;
 // EPIC 026: this canvas is a drag-to-pan world, not a normal scrolling
 // page — by design (see CLAUDE.md's "Infinite board interaction model"),
 // never touched here. On a real mobile device that's not obvious without
 // the mouse-cursor/scrollbar affordances desktop has, and was reported as
 // "no posts visible, can't scroll" — this one-time hint (shown once per
-// browser, same versioned-key convention as onboarding/liked-messages
-// above) is the minimal, purely-additive fix: it doesn't change how the
+// browser, same versioned-key convention as onboarding) is the minimal, purely-additive fix: it doesn't change how the
 // board loads or renders content, only tells a first-time mobile visitor
 // how to move around it.
 const MOBILE_HINT_STORAGE_KEY = "mindot:board-mobile-hint-seen:v1";
@@ -433,11 +427,15 @@ export function InfiniteBoard({
     window.setTimeout(() => setIsResetting(false), 500);
   }, [resetToCenter]);
 
-  // --- Likes: real count comes from tile data; `likedIds` and
-  // `likeCountOverrides` are purely local optimistic-UI state, reconciled
-  // with the server's actual response once it arrives.
-  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
-  const [likeCountOverrides, setLikeCountOverrides] = useState<Record<string, number>>({});
+  // --- Likes (security pack 2b: signed-in accounts only). The truth comes
+  // from the viewer's own tiles (`likedByViewer`, `likeCount`);
+  // `likeOverrides` is local optimistic state per message, replaced by the
+  // server's answer as soon as it arrives. A signed-out visitor's press
+  // shows a short "sign in to like" notice instead.
+  const [likeOverrides, setLikeOverrides] = useState<Record<string, { liked: boolean; count: number }>>({});
+  const likesInFlight = useRef<Set<string>>(new Set());
+  const [showSignInNotice, setShowSignInNotice] = useState(false);
+  const signInNoticeTimer = useRef<number | null>(null);
 
   // EPIC 012: one shared ReportDialog instance for the whole board, rather
   // than one per note — `reportingMessageId` says which message the
@@ -494,56 +492,52 @@ export function InfiniteBoard({
     setActiveNoteId(null);
   }, []);
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(LIKED_STORAGE_KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setLikedIds(new Set(JSON.parse(raw) as string[]));
-    } catch {
-      // Private mode / blocked storage — likes just won't persist across reloads in this browser.
-    }
+  const promptSignIn = useCallback(() => {
+    setShowSignInNotice(true);
+    if (signInNoticeTimer.current !== null) window.clearTimeout(signInNoticeTimer.current);
+    signInNoticeTimer.current = window.setTimeout(() => setShowSignInNotice(false), SIGN_IN_NOTICE_MS);
   }, []);
 
-  const handleLike = useCallback((messageId: string, currentCount: number) => {
-    if (likedIds.has(messageId)) return;
+  useEffect(
+    () => () => {
+      if (signInNoticeTimer.current !== null) window.clearTimeout(signInNoticeTimer.current);
+    },
+    []
+  );
 
-    setLikedIds((prev) => {
-      const next = new Set(prev).add(messageId);
-      try {
-        window.localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify([...next]));
-      } catch {
-        // Fine — this click just won't be remembered on the next reload.
+  const handleLike = useCallback(
+    (messageId: string, currentLiked: boolean, currentCount: number) => {
+      if (!viewerSignedIn) {
+        promptSignIn();
+        return;
       }
-      return next;
-    });
-    setLikeCountOverrides((prev) => ({ ...prev, [messageId]: currentCount + 1 }));
+      // One request per card at a time; the button stays usable, a press
+      // during a request is simply ignored.
+      if (likesInFlight.current.has(messageId)) return;
+      likesInFlight.current.add(messageId);
 
-    likeMessage(messageId, getAnonymousId())
-      .then((result) => {
-        if (!result.ok) {
-          // The message likely became unavailable (e.g. archived) between
-          // render and click — revert the optimistic state.
-          setLikedIds((prev) => {
-            const next = new Set(prev);
-            next.delete(messageId);
-            return next;
-          });
-          setLikeCountOverrides((prev) => ({ ...prev, [messageId]: currentCount }));
-          return;
-        }
-        // Reconcile with the real server count (covers the already-liked-
-        // in-another-tab / race case) rather than trusting the optimistic +1.
-        setLikeCountOverrides((prev) => ({ ...prev, [messageId]: result.likeCount }));
-      })
-      .catch(() => {
-        setLikedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(messageId);
-          return next;
-        });
-        setLikeCountOverrides((prev) => ({ ...prev, [messageId]: currentCount }));
-      });
-  }, [likedIds]);
+      const wanted = !currentLiked;
+      const revert = () => setLikeOverrides((prev) => ({ ...prev, [messageId]: { liked: currentLiked, count: currentCount } }));
+      setLikeOverrides((prev) => ({
+        ...prev,
+        [messageId]: { liked: wanted, count: Math.max(currentCount + (wanted ? 1 : -1), 0) },
+      }));
+
+      setLike(messageId, wanted)
+        .then((result) => {
+          if (result.ok) {
+            setLikeOverrides((prev) => ({ ...prev, [messageId]: { liked: result.liked, count: result.likeCount } }));
+            return;
+          }
+          revert();
+          // The session ended in the meantime (e.g. signed out in another tab).
+          if (result.error === "sign-in-required") promptSignIn();
+        })
+        .catch(revert)
+        .finally(() => likesInFlight.current.delete(messageId));
+    },
+    [viewerSignedIn, promptSignIn]
+  );
 
   const [showEmptyHint, setShowEmptyHint] = useState(false);
   useEffect(() => {
@@ -672,8 +666,9 @@ export function InfiniteBoard({
                 // coordinates are exactly what they were the moment the
                 // filter clears — nothing is recomputed, nothing moves.
                 if (filter?.matchedIds && !filter.matchedIds.has(message.id)) return null;
-                const liked = likedIds.has(message.id);
-                const count = likeCountOverrides[message.id] ?? message.likeCount;
+                const override = likeOverrides[message.id];
+                const liked = override?.liked ?? message.likedByViewer ?? false;
+                const count = override?.count ?? message.likeCount;
                 return (
                   <Note
                     key={message.id}
@@ -708,9 +703,9 @@ export function InfiniteBoard({
                     like={{
                       count,
                       liked,
-                      onLike: () => handleLike(message.id, count),
+                      onLike: () => handleLike(message.id, liked, count),
                       label: dictionary.like.action,
-                      likedLabel: dictionary.like.liked,
+                      likedLabel: dictionary.like.unlike,
                     }}
                   />
                 );
@@ -767,6 +762,20 @@ export function InfiniteBoard({
         // — BoardControls' D-pad already owns that band.
         <p className="pointer-events-none absolute left-1/2 top-16 -translate-x-1/2 rounded-pill bg-surface/80 px-4 py-1.5 text-xs text-ink-soft opacity-80 backdrop-blur sm:hidden">
           {dictionary.boardPage.mobileGestureHint}
+        </p>
+      )}
+
+      {showSignInNotice && (
+        // Security pack 2b: likes need an account. Same top-16 band as the
+        // mobile hint (only one can matter at a time), but clickable.
+        <p
+          role="status"
+          className="absolute left-1/2 top-16 z-10 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-pill bg-surface/95 px-4 py-1.5 text-xs text-ink shadow-card backdrop-blur"
+        >
+          {dictionary.like.signInRequired}
+          <a href="/login" className="font-medium text-orange-ink underline underline-offset-2 hover:text-orange">
+            {dictionary.like.signInAction}
+          </a>
         </p>
       )}
 

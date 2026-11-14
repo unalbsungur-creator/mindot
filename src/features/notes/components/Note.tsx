@@ -183,9 +183,10 @@ interface NoteProps {
    * board (InfiniteBoard), never by the write-flow preview, template
    * picker, personal wall, hero notes, or the PDF/share-card renderers:
    * those don't represent a currently-approved public message a like
-   * would mean anything for. `liked` disables the button rather than
-   * toggling it (no unlike) and `count` is always the real server value,
-   * never inferred client-side.
+   * would mean anything for. Security pack 2b: the button is a toggle —
+   * `liked` (the viewer's own like is on) makes pressing it take the like
+   * back (`likedLabel` names that action); `count` is the server's value,
+   * at most adjusted optimistically by the board until the server answers.
    */
   like?: {
     count: number;
@@ -609,7 +610,7 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
       {like && (
         <button
           type="button"
-          onClick={like.liked ? undefined : like.onLike}
+          onClick={like.onLike}
           // "world"/"board" notes sit inside InfiniteBoard's pan/drag
           // container, which starts its own gesture on pointerdown
           // (including setPointerCapture on itself) for canvas panning.
@@ -620,10 +621,9 @@ export function Note({ note, variant = "board", actions = [], like, active = fal
           // did nothing). Touch never had this problem since it doesn't
           // go through the same pointer-capture path the same way.
           onPointerDown={(event) => event.stopPropagation()}
-          disabled={like.liked}
           aria-pressed={like.liked}
           aria-label={like.liked ? like.likedLabel : like.label}
-          className="absolute -bottom-2 -left-2 flex items-center gap-1 rounded-pill border border-border/70 bg-surface px-2 py-0.5 text-[10px] font-medium text-ink-soft shadow-card transition-colors hover:text-orange-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange disabled:cursor-default"
+          className="absolute -bottom-2 -left-2 flex items-center gap-1 rounded-pill border border-border/70 bg-surface px-2 py-0.5 text-[10px] font-medium text-ink-soft shadow-card transition-colors hover:text-orange-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange"
         >
           <svg
             aria-hidden="true"

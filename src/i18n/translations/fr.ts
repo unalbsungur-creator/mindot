@@ -735,6 +735,9 @@ export const fr: Dictionary = {
   like: {
     action: "Aimer cette pensée",
     liked: "Vous aimez cette pensée",
+    unlike: "Retirer votre j’aime",
+    signInRequired: "Connectez-vous pour aimer des pensées.",
+    signInAction: "Se connecter",
   },
   share: {
     shareAction: "Partager",

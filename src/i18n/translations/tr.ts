@@ -737,6 +737,9 @@ export const tr: Dictionary = {
   like: {
     action: "Bu düşünceyi beğen",
     liked: "Beğendin",
+    unlike: "Beğenini geri al",
+    signInRequired: "Beğenmek için giriş yap.",
+    signInAction: "Giriş yap",
   },
   share: {
     shareAction: "Paylaş",

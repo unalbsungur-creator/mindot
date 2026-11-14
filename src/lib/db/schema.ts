@@ -363,13 +363,12 @@ export const messages = pgTable(
  *   - Signed-in visitor: userId set, a real identity — the partial unique
  *     index below makes a second like from the same account a no-op at
  *     the database level, not just a client-side check.
- *   - Anonymous visitor: anonymousId set (a client-generated id persisted
- *     in that browser's localStorage — see src/lib/anonymousId.ts). This
- *     is explicitly NOT a security mechanism — it's trivially reset by
- *     clearing site data or using a different browser — only a reasonable
- *     same-browser dedup, exactly as far as an unauthenticated visitor's
- *     identity honestly extends. Never claim otherwise in code that reads
- *     this table.
+ *   - anonymousId set: legacy only. Until security pack 2b (2026-11-14)
+ *     a signed-out visitor could like under a client-generated browser id
+ *     (src/lib/anonymousId.ts) — trivially reset, never a real identity.
+ *     Likes now need an account and nothing writes such rows any more; the
+ *     existing ones are kept so the counts they make up stay unchanged, and
+ *     no account can remove them.
  */
 export const messageLikes = pgTable(
   "message_likes",

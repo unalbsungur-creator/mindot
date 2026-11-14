@@ -36,6 +36,13 @@ export interface BoardTileMessage {
   author: BoardTileAuthor | null;
   /** EPIC: Message Like System — the real, current count; never reveals who liked it. */
   likeCount: number;
+  /**
+   * Security pack 2b: whether *the viewer* has liked this note. Only ever
+   * set on a signed-in viewer's own tiles (getTile with a viewerId — the
+   * private, no-store `?personal=1` variant and /board's per-request first
+   * tile); absent on every public, cacheable response.
+   */
+  likedByViewer?: boolean;
 }
 
 export interface BoardTile {

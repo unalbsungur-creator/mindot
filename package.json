@@ -18,6 +18,7 @@
     "test:db:admin-lockout": "node scripts/token-db-test.mjs src/features/users/adminLockout.db.test.ts",
     "test:db:messages": "node scripts/token-db-test.mjs src/features/messages/textAlign.db.test.ts",
     "test:db:home": "node scripts/token-db-test.mjs src/features/messages/homeHero.db.test.ts",
+    "test:db:likes": "node scripts/token-db-test.mjs src/features/messages/likes.db.test.ts",
     "test:db:wall-consent": "node scripts/token-db-test.mjs src/features/users/wallConsent.db.test.ts",
     "test:db:quotes": "node scripts/token-db-test.mjs src/features/messages/quoteAttribution.db.test.ts",
     "test:db:quote-backfill": "node scripts/token-db-test.mjs src/features/messages/quoteBackfill.db.test.ts",
