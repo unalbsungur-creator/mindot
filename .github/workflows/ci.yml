@@ -49,6 +49,8 @@ jobs:
       # Account deletion against every foreign key to users.id, in its own
       # disposable database: a new FK without a deleteAccount update fails here.
       - run: npm run test:db:account-deletion
+      # The cleanup for accounts deleted before the invitation trail was cut.
+      - run: npm run test:db:deleted-invitations
 
       # Admin credentials lockout (expired lock restarts the count) on its
       # own disposable database, for the same migration-race reason.
