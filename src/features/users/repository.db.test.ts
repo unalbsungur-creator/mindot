@@ -292,6 +292,47 @@ describe("account deletion on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TES
     assert.equal(await userRepository.isActiveAccount(f.other), true);
   });
 
+  it("cuts the invitation trail: no anonymized card leads back to the deleted person's email", async () => {
+    const target = await createUser();
+    const other = await createUser();
+    const inviter = await createUser();
+    const invite = async (recipient: string | null) => {
+      const id = uid("inv");
+      await sql`insert into invitations (id, token, created_by, recipient_email, email_status)
+        values (${id}, ${uid("tok")}, ${inviter}, ${recipient}, ${recipient ? "sent" : "not_requested"})`;
+      return id;
+    };
+    // A: sent to the target (different case) and written with; B: someone else's; C: sent to the
+    // target but never used; D: a typo'd address the target still wrote a (deleted) pending card with.
+    const a = await invite(`${target.toUpperCase()}@EXAMPLE.TEST`);
+    const b = await invite(`${other}@example.test`);
+    const c = await invite(`${target}@example.test`);
+    const d = await invite("typo@example.test");
+    const kept = await createMessage(target, "approved");
+    const dropped = await createMessage(target, "pending");
+    const othersCard = await createMessage(other, "approved");
+    await sql`update messages set invitation_id = ${a} where id = ${kept}`;
+    await sql`update messages set invitation_id = ${d} where id = ${dropped}`;
+    await sql`update messages set invitation_id = ${b} where id = ${othersCard}`;
+
+    assert.deepEqual(await userRepository.deleteAccount(target), { status: "deleted" });
+
+    const rows = await sql<{ id: string; recipient_email: string | null; email_status: string }[]>`
+      select id, recipient_email, email_status::text from invitations where id in (${a}, ${b}, ${c}, ${d})`;
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    for (const id of [a, c, d]) assert.equal(byId.get(id)!.recipient_email, null, id);
+    assert.equal(byId.get(b)!.recipient_email, `${other}@example.test`);
+    assert.equal(byId.get(a)!.email_status, "sent", "only the address goes, not the delivery record");
+
+    const [card] = await sql<{ invitation_id: string | null; is_anonymous: boolean }[]>`
+      select invitation_id, is_anonymous from messages where id = ${kept}`;
+    assert.deepEqual(card, { invitation_id: null, is_anonymous: true });
+    assert.equal(await count(sql`select count(*)::int as n from messages where id = ${dropped}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from messages where id = ${othersCard} and invitation_id = ${b}`), 1);
+    // Nothing anywhere still carries the address.
+    assert.equal(await count(sql`select count(*)::int as n from invitations where lower(recipient_email) = lower(${`${target}@example.test`})`), 0);
+  });
+
   it("leaves the whole database unchanged when the deletion fails at its very last step", async () => {
     const { target } = await seedAccount();
     // A test-only stand-in for a failure at the end: the final DELETE of the user row raises,

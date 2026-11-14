@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, notExists, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, notExists, or, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import {
   appleSignInTokens,
@@ -500,7 +500,7 @@ class DrizzleUserRepository implements UserRepository {
     return db.transaction(async (tx) => {
       // Lock the row: a concurrent second deletion waits, then finds nothing.
       const [account] = await tx
-        .select({ id: users.id, role: users.role })
+        .select({ id: users.id, role: users.role, email: users.email })
         .from(users)
         .where(and(eq(users.id, userId), isNull(users.deletedAt)))
         .for("update");
@@ -518,6 +518,30 @@ class DrizzleUserRepository implements UserRepository {
         createdAt: now,
         updatedAt: now,
       });
+
+      // Security pack 2b: cut the invitation trail before anything is
+      // anonymized or deleted. An invitation's recipient_email is who it was
+      // sent to — usually the very person who then wrote with it — so a card
+      // that kept its invitation_id could be traced back to that address.
+      // Clear the address on every invitation this account wrote with or
+      // that was sent to its email; the cards themselves drop invitation_id
+      // in the anonymizing UPDATE below. (Run first so the invitations of
+      // cards deleted below are covered too.)
+      await tx
+        .update(invitations)
+        .set({ recipientEmail: null })
+        .where(
+          or(
+            inArray(
+              invitations.id,
+              tx
+                .select({ id: messages.invitationId })
+                .from(messages)
+                .where(and(eq(messages.authorId, userId), isNotNull(messages.invitationId)))
+            ),
+            sql`lower(${invitations.recipientEmail}) = lower(${account.email})`
+          )
+        );
 
       await tx.delete(notifications).where(eq(notifications.recipientUserId, userId));
       // Every client's row (web and iOS) — no per-client filter on purpose.
@@ -552,6 +576,7 @@ class DrizzleUserRepository implements UserRepository {
           authorName: "anonymous",
           isAnonymous: true,
           showOnPersonalWall: false,
+          invitationId: null,
           pendingContent: null,
           revisionSubmittedAt: null,
           revisionRejectionReason: null,
