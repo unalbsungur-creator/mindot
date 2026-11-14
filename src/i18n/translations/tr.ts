@@ -1059,6 +1059,7 @@ export const tr: Dictionary = {
       {
         title: "Token satın alma (Shopier)",
         body: "Token paketleri, sunulduğu durumlarda Shopier üzerinden satın alınabilir. Ödeme Shopier’de yapılır ve ayrıca Shopier’in kendi koşullarına tabidir. Token’lar otomatik yüklenmez; sipariş ve ödeme kontrolünden sonra bir yönetici tarafından hesabınıza tanımlanır ve ödeme onayından itibaren en geç 24 saat içinde yüklenir. İade talepleriniz için Shopier sipariş numaranızla birlikte destek@mind-ot.com adresine ulaşın. Talepler, yürürlükteki mevzuat ve uygulanabilir iade koşulları çerçevesinde değerlendirilir. İade yapılması durumunda, mümkün olduğunca satın alma sırasında kullanılan ödeme yöntemi kullanılır. Siparişte MINDOT hesabınızın e-posta adresini kullanın; adresler farklıysa işlem manuel incelemeye alınır. Her sipariş yalnızca bir kez Token’a dönüştürülür. Token paketlerinin satıcısı, MINDOT’u gerçek kişi olarak işleten Ünal Büyüksungur’dur.",
+        // LEGAL REVIEW REQUIRED: draft for Token Al V1 (manual Shopier purchases) — the purchase, 24-hour crediting and refund-request wording, the right of withdrawal for digital content, and the seller identity/contact details for distance sales need legal review before release.
         // REFUND POLICY NOT FINAL: do not publish a usage threshold until product/legal approval and implementation are complete.
       },
       {
