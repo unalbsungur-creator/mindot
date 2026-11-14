@@ -91,6 +91,7 @@ export function InfiniteBoard({
   onFocusHandled,
   filter,
   viewerSignedIn = false,
+  turnstileSiteKey = null,
 }: {
   initialTile?: BoardTile;
   /** Where "return to center" goes — see useBoardCamera's own doc comment. */
@@ -125,6 +126,8 @@ export function InfiniteBoard({
    * out, the board keeps using the shared public tiles, unchanged.
    */
   viewerSignedIn?: boolean;
+  /** Public Turnstile site key for signed-out reports (security pack 2b); null when not configured. */
+  turnstileSiteKey?: string | null;
 }) {
   const { dictionary } = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -781,6 +784,8 @@ export function InfiniteBoard({
         open={reportingMessageId !== null}
         messageId={reportingMessageId}
         onClose={() => setReportingMessageId(null)}
+        viewerSignedIn={viewerSignedIn}
+        turnstileSiteKey={turnstileSiteKey}
       />
 
       <ConfirmDialog

@@ -1,36 +1,88 @@
 "use server";
 
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { auth } from "@/features/auth/auth";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { messageRepository } from "@/features/messages/repository";
 import { notifyReportDismissed, notifyReportResolved } from "@/features/notifications/events";
+import { pickTrustedRemoteIp } from "@/features/auth/lib/remoteIp";
+import { verifyReportTurnstile } from "@/features/auth/lib/turnstile";
+import { getPublicMessageById } from "@/features/board/repository";
+import { resolveAppEnvironment } from "@/lib/appEnvironment";
+import { optionalEnv } from "@/lib/env";
+import { hashReporterAddress, type ReportLimitKv } from "./lib/anonymousReportLimits";
 import { reportRepository } from "./repository";
-import { reportMessageAsReporter, type ReportMessageResult } from "./service";
+import { reportMessageAsReporter, type AnonymousReportGate, type ReportMessageResult } from "./service";
 import type { ReportReason } from "./types";
 
 export type { ReportMessageError, ReportMessageResult } from "./service";
 
 /**
  * The web entry point for reporting a public message (`ReportDialog`).
- * Only the session is read here — a signed-in account's id always wins
- * over the client's `anonymousId`, and anonymous reporting stays allowed —
- * while every rule (identity, rate limit, reason, public-message check,
- * details, duplicate) lives in reportMessageAsReporter (./service).
+ * Security pack 2b: who reports is only ever the server's view — the
+ * session's account, or, without one, the request's own Cloudflare client
+ * address (CF-Connecting-IP only) reduced to a keyed hash for the limits —
+ * never an id the client chooses. Every rule lives in
+ * reportMessageAsReporter (./service).
  */
 export async function reportMessage(input: {
   messageId: string;
   reason: ReportReason;
   details?: string;
-  anonymousId?: string;
+  turnstileToken?: string;
 }): Promise<ReportMessageResult> {
   const session = await auth();
-  const result = await reportMessageAsReporter({ ...input, reporterId: session?.user?.id ?? null });
+  const reporterId = session?.user?.id ?? null;
+  const result = await reportMessageAsReporter(
+    {
+      messageId: input.messageId,
+      reason: input.reason,
+      details: input.details,
+      reporterId,
+      turnstileToken: input.turnstileToken,
+    },
+    {
+      reports: reportRepository,
+      getPublicMessage: getPublicMessageById,
+      anonymous: reporterId ? null : await anonymousReportGate(),
+    }
+  );
 
   if (result.ok) {
     revalidatePath("/admin/reports");
   }
   return result;
+}
+
+/** The Worker's KV namespace, or null outside the Worker (next dev, tests). */
+function reportLimitKv(): ReportLimitKv | null {
+  try {
+    return (getCloudflareContext().env as { MODERATION_ALERTS_KV?: ReportLimitKv }).MODERATION_ALERTS_KV ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function anonymousReportGate(): Promise<AnonymousReportGate> {
+  let remoteIp: string | null = null;
+  try {
+    remoteIp = pickTrustedRemoteIp(await headers());
+  } catch {
+    remoteIp = null;
+  }
+  const kv = reportLimitKv();
+  const secret = optionalEnv("AUTH_SECRET");
+  const addressHash = remoteIp && secret ? await hashReporterAddress(remoteIp, secret) : null;
+  return {
+    verifyTurnstile: (token) => verifyReportTurnstile(token, remoteIp),
+    limiter: kv && addressHash ? { kv, addressHash } : null,
+    // Deployed (staging/production): no limiter, no signed-out report.
+    limiterRequired: resolveAppEnvironment() !== "development",
+    now: new Date(),
+    newReporterId: () => `anon-${crypto.randomUUID()}`,
+  };
 }
 
 export type ReportReviewError = "unauthorized" | "not-found" | "already-reviewed";

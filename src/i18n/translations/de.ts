@@ -325,6 +325,8 @@ export const de: Dictionary = {
     successBody: "Wir haben diesen Gedanken zur Prüfung an unser Team weitergeleitet.",
     errorAlreadyReported: "Du hast diesen Gedanken bereits gemeldet.",
     errorRateLimited: "Du hast zu viele Meldungen gesendet — versuche es in ein paar Minuten erneut.",
+    errorVerification: "Die Sicherheitsprüfung hat nicht geklappt — bitte versuche es noch einmal.",
+    errorAnonymousRateLimited: "Von dieser Verbindung kamen schon mehrere Meldungen — versuche es in einer Stunde erneut oder melde dich an.",
     errorNotFound: "Dieser Gedanke kann nicht mehr gemeldet werden.",
     errorGeneric: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
   },

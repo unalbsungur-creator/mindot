@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { Button } from "@/components/ui/Button";
-import { getAnonymousId } from "@/lib/anonymousId";
+import { TurnstileWidget } from "@/features/auth/components/TurnstileWidget";
+import { TURNSTILE_REPORT_ACTION } from "@/features/auth/lib/turnstileConstants";
 import { useLocale } from "@/i18n/LocaleProvider";
 import type { Dictionary } from "@/i18n/translations";
 import { reportMessage, type ReportMessageError } from "../actions";
@@ -21,10 +22,11 @@ function reasonLabel(dictionary: Dictionary, reason: ReportReason): string {
   }[reason];
 }
 
-function errorMessage(dictionary: Dictionary, error: ReportMessageError | undefined): string {
+function errorMessage(dictionary: Dictionary, error: ReportMessageError | undefined, signedIn: boolean): string {
   if (error === "already-reported") return dictionary.report.errorAlreadyReported;
   if (error === "not-found") return dictionary.report.errorNotFound;
-  if (error === "rate-limited") return dictionary.report.errorRateLimited;
+  if (error === "rate-limited") return signedIn ? dictionary.report.errorRateLimited : dictionary.report.errorAnonymousRateLimited;
+  if (error === "verification-failed") return dictionary.report.errorVerification;
   return dictionary.report.errorGeneric;
 }
 
@@ -32,6 +34,10 @@ interface ReportDialogProps {
   open: boolean;
   messageId: string | null;
   onClose: () => void;
+  /** Signed-in reporters need no challenge; everyone else solves Turnstile (security pack 2b). */
+  viewerSignedIn: boolean;
+  /** The public Turnstile site key (read on the server at runtime), or null when not configured. */
+  turnstileSiteKey: string | null;
 }
 
 /**
@@ -43,7 +49,7 @@ interface ReportDialogProps {
  * every note rather than one per card — `messageId` tells it which message
  * the current submission is about.
  */
-export function ReportDialog({ open, messageId, onClose }: ReportDialogProps) {
+export function ReportDialog({ open, messageId, onClose, viewerSignedIn, turnstileSiteKey }: ReportDialogProps) {
   const { dictionary } = useLocale();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const headingId = useId();
@@ -53,6 +59,10 @@ export function ReportDialog({ open, messageId, onClose }: ReportDialogProps) {
   const [details, setDetails] = useState("");
   const [phase, setPhase] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [error, setError] = useState<ReportMessageError | undefined>(undefined);
+  // Signed-out only: the solved challenge (single-use — reset after every attempt).
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetSignal, setTurnstileResetSignal] = useState(0);
+  const needsChallenge = !viewerSignedIn;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -83,10 +93,21 @@ export function ReportDialog({ open, messageId, onClose }: ReportDialogProps) {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!reason || !messageId || phase === "submitting") return;
+    if (needsChallenge && !turnstileToken) return;
 
     setPhase("submitting");
     setError(undefined);
-    const result = await reportMessage({ messageId, reason, details, anonymousId: getAnonymousId() });
+    let result: Awaited<ReturnType<typeof reportMessage>>;
+    try {
+      result = await reportMessage({ messageId, reason, details, turnstileToken: needsChallenge ? (turnstileToken ?? undefined) : undefined });
+    } catch {
+      result = { ok: false };
+    }
+    if (needsChallenge) {
+      // A token is spent by any attempt: ask for a fresh one.
+      setTurnstileToken(null);
+      setTurnstileResetSignal((n) => n + 1);
+    }
     if (!result.ok) {
       setPhase("error");
       setError(result.error);
@@ -171,9 +192,28 @@ export function ReportDialog({ open, messageId, onClose }: ReportDialogProps) {
             />
           </div>
 
+          {open &&
+            needsChallenge &&
+            (turnstileSiteKey ? (
+              <TurnstileWidget
+                siteKey={turnstileSiteKey}
+                action={TURNSTILE_REPORT_ACTION}
+                resetSignal={turnstileResetSignal}
+                onToken={setTurnstileToken}
+                onLoadError={() => {
+                  setPhase("error");
+                  setError("verification-failed");
+                }}
+              />
+            ) : (
+              <p role="alert" className="text-sm text-red-600">
+                {dictionary.report.errorGeneric}
+              </p>
+            ))}
+
           {phase === "error" && (
             <p role="alert" className="text-sm text-red-600">
-              {errorMessage(dictionary, error)}
+              {errorMessage(dictionary, error, viewerSignedIn)}
             </p>
           )}
 
@@ -181,7 +221,11 @@ export function ReportDialog({ open, messageId, onClose }: ReportDialogProps) {
             <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={phase === "submitting"}>
               {dictionary.report.cancel}
             </Button>
-            <Button type="submit" size="sm" disabled={!reason || phase === "submitting"}>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={!reason || phase === "submitting" || (needsChallenge && !turnstileToken)}
+            >
               {phase === "submitting" ? dictionary.report.submitting : dictionary.report.submit}
             </Button>
           </div>

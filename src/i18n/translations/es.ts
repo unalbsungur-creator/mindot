@@ -325,6 +325,8 @@ export const es: Dictionary = {
     successBody: "Hemos enviado este pensamiento a nuestro equipo para su revisión.",
     errorAlreadyReported: "Ya has denunciado este pensamiento.",
     errorRateLimited: "Has enviado demasiadas denuncias — inténtalo de nuevo en unos minutos.",
+    errorVerification: "La verificación de seguridad no se completó — inténtalo de nuevo.",
+    errorAnonymousRateLimited: "Se han enviado varias denuncias desde esta conexión — inténtalo de nuevo en una hora o inicia sesión.",
     errorNotFound: "Este pensamiento ya no se puede denunciar.",
     errorGeneric: "Algo salió mal. Inténtalo de nuevo.",
   },

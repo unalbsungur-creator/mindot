@@ -327,6 +327,8 @@ export const en: Dictionary = {
     successBody: "We've sent this thought to our team for review.",
     errorAlreadyReported: "You've already reported this thought.",
     errorRateLimited: "You've sent too many reports — try again in a few minutes.",
+    errorVerification: "The security check didn't go through — please try it again.",
+    errorAnonymousRateLimited: "You've sent several reports from this connection — please try again in an hour, or sign in.",
     errorNotFound: "This thought can no longer be reported.",
     errorGeneric: "Something went wrong. Please try again.",
   },

@@ -325,6 +325,8 @@ export const fr: Dictionary = {
     successBody: "Nous avons transmis cette pensée à notre équipe pour examen.",
     errorAlreadyReported: "Vous avez déjà signalé cette pensée.",
     errorRateLimited: "Vous avez envoyé trop de signalements — réessayez dans quelques minutes.",
+    errorVerification: "La vérification de sécurité n’a pas abouti — veuillez réessayer.",
+    errorAnonymousRateLimited: "Plusieurs signalements ont déjà été envoyés depuis cette connexion — réessayez dans une heure ou connectez-vous.",
     errorNotFound: "Cette pensée ne peut plus être signalée.",
     errorGeneric: "Une erreur est survenue. Veuillez réessayer.",
   },
