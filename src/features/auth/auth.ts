@@ -7,6 +7,7 @@ import { userRepository } from "@/features/users/repository";
 import type { UserRole } from "@/features/users/types";
 import { getAuthRuntimeConfig } from "@/lib/env";
 import { parseAppleProfile } from "./lib/appleProfile";
+import { isAdminSessionExpired, isAdminSessionToken, nowInSeconds } from "./lib/adminSession";
 import { pickTrustedRemoteIp } from "./lib/remoteIp";
 import {
   checkAppleSignIn,
@@ -107,6 +108,8 @@ declare module "@auth/core/jwt" {
   interface JWT {
     role?: UserRole;
     authProvider?: AuthProvider;
+    /** Admin sessions only: seconds since the epoch at sign-in, never refreshed (lib/adminSession). */
+    adminSignedInAt?: number;
   }
 }
 
@@ -274,6 +277,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // future code) tell "how" apart from "what" instead of overloading
         // `role` to answer both.
         token.authProvider = "google";
+        // A Google account given the admin role by hand gets the same
+        // 7-day cap as the Credentials admin (lib/adminSession).
+        if (isAdminSessionToken(token)) token.adminSignedInAt = nowInSeconds(new Date());
         return token;
       }
       // `user` is only present right after a fresh sign-in too (any
@@ -284,6 +290,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.sub = user.id;
         token.role = user.role;
         token.authProvider = user.authProvider;
+        // Admin sessions get an absolute 7-day life from this moment
+        // (lib/adminSession) — set once here, never on later requests.
+        if (isAdminSessionToken(token)) token.adminSignedInAt = nowInSeconds(new Date());
         return token;
       }
       // Every later request reusing an existing JWT: a JWT can't be revoked
@@ -295,6 +304,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // (fail-open): Auth.js clears the cookie on any thrown error, which
       // would sign everyone out during a transient outage, and a deleted
       // account can't be reached without the database anyway.
+      // An admin session ends 7 days after its sign-in, however often it
+      // is used; ordinary sessions keep Auth.js's rolling expiry.
+      if (isAdminSessionExpired(token, new Date())) return null;
       if (token.sub) {
         try {
           if (!(await userRepository.isActiveAccount(token.sub))) return null;
