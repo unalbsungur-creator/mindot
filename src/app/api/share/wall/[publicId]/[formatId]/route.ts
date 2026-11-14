@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getPublicWallShareNotes } from "@/features/profile/repository";
 import { getPublicShareFormat } from "@/features/sharing/config/shareFormats";
 import { MAX_WALL_CARDS, type WallFormat } from "@/features/sharing/lib/wallLayout";
+import { cachedImageRender, RENDER_NO_STORE_HEADER } from "@/features/sharing/services/renderCache";
 import { renderWallShareCard, renderWallShareCardV2 } from "@/features/sharing/services/shareCardRenderer";
 import { getDictionary } from "@/i18n/translations";
 
@@ -40,28 +41,38 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pub
   }
   const slogan = getDictionary("en").boardPage.slogan;
 
-  let image: Response;
-  try {
-    const rendered = await renderWallShareCardV2({ displayName: wall.profile.displayName, notes: wall.notes, format, slogan });
-    image = new Response(await rendered.arrayBuffer(), { headers: rendered.headers });
-  } catch (error) {
-    console.error("renderWallShareCardV2 failed, falling back to the plain wall card", { formatId, error: error instanceof Error ? error.message : String(error) });
+  const render = async (): Promise<Response> => {
+    let image: Response;
     try {
-      image = await renderWallShareCard({
-        displayName: wall.profile.displayName,
-        notes: wall.notes.map((note) => ({ content: note.content, templateId: note.templateId })),
-        format,
-        slogan,
-      });
-    } catch (fallbackError) {
-      console.error("renderWallShareCard failed", { formatId, error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError) });
-      return NextResponse.json({ error: "render-failed" }, { status: 500 });
+      const rendered = await renderWallShareCardV2({ displayName: wall.profile.displayName, notes: wall.notes, format, slogan });
+      image = new Response(await rendered.arrayBuffer(), { headers: rendered.headers });
+    } catch (error) {
+      console.error("renderWallShareCardV2 failed, falling back to the plain wall card", { formatId, error: error instanceof Error ? error.message : String(error) });
+      try {
+        image = await renderWallShareCard({
+          displayName: wall.profile.displayName,
+          notes: wall.notes.map((note) => ({ content: note.content, templateId: note.templateId })),
+          format,
+          slogan,
+        });
+        // A degraded fallback is served, never cached: the next request
+        // tries the real (V2) card again.
+        image.headers.set(RENDER_NO_STORE_HEADER, "1");
+      } catch (fallbackError) {
+        console.error("renderWallShareCard failed", { formatId, error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError) });
+        return NextResponse.json({ error: "render-failed" }, { status: 500 });
+      }
     }
-  }
 
-  // Not cached as aggressively as a single note's card: a wall's content
-  // changes every time a new message is approved for this author, unlike
-  // an individual note's permanent placement.
-  image.headers.set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
-  return image;
+    return image;
+  };
+
+  // A wall's newest cards change whenever its owner gets a note approved;
+  // they are part of the cache key's input, so a new card means a new image.
+  return cachedImageRender(
+    request,
+    "share-wall",
+    { displayName: wall.profile.displayName, notes: wall.notes, format, slogan },
+    render
+  );
 }

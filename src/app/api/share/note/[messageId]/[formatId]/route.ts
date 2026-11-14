@@ -4,6 +4,7 @@ import { resolveCaptureRegion } from "@/features/memories/lib/captureRegion";
 import type { MemoryCaptureMode } from "@/features/memories/types";
 import { getPublicShareFormat } from "@/features/sharing/config/shareFormats";
 import { sloganForLanguage, taglineForLanguage, toShareCardNote } from "@/features/sharing/lib/shareCardData";
+import { cachedImageRender } from "@/features/sharing/services/renderCache";
 import { renderShareCard } from "@/features/sharing/services/shareCardRenderer";
 
 export const runtime = "nodejs";
@@ -37,23 +38,22 @@ export async function GET(request: NextRequest, context: { params: Promise<{ mes
 
   const region = await resolveCaptureRegion(message, captureMode);
 
-  let image;
+  const input = {
+    primary: toShareCardNote(region.primary),
+    surrounding: region.surrounding.map(toShareCardNote),
+    format,
+    slogan: sloganForLanguage(message.language),
+    tagline: taglineForLanguage(message.language),
+  };
+
+  // Rendered once per distinct input + deploy and reused from the edge
+  // cache (services/renderCache.ts); the cheap approved-only read above
+  // still runs every time. An approved revision or any other change to the
+  // card changes `input`, hence the cache key — never a stale image.
   try {
-    image = await renderShareCard({
-      primary: toShareCardNote(region.primary),
-      surrounding: region.surrounding.map(toShareCardNote),
-      format,
-      slogan: sloganForLanguage(message.language),
-      tagline: taglineForLanguage(message.language),
-    });
+    return await cachedImageRender(request, `share-note-${captureMode}`, input, () => renderShareCard(input));
   } catch (error) {
     console.error("renderShareCard failed", { formatId, captureMode, error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: "render-failed" }, { status: 500 });
   }
-
-  // Approved placement is permanent (see "Board / tile architecture" in
-  // CLAUDE.md), so the same messageId+mode+format always renders the same
-  // bytes — safe to cache at the edge/CDN, not just the browser.
-  image.headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-  return image;
 }
