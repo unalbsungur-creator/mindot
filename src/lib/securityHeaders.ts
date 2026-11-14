@@ -13,7 +13,10 @@
  * reports are clean. The sources are exactly what the site loads today:
  * - scripts: our own bundles + Next's inline bootstrap (the ISR homepage
  *   can't carry a per-request nonce, hence 'unsafe-inline' for now) and
- *   Cloudflare Turnstile on /admin/login (script + iframe);
+ *   Cloudflare Turnstile on /admin/login (script + iframe), and Cloudflare
+ *   Web Analytics' beacon, which the zone injects into every page
+ *   (static.cloudflareinsights.com script, beacon POSTs to
+ *   cloudflareinsights.com — seen in the staging reports 2026-11-14);
  * - images: our own files, data:/blob: (downloads, share previews) and
  *   Google profile photos (plain <img> from *.googleusercontent.com);
  * - fonts: next/font, self-hosted;
@@ -25,11 +28,11 @@ export const CSP_REPORT_PATH = "/api/csp-report";
 
 export const CONTENT_SECURITY_POLICY_REPORT_ONLY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.googleusercontent.com",
   "font-src 'self' data:",
-  "connect-src 'self'",
+  "connect-src 'self' https://cloudflareinsights.com",
   "frame-src https://challenges.cloudflare.com",
   "form-action 'self' https://accounts.google.com https://appleid.apple.com",
   "frame-ancestors 'none'",

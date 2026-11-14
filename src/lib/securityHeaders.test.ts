@@ -28,6 +28,8 @@ describe("security headers", () => {
     const csp = CONTENT_SECURITY_POLICY_REPORT_ONLY;
     assert.match(csp, /script-src [^;]*https:\/\/challenges\.cloudflare\.com/);
     assert.match(csp, /frame-src https:\/\/challenges\.cloudflare\.com/);
+    assert.match(csp, /script-src [^;]*https:\/\/static\.cloudflareinsights\.com/);
+    assert.match(csp, /connect-src 'self' https:\/\/cloudflareinsights\.com(;|$)/);
     assert.match(csp, /img-src [^;]*https:\/\/\*\.googleusercontent\.com/);
     assert.match(csp, /form-action 'self' https:\/\/accounts\.google\.com https:\/\/appleid\.apple\.com/);
     assert.match(csp, /frame-ancestors 'none'/);
