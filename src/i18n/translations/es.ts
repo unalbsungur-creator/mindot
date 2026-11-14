@@ -1057,6 +1057,7 @@ export const es: Dictionary = {
       {
         title: "Comprar Tokens (Shopier)",
         body: "Cuando están disponibles, los paquetes de Tokens pueden comprarse en Shopier. El pago se realiza en Shopier y también está sujeto a sus propias condiciones. Los Tokens no se abonan automáticamente; tras comprobar el pedido y el pago, un administrador los añade a su cuenta dentro de las 24 horas siguientes a la confirmación del pago. Para solicitar un reembolso, contacte con destek@mind-ot.com e indique su número de pedido de Shopier. Las solicitudes se revisan conforme a la legislación aplicable y a las condiciones de reembolso vigentes. Si se concede un reembolso, se realizará, siempre que sea posible, mediante el mismo método de pago utilizado en la compra. Utilice el correo electrónico de su cuenta MINDOT para el pedido; si las direcciones no coinciden, será necesaria una revisión manual. Cada pedido se abona una sola vez. Los paquetes de Tokens los vende Ünal Büyüksungur, que opera MINDOT como persona física.",
+        // LEGAL REVIEW REQUIRED: draft for Token Al V1 (manual Shopier purchases) — the purchase, 24-hour crediting and refund-request wording, the right of withdrawal for digital content, and the seller identity/contact details for distance sales need legal review before release.
         // REFUND POLICY NOT FINAL: do not publish a usage threshold until product/legal approval and implementation are complete.
       },
       {

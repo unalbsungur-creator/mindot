@@ -1057,6 +1057,7 @@ export const fr: Dictionary = {
       {
         title: "Acheter des Tokens (Shopier)",
         body: "Lorsqu’ils sont proposés, les packs de Tokens peuvent être achetés sur Shopier. Le paiement est effectué sur Shopier et reste soumis aux conditions propres à Shopier. Les Tokens ne sont pas crédités automatiquement : après vérification de la commande et du paiement, un administrateur les ajoute à votre compte dans les 24 heures suivant la confirmation du paiement. Pour demander un remboursement, contactez destek@mind-ot.com en indiquant votre numéro de commande Shopier. Les demandes sont examinées conformément à la législation applicable et aux conditions de remboursement en vigueur. Lorsqu’un remboursement est accordé, il est effectué, dans la mesure du possible, via le moyen de paiement utilisé lors de l’achat. Utilisez l’adresse e-mail de votre compte MINDOT pour la commande ; si les adresses diffèrent, une vérification manuelle est nécessaire. Chaque commande n’est créditée qu’une seule fois. Les packs de Tokens sont vendus par Ünal Büyüksungur, qui exploite MINDOT en tant que personne physique.",
+        // LEGAL REVIEW REQUIRED: draft for Token Al V1 (manual Shopier purchases) — the purchase, 24-hour crediting and refund-request wording, the right of withdrawal for digital content, and the seller identity/contact details for distance sales need legal review before release.
         // REFUND POLICY NOT FINAL: do not publish a usage threshold until product/legal approval and implementation are complete.
       },
       {
