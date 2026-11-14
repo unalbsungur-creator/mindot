@@ -104,7 +104,8 @@ export interface SubmitMessageParams extends SubmitMessageInput {
 
 /** Authentication is the caller's job, so `auth-required` never comes from here. */
 export type SubmitMessageServiceResult =
-  | { ok: true; message: Message }
+  /** `prescreenDeferred`: the AI pre-screen runs after the response (the caller schedules it). */
+  | { ok: true; message: Message; prescreenDeferred?: boolean }
   | { ok: false; error: Exclude<SubmitMessageError, "auth-required"> };
 
 export interface SubmitMessageDeps {
@@ -211,7 +212,12 @@ export async function submitMessageForAuthor(
     ? "anonymous"
     : params.authorName.trim() || params.fallbackAuthorName || "anonymous";
 
-  const aiResult = await deps.moderation().analyzeMessage(content, { language: params.language });
+  // An "inline" provider (the dev fallback) answers at once; a "deferred"
+  // one (Workers AI) runs after the response — the card is stored without a
+  // result and nothing here waits for, or can be broken by, the model.
+  const moderation = deps.moderation();
+  const prescreenDeferred = moderation.mode === "deferred";
+  const aiResult = prescreenDeferred ? null : await moderation.analyzeMessage(content, { language: params.language });
 
   const message = await deps.messages.create({
     content,
@@ -225,17 +231,17 @@ export async function submitMessageForAuthor(
     isQuote: attribution.attribution.isQuote,
     quoteAuthor: attribution.attribution.quoteAuthor,
     invitationId,
-    aiModerationStatus: aiResult.decision,
-    aiModerationProvider: aiResult.provider,
-    aiModerationCategories: aiResult.categories,
-    aiModerationReason: aiResult.reason,
-    aiModerationConfidence: aiResult.confidence,
-    aiModeratedAt: aiResult.moderatedAt,
+    aiModerationStatus: aiResult?.decision ?? null,
+    aiModerationProvider: aiResult?.provider ?? null,
+    aiModerationCategories: aiResult?.categories ?? [],
+    aiModerationReason: aiResult?.reason ?? null,
+    aiModerationConfidence: aiResult?.confidence ?? null,
+    aiModeratedAt: aiResult?.moderatedAt ?? null,
     consentAccepted: params.consentAccepted,
     consentVersion: params.consentVersion,
   });
 
-  return { ok: true, message };
+  return prescreenDeferred ? { ok: true, message, prescreenDeferred: true } : { ok: true, message };
 }
 
 export type SubmitRevisionServiceResult =

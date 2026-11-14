@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
+import { CRISIS_CATEGORY } from "../lib/prescreenFlags";
 import { MAX_ALERT_PENDING_COUNT } from "./lib/alertEmailTemplate";
 import { applyDeliveryResult, claimedRecipientState, decideModerationAlert, isCompletionCurrent, nextDueAtFor } from "./lib/decideModerationAlert";
 import type {
@@ -162,6 +163,18 @@ async function pendingReviewCount(executor: Executor): Promise<number> {
   const [row] = await rows<{ count: number }>(
     executor,
     sql`select ((select count(*) from messages where status = 'pending') + (select count(*) from messages where pending_content is not null))::int as count`
+  );
+  return row?.count ?? 0;
+}
+
+/**
+ * Security pack 2b: pending cards the AI pre-screen flagged as a possible
+ * crisis (self-harm risk) — the alert e-mail states only this number.
+ */
+export async function countPendingPriority(db: AlertDb = getDb()): Promise<number> {
+  const [row] = await rows<{ count: number }>(
+    db,
+    sql`select count(*)::int as count from messages where status = 'pending' and ${CRISIS_CATEGORY} = any(ai_moderation_categories)`
   );
   return row?.count ?? 0;
 }

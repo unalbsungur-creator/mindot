@@ -8,6 +8,7 @@ import { Note } from "@/features/notes/components/Note";
 import { getNoteTemplate } from "@/features/notes/config/templates";
 import { templateDisplayName } from "@/features/notes/lib/templateDisplayName";
 import type { NoteData } from "@/features/notes/types";
+import { isPrescreenUnavailable, isPriorityPrescreen, priorityFirst } from "@/features/moderation/lib/prescreenFlags";
 import { cn } from "@/lib/cn";
 import { useLocale } from "@/i18n/LocaleProvider";
 import type { Dictionary } from "@/i18n/translations";
@@ -141,7 +142,8 @@ export function ModerationQueue({
         )}
       </CategoryRow>
 
-      <CategoryRow heading={dictionary.moderation.pendingHeading} messages={pending} emptyText={dictionary.moderation.emptyPending}>
+      {/* Security pack 2b: AI-flagged possible crisis cards (self-harm risk) come first. */}
+      <CategoryRow heading={dictionary.moderation.pendingHeading} messages={priorityFirst(pending)} emptyText={dictionary.moderation.emptyPending}>
         {(message) => (
           <QueueCard
             key={message.id}
@@ -591,11 +593,20 @@ function QueueCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
+        {message.status === "pending" && isPriorityPrescreen(message.aiModerationCategories) && (
+          // Security pack 2b: the AI pre-screen saw a possible self-harm / suicide risk.
+          <Badge className="border-red-300 bg-red-600 font-bold text-white">{dictionary.moderation.priorityBadge}</Badge>
+        )}
         <Badge className={cn("normal-case", statusBadgeClasses[message.status])}>{statusLabel[message.status]}</Badge>
         <Badge className="normal-case border-border bg-canvas text-ink-soft">
           {message.isAnonymous ? dictionary.moderation.anonymousBadge : dictionary.moderation.namedBadge}
         </Badge>
       </div>
+      {message.status === "pending" && isPriorityPrescreen(message.aiModerationCategories) && (
+        <p className="rounded-md border border-red-200 bg-red-50 p-2 text-xs leading-relaxed text-red-800">
+          {dictionary.moderation.priorityHint}
+        </p>
+      )}
 
       <QuoteAttributionPanel message={shown} onCorrected={setCorrected} />
 
@@ -656,7 +667,9 @@ function QueueCard({
             <span className="text-xs font-medium uppercase tracking-wide text-ink-soft">
               {dictionary.moderation.aiSectionLabel}
             </span>
-            {message.aiModerationStatus ? (
+            {message.aiModerationStatus && isPrescreenUnavailable(message.aiModerationCategories) ? (
+              <Badge className="normal-case border-border bg-canvas text-ink-soft">{dictionary.moderation.aiPrescreenUnavailable}</Badge>
+            ) : message.aiModerationStatus ? (
               <Badge className={cn("normal-case", aiBadgeClasses[message.aiModerationStatus])}>
                 {aiLabel(dictionary, message.aiModerationStatus)}
               </Badge>

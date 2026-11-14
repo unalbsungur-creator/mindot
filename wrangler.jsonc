@@ -43,6 +43,11 @@
         "triggers": {
                 "crons": ["*/5 * * * *"]
         },
+        // Security pack 2b: Cloudflare Workers AI for the moderation
+        // pre-screen (src/features/moderation/providers/workersAi.ts). Used
+        // only while the AI_MODERATION_PROVIDER secret is "workers-ai";
+        // shadow mode — advisory, never a publishing decision.
+        "ai": { "binding": "AI" },
         // Share-card PNG generation (next/og's Satori renderer: multiple custom
         // web fonts + a large embedded master-image data URI, composited and
         // rasterized via WASM) is genuinely CPU-heavy — confirmed via direct
@@ -106,7 +111,9 @@
                         ],
                         "triggers": {
                                 "crons": ["*/5 * * * *"]
-                        }
+                        },
+                        // Not inherited either: Workers AI for the pre-screen.
+                        "ai": { "binding": "AI" }
                 }
         }
 }

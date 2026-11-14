@@ -153,6 +153,12 @@ describe("wrangler.jsonc", () => {
     assert.deepEqual(staging?.triggers?.crons, ["*/5 * * * *"]);
   });
 
+  it("binds Workers AI in production and staging (not inherited) for the pre-screen", () => {
+    const ai = (block: { ai?: { binding?: string } } | undefined) => block?.ai?.binding;
+    assert.equal(ai(config as { ai?: { binding?: string } }), "AI");
+    assert.equal(ai(staging as { ai?: { binding?: string } } | undefined), "AI");
+  });
+
   it("keeps secrets out of the committed config", () => {
     const names = [config.vars, staging?.vars].flatMap((vars) => Object.keys(vars ?? {}));
     for (const secret of ["AUTH_SECRET", "DATABASE_URL", "GOOGLE_CLIENT_SECRET", "AUTH_APPLE_SECRET", "AUTH_APPLE_TOKEN_KEY", "MOBILE_JWT_SECRET", "RESEND_API_KEY", "MODERATION_ALERT_HASH_KEY", "MODERATION_ALERT_CRON_SECRET"]) {

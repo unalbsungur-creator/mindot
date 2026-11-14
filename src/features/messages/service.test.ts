@@ -330,6 +330,34 @@ describe("submitMessageForAuthor — accepted submissions", () => {
   });
 });
 
+describe("submitMessageForAuthor — deferred AI pre-screen (security pack 2b)", () => {
+  it("stores the card without an AI result and never calls the model in the writer's path", async () => {
+    const { deps, calls, created } = fake();
+    deps.moderation = () => ({
+      mode: "deferred",
+      async analyzeMessage() {
+        calls.push("analyze");
+        throw new Error("must not be called here");
+      },
+    });
+    const result = await submitMessageForAuthor(params(), deps);
+    assert.equal(result.ok, true);
+    assert.equal(result.ok && result.prescreenDeferred, true);
+    assert.ok(!calls.includes("analyze"));
+    assert.equal(created[0].aiModerationStatus, null);
+    assert.equal(created[0].aiModerationProvider, null);
+    assert.deepEqual(created[0].aiModerationCategories, []);
+    assert.equal(created[0].aiModeratedAt, null);
+  });
+
+  it("keeps an inline provider inline (no prescreenDeferred flag)", async () => {
+    const { deps } = fake();
+    const result = await submitMessageForAuthor(params(), deps);
+    assert.equal(result.ok, true);
+    assert.equal(result.ok && "prescreenDeferred" in result, false);
+  });
+});
+
 describe("submitMessageForAuthor — line breaks", () => {
   it("stores and pre-screens the normalized text, keeping the writer's line breaks", async () => {
     const { deps, created } = fake();

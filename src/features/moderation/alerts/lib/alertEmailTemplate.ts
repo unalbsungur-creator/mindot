@@ -42,6 +42,12 @@ const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 export interface ModerationAlertEmailInput {
   kind: AlertTemplateKind;
   pendingReviewCount: number;
+  /**
+   * Security pack 2b: how many of them the AI pre-screen flagged as a
+   * possible crisis (self-harm risk). A number only — never content. 0 or
+   * absent: no line, subject unchanged.
+   */
+  priorityCount?: number;
   /** The absolute URL of /admin/moderation in this environment (sign-in required there). */
   adminModerationUrl: string;
   environment: AppEnvironment;
@@ -106,6 +112,10 @@ export function moderationAlertEmailContent(input: ModerationAlertEmailInput): M
   if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 1 || count > MAX_ALERT_PENDING_COUNT) {
     return { ok: false, reason: "invalid-count" };
   }
+  const priority = input.priorityCount ?? 0;
+  if (typeof priority !== "number" || !Number.isSafeInteger(priority) || priority < 0 || priority > count) {
+    return { ok: false, reason: "invalid-count" };
+  }
   const url = safeModerationUrl(input.adminModerationUrl, input.environment);
   if (url === null) return { ok: false, reason: "unsafe-url" };
 
@@ -114,15 +124,18 @@ export function moderationAlertEmailContent(input: ModerationAlertEmailInput): M
   const countText = String(count);
 
   // Product decision: every subject starts "[MINDOT] Moderasyon:" (after the staging/dev marker).
+  const prioritySuffix = priority > 0 ? ` · ${priority} öncelikli içerik` : "";
   const subject =
-    input.kind === "initial"
+    (input.kind === "initial"
       ? `${prefix}[${SITE_NAME}] Moderasyon: ${countText} içerik onay bekliyor`
-      : `${prefix}[${SITE_NAME}] Moderasyon: hatırlatma — ${countText} içerik hâlâ onay bekliyor`;
+      : `${prefix}[${SITE_NAME}] Moderasyon: hatırlatma — ${countText} içerik hâlâ onay bekliyor`) + prioritySuffix;
   const lead =
     input.kind === "initial"
       ? "Moderasyon kuyruğuna inceleme bekleyen yeni içerik geldi."
       : "Moderasyon kuyruğunda hâlâ inceleme bekleyen içerik var.";
   const countLine = `Şu anda inceleme bekleyen içerik sayısı: ${countText}.`;
+  // Security pack 2b: a number only; the queue shows which cards (sign-in required).
+  const priorityLine = priority > 0 ? `${priority} öncelikli içerik (olası kriz) — kuyrukta en üstte.` : null;
   const cta = "Moderasyon kuyruğunu aç";
   const footer =
     "İçerik ayrıntıları güvenlik nedeniyle bu e-postaya eklenmez. Kuyruğu görmek için yönetici hesabıyla giriş yapmanız gerekir.";
@@ -131,6 +144,7 @@ export function moderationAlertEmailContent(input: ModerationAlertEmailInput): M
     ...(banner ? [`${prefix.trim()} ${banner}`, ""] : []),
     lead,
     countLine,
+    ...(priorityLine ? [priorityLine] : []),
     "",
     `${cta}: ${url}`,
     "",
@@ -147,7 +161,8 @@ export function moderationAlertEmailContent(input: ModerationAlertEmailInput): M
       ${bannerHtml}
       <p style="font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #ff6a00; margin: 0 0 16px;">${escapeHtml(SITE_NAME)}</p>
       <p style="font-size: 16px; line-height: 1.6; margin: 0 0 8px;">${escapeHtml(lead)}</p>
-      <p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px;">${escapeHtml(countLine)}</p>
+      <p style="font-size: 16px; line-height: 1.6; margin: 0 0 ${priorityLine ? "8px" : "24px"};">${escapeHtml(countLine)}</p>
+      ${priorityLine ? `<p style="font-size: 16px; line-height: 1.6; font-weight: 700; color: #b42318; margin: 0 0 24px;">${escapeHtml(priorityLine)}</p>` : ""}
       <p style="margin: 0 0 24px;">
         <a href="${safeUrl}" style="display: inline-block; background: #ff6a00; color: #0d1b2a; font-weight: 600; text-decoration: none; padding: 12px 24px; border-radius: 999px;">${escapeHtml(cta)}</a>
       </p>

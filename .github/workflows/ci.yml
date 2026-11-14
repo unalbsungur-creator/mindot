@@ -46,6 +46,9 @@ jobs:
       # Drizzle migrations must not race each other in parallel test processes.
       - run: npm run test:db:refunds
 
+      # The deferred AI pre-screen: stored once, ai_* columns only; PRIORITY count.
+      - run: npm run test:db:prescreen
+
       # Account deletion against every foreign key to users.id, in its own
       # disposable database: a new FK without a deleteAccount update fails here.
       - run: npm run test:db:account-deletion

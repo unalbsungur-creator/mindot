@@ -321,6 +321,11 @@ export interface Dictionary {
     aiDecisionSafe: string;
     aiDecisionReview: string;
     aiDecisionBlocked: string;
+    /** Security pack 2b: a pending card the AI pre-screen flagged as a possible crisis. */
+    priorityBadge: string;
+    priorityHint: string;
+    /** Security pack 2b: the AI pre-screen timed out or failed for this card. */
+    aiPrescreenUnavailable: string;
     aiProviderLabel: string;
     aiCategoriesLabel: string;
     aiReasonLabel: string;

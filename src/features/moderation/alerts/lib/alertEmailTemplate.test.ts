@@ -165,3 +165,23 @@ describe("moderationAlertEmailContent — fail closed", () => {
     });
   }
 });
+
+describe("moderationAlertEmailContent — PRIORITY count (security pack 2b)", () => {
+  it("adds only a number to the subject and body when the AI flagged possible crises", () => {
+    const { subject, html, text } = content({ pendingReviewCount: 3, priorityCount: 1 });
+    assert.match(subject, /· 1 öncelikli içerik$/);
+    assert.ok(text.includes("1 öncelikli içerik (olası kriz)"));
+    assert.ok(html.includes("1 öncelikli içerik (olası kriz)"));
+  });
+
+  it("changes nothing without priority cards", () => {
+    assert.deepEqual(content({ priorityCount: 0 }), content());
+  });
+
+  it("refuses a priority count that can't be right", () => {
+    for (const priorityCount of [-1, 4, 1.5, Number.NaN]) {
+      const result = moderationAlertEmailContent(base({ pendingReviewCount: 3, priorityCount }));
+      assert.deepEqual(result, { ok: false, reason: "invalid-count" }, String(priorityCount));
+    }
+  });
+});
