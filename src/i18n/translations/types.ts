@@ -792,6 +792,11 @@ export interface Dictionary {
   like: {
     action: string;
     liked: string;
+    /** The like button's label while the viewer's like is on (pressing it takes the like back). */
+    unlike: string;
+    /** Shown on the board when a signed-out visitor presses like. */
+    signInRequired: string;
+    signInAction: string;
   };
   share: {
     shareAction: string;

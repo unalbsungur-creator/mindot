@@ -735,6 +735,9 @@ export const es: Dictionary = {
   like: {
     action: "Dar me gusta a este pensamiento",
     liked: "Te gusta esto",
+    unlike: "Quitar tu me gusta",
+    signInRequired: "Inicia sesión para dar me gusta.",
+    signInAction: "Iniciar sesión",
   },
   share: {
     shareAction: "Compartir",

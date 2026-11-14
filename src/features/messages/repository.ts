@@ -138,15 +138,25 @@ export interface MessageRepository {
    */
   reconsider(id: string, moderatorId: string): Promise<Message | null>;
   /**
-   * EPIC: Message Like System. Records one like from a real identity —
-   * exactly one of `userId`/`anonymousId` should be set (see
-   * message_likes' own doc comment in schema.ts for what each means and
-   * its honesty limits). Idempotent: liking an already-liked message
-   * returns `alreadyLiked: true` without incrementing again. Refuses
+   * EPIC: Message Like System. Records one like from a signed-in account
+   * (security pack 2b: likes need an account — the identity is always the
+   * server session's, never a client value; message_likes rows written
+   * earlier under a browser `anonymousId` stay and keep counting).
+   * Idempotent: liking an already-liked message returns
+   * `alreadyLiked: true` without incrementing again — the partial unique
+   * index message_likes_message_user_idx is the real boundary. Refuses
    * (`ok: false`) for anything that isn't currently `status = "approved"`
    * — archived/pending/rejected messages can never gain a like.
    */
-  like(messageId: string, identity: { userId?: string; anonymousId?: string }): Promise<{ ok: boolean; likeCount: number; alreadyLiked: boolean }>;
+  like(messageId: string, identity: { userId: string }): Promise<{ ok: boolean; likeCount: number; alreadyLiked: boolean }>;
+  /**
+   * Takes back this account's like, in one transaction with the count
+   * (never below 0). Idempotent: `wasLiked: false` when there was nothing
+   * to take back. Same approved-only rule as `like`.
+   */
+  unlike(messageId: string, identity: { userId: string }): Promise<{ ok: boolean; likeCount: number; wasLiked: boolean }>;
+  /** Which of `messageIds` this account has liked — one indexed query; the signed-in board's own (private, no-store) view only. */
+  listLikedMessageIds(userId: string, messageIds: string[]): Promise<string[]>;
   /** Total currently-approved (live, unarchived) messages — a single aggregate query, reused by both the homepage's active-message counter and its 1,000,000-dot milestone strip (see app/page.tsx). */
   countApproved(): Promise<number>;
   /** EPIC 022: total currently-pending messages — a single aggregate query, AdminNav's Moderation badge. */
@@ -702,7 +712,7 @@ class DrizzleMessageRepository implements MessageRepository {
 
   async like(
     messageId: string,
-    identity: { userId?: string; anonymousId?: string }
+    identity: { userId: string }
   ): Promise<{ ok: boolean; likeCount: number; alreadyLiked: boolean }> {
     const db = getDb();
 
@@ -718,25 +728,16 @@ class DrizzleMessageRepository implements MessageRepository {
       }
 
       // Postgres only matches ON CONFLICT against a *partial* unique index
-      // (message_likes_message_user_idx / _anon_idx, both WHERE ... is not
-      // null — see schema.ts) if the same predicate is repeated here as
-      // `where`; the target columns alone aren't enough to infer it.
-      const conflictTarget = identity.userId
-        ? [messageLikes.messageId, messageLikes.userId]
-        : [messageLikes.messageId, messageLikes.anonymousId];
-      const conflictWhere = identity.userId
-        ? sql`${messageLikes.userId} is not null`
-        : sql`${messageLikes.anonymousId} is not null`;
-
+      // (message_likes_message_user_idx, WHERE user_id is not null — see
+      // schema.ts) if the same predicate is repeated here as `where`; the
+      // target columns alone aren't enough to infer it.
       const [inserted] = await tx
         .insert(messageLikes)
-        .values({
-          id: crypto.randomUUID(),
-          messageId,
-          userId: identity.userId ?? null,
-          anonymousId: identity.anonymousId ?? null,
+        .values({ id: crypto.randomUUID(), messageId, userId: identity.userId, anonymousId: null })
+        .onConflictDoNothing({
+          target: [messageLikes.messageId, messageLikes.userId],
+          where: sql`${messageLikes.userId} is not null`,
         })
-        .onConflictDoNothing({ target: conflictTarget, where: conflictWhere })
         .returning();
 
       if (!inserted) {
@@ -751,6 +752,52 @@ class DrizzleMessageRepository implements MessageRepository {
 
       return { ok: true, likeCount: updated?.likeCount ?? message.likeCount + 1, alreadyLiked: false };
     });
+  }
+
+  async unlike(
+    messageId: string,
+    identity: { userId: string }
+  ): Promise<{ ok: boolean; likeCount: number; wasLiked: boolean }> {
+    const db = getDb();
+
+    return db.transaction(async (tx) => {
+      const [message] = await tx
+        .select({ status: messages.status, likeCount: messages.likeCount })
+        .from(messages)
+        .where(eq(messages.id, messageId))
+        .limit(1);
+
+      if (!message || message.status !== "approved") {
+        return { ok: false, likeCount: message?.likeCount ?? 0, wasLiked: false };
+      }
+
+      const deleted = await tx
+        .delete(messageLikes)
+        .where(and(eq(messageLikes.messageId, messageId), eq(messageLikes.userId, identity.userId)))
+        .returning({ id: messageLikes.id });
+
+      if (deleted.length === 0) {
+        return { ok: true, likeCount: message.likeCount, wasLiked: false };
+      }
+
+      const [updated] = await tx
+        .update(messages)
+        .set({ likeCount: sql`greatest(${messages.likeCount} - ${deleted.length}, 0)` })
+        .where(eq(messages.id, messageId))
+        .returning({ likeCount: messages.likeCount });
+
+      return { ok: true, likeCount: updated?.likeCount ?? Math.max(message.likeCount - 1, 0), wasLiked: true };
+    });
+  }
+
+  async listLikedMessageIds(userId: string, messageIds: string[]): Promise<string[]> {
+    if (messageIds.length === 0) return [];
+    const db = getDb();
+    const rows = await db
+      .select({ messageId: messageLikes.messageId })
+      .from(messageLikes)
+      .where(and(eq(messageLikes.userId, userId), inArray(messageLikes.messageId, messageIds)));
+    return rows.map((row) => row.messageId);
   }
 
   async countApproved(): Promise<number> {

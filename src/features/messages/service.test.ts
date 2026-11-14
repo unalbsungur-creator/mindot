@@ -6,11 +6,10 @@ import { getNoteTemplate, isTemplateAvailable } from "@/features/notes/config/te
 import type { User } from "@/features/users/types";
 import { CONTENT_CONSENT_VERSION } from "./consent";
 import {
-  likeMessageAsVisitor,
+  setMessageLike,
   submitMessageForAuthor,
   submitMessageRevisionForAuthor,
   type LikeMessageDeps,
-  type LikeResult,
   type SubmitMessageDeps,
   type SubmitMessageParams,
   type SubmitRevisionDeps,
@@ -486,73 +485,78 @@ describe("submitMessageRevisionForAuthor", () => {
   });
 });
 
-describe("likeMessageAsVisitor", () => {
-  type Identity = { userId?: string; anonymousId?: string };
+describe("setMessageLike (likes need an account)", () => {
+  type Call = { op: "like" | "unlike"; messageId: string; identity: { userId: string } };
 
-  function fakeLike(outcome: LikeResult | Error = { ok: true, likeCount: 4, alreadyLiked: false }) {
-    const calls: { messageId: string; identity: Identity }[] = [];
+  function fakeRepo(ok = true, error?: Error) {
+    const calls: Call[] = [];
     const deps: LikeMessageDeps = {
       messages: {
         async like(messageId, identity) {
-          calls.push({ messageId, identity });
-          if (outcome instanceof Error) throw outcome;
-          return outcome;
+          calls.push({ op: "like", messageId, identity });
+          if (error) throw error;
+          return { ok, likeCount: 8, alreadyLiked: false };
+        },
+        async unlike(messageId, identity) {
+          calls.push({ op: "unlike", messageId, identity });
+          if (error) throw error;
+          return { ok, likeCount: 6, wasLiked: true };
         },
       },
     };
     return { deps, calls };
   }
 
-  it("returns the zero result without calling the repository when there is no identity", async () => {
-    const { deps, calls } = fakeLike();
-    const result = await likeMessageAsVisitor({ messageId: "m1", userId: null }, deps);
-    assert.deepEqual(result, { ok: false, likeCount: 0, alreadyLiked: false });
+  it("refuses a visitor without a session before any read or write", async () => {
+    const { deps, calls } = fakeRepo();
+    for (const liked of [true, false]) {
+      assert.deepEqual(await setMessageLike({ messageId: "m1", userId: null, liked }, deps), {
+        ok: false,
+        error: "sign-in-required",
+      });
+    }
     assert.equal(calls.length, 0);
   });
 
-  it("treats an empty anonymousId as no identity", async () => {
-    const { deps, calls } = fakeLike();
-    const result = await likeMessageAsVisitor({ messageId: "m1", userId: null, anonymousId: "" }, deps);
-    assert.deepEqual(result, { ok: false, likeCount: 0, alreadyLiked: false });
-    assert.equal(calls.length, 0);
-  });
-
-  it("sends only the userId when signed in, never the anonymousId", async () => {
-    const { deps, calls } = fakeLike();
-    await likeMessageAsVisitor({ messageId: "m1", userId: "user-1", anonymousId: "anon-1" }, deps);
-    assert.deepEqual(calls[0].identity, { userId: "user-1" });
-    assert.ok(!("anonymousId" in calls[0].identity));
-  });
-
-  it("sends only the anonymousId for a visitor without a session", async () => {
-    const { deps, calls } = fakeLike();
-    await likeMessageAsVisitor({ messageId: "m1", userId: null, anonymousId: "anon-1" }, deps);
-    assert.deepEqual(calls[0].identity, { anonymousId: "anon-1" });
-    assert.ok(!("userId" in calls[0].identity));
-  });
-
-  it("passes the messageId through unchanged", async () => {
-    const { deps, calls } = fakeLike();
-    await likeMessageAsVisitor({ messageId: "  msg-42 ", userId: "user-1" }, deps);
-    assert.equal(calls[0].messageId, "  msg-42 ");
-  });
-
-  const outcomes: LikeResult[] = [
-    { ok: true, likeCount: 8, alreadyLiked: false },
-    { ok: true, likeCount: 7, alreadyLiked: true },
-    { ok: false, likeCount: 3, alreadyLiked: false },
-  ];
-  for (const outcome of outcomes) {
-    it(`returns the repository result unchanged (ok=${outcome.ok}, alreadyLiked=${outcome.alreadyLiked})`, async () => {
-      const { deps } = fakeLike(outcome);
-      const result = await likeMessageAsVisitor({ messageId: "m1", userId: "user-1" }, deps);
-      assert.equal(result, outcome);
+  it("likes as the session's account, and only that identity", async () => {
+    const { deps, calls } = fakeRepo();
+    assert.deepEqual(await setMessageLike({ messageId: " m1 ", userId: "user-1", liked: true }, deps), {
+      ok: true,
+      liked: true,
+      likeCount: 8,
     });
-  }
+    assert.deepEqual(calls, [{ op: "like", messageId: "m1", identity: { userId: "user-1" } }]);
+  });
+
+  it("takes a like back", async () => {
+    const { deps, calls } = fakeRepo();
+    assert.deepEqual(await setMessageLike({ messageId: "m1", userId: "user-1", liked: false }, deps), {
+      ok: true,
+      liked: false,
+      likeCount: 6,
+    });
+    assert.equal(calls[0].op, "unlike");
+  });
+
+  it("reports an unavailable message (not approved / gone) and a malformed id", async () => {
+    const { deps } = fakeRepo(false);
+    assert.deepEqual(await setMessageLike({ messageId: "m1", userId: "user-1", liked: true }, deps), {
+      ok: false,
+      error: "unavailable",
+    });
+    const fresh = fakeRepo();
+    for (const messageId of ["", "   ", "x".repeat(101), 42 as unknown as string]) {
+      assert.deepEqual(await setMessageLike({ messageId, userId: "user-1", liked: true }, fresh.deps), {
+        ok: false,
+        error: "unavailable",
+      });
+    }
+    assert.equal(fresh.calls.length, 0);
+  });
 
   it("lets a repository error through", async () => {
-    const { deps } = fakeLike(new Error("db down"));
-    await assert.rejects(likeMessageAsVisitor({ messageId: "m1", userId: "user-1" }, deps), /db down/);
+    const { deps } = fakeRepo(true, new Error("db down"));
+    await assert.rejects(setMessageLike({ messageId: "m1", userId: "user-1", liked: true }, deps), /db down/);
   });
 });
 

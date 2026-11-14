@@ -33,6 +33,10 @@ export async function getTile(x: number, y: number, range?: BoardTimeRange, view
   const namedAuthorIds = [...new Set(placed.filter((m) => !m.isAnonymous).map((m) => m.authorId))];
   const authors = namedAuthorIds.length > 0 ? await userRepository.getByIds(namedAuthorIds) : [];
   const imageByUserId = new Map(authors.map((author) => [author.id, author.image]));
+  // Security pack 2b: the viewer's own likes, for their private view only.
+  const likedIds = viewerId
+    ? new Set(await messageRepository.listLikedMessageIds(viewerId, placed.map((m) => m.id)))
+    : null;
 
   const messages: BoardTileMessage[] = placed.map((message) => {
     const author: BoardTileAuthor | null = message.isAnonymous
@@ -53,6 +57,7 @@ export async function getTile(x: number, y: number, range?: BoardTimeRange, view
       createdAt: message.createdAt,
       author,
       likeCount: message.likeCount,
+      ...(likedIds ? { likedByViewer: likedIds.has(message.id) } : {}),
     };
   });
 

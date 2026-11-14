@@ -735,6 +735,9 @@ export const de: Dictionary = {
   like: {
     action: "Diesen Gedanken mögen",
     liked: "Dir gefällt das",
+    unlike: "Gefällt mir zurücknehmen",
+    signInRequired: "Melde dich an, um Gedanken zu mögen.",
+    signInAction: "Anmelden",
   },
   share: {
     shareAction: "Teilen",

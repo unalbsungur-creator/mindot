@@ -54,6 +54,10 @@ jobs:
       # own disposable database, for the same migration-race reason.
       - run: npm run test:db:admin-lockout
 
+      # Likes need an account: one like per account per card, take-backs,
+      # existing counts kept — on its own disposable database.
+      - run: npm run test:db:likes
+
       - run: npm run lint
 
       # PageProps/LayoutProps are global types Next generates into the
