@@ -1008,6 +1008,7 @@ export const en: Dictionary = {
   },
   legal: {
     lastReviewed: "Informational notice · October 2026",
+    privacyLastReviewed: "Informational notice · Last updated: November 2026",
     reviewNotice:
       "This notice is written to explain MINDOT's current service and data-processing practices to users in plain terms. It does not constitute legal advice.",
     privacyTitle: "Privacy Policy",
@@ -1031,13 +1032,19 @@ export const en: Dictionary = {
         body: "You can choose to share a thought anonymously or under your name. Thoughts submitted anonymously are never linked to you in public content. Thoughts submitted under your name, once approved, may appear on the public board. Your personal wall is managed separately and is private by default; you decide whether to make it public.",
       },
       {
+        title: "Automatic pre-screen",
+        body: "Before a thought you submit is published, it goes through an automatic pre-screen that helps our moderators. The pre-screen runs on Workers AI, the AI service of MINDOT's infrastructure provider Cloudflare, acting as our processor; only the text of the thought and its language are processed — your name, email address and account details are not sent. The result (for example “should be reviewed”, a possible type of content and a short reason) is stored with your thought and is visible only to MINDOT's administrators. The pre-screen never decides on its own: a person approves or rejects every thought. If the text may indicate a risk of self-harm, it is marked as a priority so that moderators see it first. The result is kept for as long as the thought itself. Cloudflare does not use this content to train AI models.",
+        // LEGAL REVIEW REQUIRED: added 2026-11-14 (security pack 2b, approved by the owner before legal review) — legal basis, Cloudflare as processor / transfers, whether the possible-crisis flag is special-category (health) data, and retention need the lawyer's review. Source for the no-training sentence: developers.cloudflare.com/workers-ai/platform/data-usage/.
+      },
+      {
         title: "Public personal wall",
         body: "When you make your personal wall public, your name, profile picture, wall description and the named, approved thoughts you’ve added to it are published so that anyone with the link can see them. The version and date of the consent you give when turning the wall on are stored with your account so your consent can be shown; turning the wall off keeps the last consent record, and deleting your account deletes it together with your account record. When you turn the wall off, the wall page and the wall image are taken down; cached copies may remain reachable for a short while.",
         // LEGAL REVIEW REQUIRED: draft — the legal basis for publishing the wall (explicit consent vs. information), retention of the consent record and the cache wording need legal review before release.
       },
       {
         title: "Reports, blocks and notifications",
-        body: "When you report a thought, the report records the thought, the reason you chose, any details you add, and either your account or a random identifier stored in your browser. Reports are reviewed by MINDOT's administrators; the reporter's identity is not shown to the author of the reported thought. The list of users you block is stored with your account so their named thoughts can be hidden from you; the blocked user is not notified. In-app notifications (for example, the moderation outcome of your thought or of your report) are shown only inside MINDOT and stored with your account.",
+        body: "When you report a thought, the report records the thought, the reason you chose and any details you add. If you are signed in, the report is linked to your account. If you are not, you first complete a Cloudflare Turnstile security check; to limit misuse, a hash of your connection's IP address — computed with a secret key, so it cannot be turned back into the address without that key — is kept in Cloudflare's storage for at most 24 hours and then deleted automatically. The report itself contains no IP address and no identifier from your browser. Reports are reviewed by MINDOT's administrators; the reporter's identity is not shown to the author of the reported thought. The list of users you block is stored with your account so their named thoughts can be hidden from you; the blocked user is not notified. In-app notifications (for example, the moderation outcome of your thought or of your report) are shown only inside MINDOT and stored with your account.",
+        // LEGAL REVIEW REQUIRED: updated 2026-11-14 (security pack 2b, approved by the owner before legal review) — the signed-out report mechanism (Turnstile, keyed IP hash in Cloudflare KV for at most 24 hours) and its legal basis need the lawyer's review.
       },
       {
         title: "Tokens, digital products and physical orders",

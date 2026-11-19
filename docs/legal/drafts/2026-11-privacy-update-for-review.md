@@ -1,0 +1,8 @@
+# For the lawyer — Privacy Policy update of 2026-11-14 (avukat gözden geçirecek)
+
+Published by the owner's decision **before** legal review; both changes are marked `LEGAL REVIEW REQUIRED` in all five dictionaries (`src/i18n/translations/{tr,en,de,fr,es}.ts`). The page now reads "Last updated: November 2026" (`legal.privacyLastReviewed`; Terms and Guidelines keep their own date).
+
+1. **Reports, blocks and notifications** — first sentences rewritten. Signed-in reports are linked to the account; signed-out reports require a Cloudflare Turnstile check, and a keyed hash of the connection's IP address is kept in Cloudflare KV for at most 24 hours to limit misuse (5 per hour, one per card per 24 h). The report row itself holds no IP and no browser identifier. Code: `src/features/reports/` (PR #28).
+2. **Automatic pre-screen** — new section. Cloudflare Workers AI (processor) pre-screens the text and language of a submitted thought; the result is admin-only; a human decides every thought; a possible self-harm risk is marked as a priority; kept as long as the thought; Cloudflare does not train models on it (source: developers.cloudflare.com/workers-ai/platform/data-usage/). Code: `src/features/moderation/providers/workersAi.ts` (PR #30).
+
+Points to review: legal basis (legitimate interest vs. consent) for both; Turnstile as a Cloudflare service and the IP hash as personal data; Cloudflare's role and international transfers; whether the possible-crisis flag is special-category (health) data under KVKK/GDPR and what that requires; retention wording; whether an "automated processing" statement is needed (no decision is automated — a person decides).

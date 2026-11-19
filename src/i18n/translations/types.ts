@@ -1083,6 +1083,8 @@ export interface Dictionary {
   };
   legal: {
     lastReviewed: string;
+    /** The Privacy Policy's own "last updated" line (it changes separately from Terms and Guidelines). */
+    privacyLastReviewed: string;
     reviewNotice: string;
     privacyTitle: string;
     privacyIntro: string;
