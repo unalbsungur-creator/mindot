@@ -1,5 +1,6 @@
 import { auth } from "@/features/auth/auth";
 import { getTile } from "@/features/board/repository";
+import { getPublicTileCached } from "@/features/board/lib/tileCache";
 import { resolveBoardCenterPoint } from "@/features/board/lib/worldGeometry";
 import { optionalEnv } from "@/lib/env";
 import { BoardPageContent } from "./_components/BoardPageContent";
@@ -22,7 +23,7 @@ export default async function BoardPage() {
   // blocked; every later tile comes from the matching private endpoint.
   const session = await auth();
   const viewerId = session?.user?.id;
-  const initialTile = await getTile(0, 0, undefined, viewerId);
+  const initialTile = viewerId ? await getTile(0, 0, undefined, viewerId) : await getPublicTileCached(0, 0);
   // EPIC: Approved Message Management — resolved server-side from the
   // same tile fetch, no extra query. See resolveBoardCenterPoint's own
   // doc comment for the fallback behavior if the reference message is
