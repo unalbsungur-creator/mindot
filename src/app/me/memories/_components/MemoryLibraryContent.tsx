@@ -166,7 +166,7 @@ export function MemoryLibraryContent({ isSignedIn, items, tokenBalance }: Memory
                 )}
                 <div className="flex flex-wrap items-center gap-3">
                   {/* /memory/[messageId] only opens a currently public thought — an archived source would land on its "not available" panel. */}
-                  {item.sourceAvailable && (
+                  {item.sourceAvailable && item.messageId && (
                     <Link href={`/memory/${item.messageId}`} className="text-xs font-medium text-ink-soft hover:text-navy">
                       {dictionary.memoryLibrary.viewProjectAction}
                     </Link>

@@ -238,6 +238,19 @@ describe("admin order detail page", () => {
     assertNotFoundPanel(props);
   });
 
+  it("shows an order whose retained project has no card link, without a message lookup (deleted account)", async () => {
+    session = { user: { id: "admin-1", role: "admin" } };
+    projectResult = { ...project, messageId: null };
+    const props = await renderPage();
+
+    assert.equal(props.authorized, true);
+    assert.equal(props.message, null);
+    assert.deepEqual(calls.message, [], "no message lookup when the card link was removed");
+    const html = markup({ ...props, message: null });
+    assert.ok(html.includes(ORDER_NUMBER), "order still rendered");
+    assert.ok(html.includes(escapeHtml(dictionary.adminOrders.cardLinkRemoved)), "says the card link was removed");
+  });
+
   it("still labels a project created with the retired 'note + surrounding wall' capture", async () => {
     session = { user: { id: "admin-1", role: "admin" } };
     projectResult = { ...project, captureMode: "note_with_surrounding" };

@@ -112,7 +112,9 @@ export function OrderDetailContent({ authorized, order, project, message, custom
               <Note note={previewNote} variant="static" />
             </div>
           ) : (
-            <p className="text-sm text-ink-soft">{dictionary.memory.notEligibleBody}</p>
+            <p className="text-sm text-ink-soft">
+              {project.messageId === null ? dictionary.adminOrders.cardLinkRemoved : dictionary.memory.notEligibleBody}
+            </p>
           )}
           <dl className="flex flex-col gap-1 text-sm text-ink-soft">
             <div>

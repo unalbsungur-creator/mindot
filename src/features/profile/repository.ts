@@ -225,7 +225,7 @@ export async function getMemoryLibrary(userId: string): Promise<MemoryLibraryIte
   // doc comment above), and sequential avoids any risk of connection-pool
   // contention — the same reasoning as getPrivateArchive above.
   for (const project of projects) {
-    const message = await getPublicMessageById(project.messageId);
+    const message = project.messageId ? await getPublicMessageById(project.messageId) : null;
     const physicalOrder =
       project.outputType === "physical_gift" ? await physicalOrderRepository.getByMemoryProjectId(project.id) : null;
     const digitalGranted =

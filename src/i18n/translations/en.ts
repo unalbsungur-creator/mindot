@@ -689,6 +689,7 @@ export const en: Dictionary = {
     detailTitle: "Order detail",
     backToList: "Back to orders",
     memoryHeading: "Memory",
+    cardLinkRemoved: "The link to the card was removed when the account was deleted.",
     customerHeading: "Customer",
     productionHeading: "Production",
     customerNameLabel: "Name",

@@ -746,6 +746,8 @@ export interface Dictionary {
     detailTitle: string;
     backToList: string;
     memoryHeading: string;
+    /** Shown instead of the note preview when a deleted account's retained project no longer links to its card (migration 0031). */
+    cardLinkRemoved: string;
     customerHeading: string;
     productionHeading: string;
     customerNameLabel: string;

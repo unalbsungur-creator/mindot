@@ -19,7 +19,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps<"/admin
   const order = await physicalOrderRepository.getByOrderNumber(orderNumber);
   const project = order ? await memoryRepository.getById(order.memoryProjectId) : null;
   const [message, customer] = await Promise.all([
-    project ? getPublicMessageById(project.messageId) : null,
+    project?.messageId ? getPublicMessageById(project.messageId) : null,
     order ? userRepository.getById(order.createdBy) : null,
   ]);
 

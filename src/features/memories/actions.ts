@@ -164,7 +164,7 @@ export async function unlockMemoryPdf(memoryProjectId: string): Promise<UnlockMe
 
   if (project.outputType !== "personal_pdf") return { ok: false, error: "not-eligible" };
 
-  const message = await getPublicMessageById(project.messageId);
+  const message = project.messageId ? await getPublicMessageById(project.messageId) : null;
   if (!message) return { ok: false, error: "message-not-eligible" };
 
   // Fast path only — the transaction below re-checks under the wallet lock.

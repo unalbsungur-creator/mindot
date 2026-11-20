@@ -58,7 +58,8 @@ const PDF_RENDER_HEIGHT = 1800;
  * card content and author visibility agree.
  */
 export async function generateMemoryPdf(project: MemoryProject, options: { backgroundId?: string | null } = {}): Promise<Buffer> {
-  const message = await getPublicMessageById(project.messageId);
+  // A deleted account's retained project has no card link (migration 0031): there is nothing to draw.
+  const message = project.messageId ? await getPublicMessageById(project.messageId) : null;
   if (!message) {
     throw new MemoryPdfSourceUnavailableError("Source message is no longer public.");
   }

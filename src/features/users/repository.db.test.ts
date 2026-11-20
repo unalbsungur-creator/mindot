@@ -6,6 +6,7 @@ import postgres from "postgres";
 import type { AppleRevokeOutcome } from "@/features/auth/lib/appleRevoke";
 import { adminGrantIdempotencyKey, tokenRepository } from "@/features/tokens/repository";
 import { deleteOwnAccountForUser, deleteUserAccount } from "./accountDeletion";
+import { memoryRepository } from "@/features/memories/repository";
 import { userRepository } from "./repository";
 
 // Account deletion (userRepository.deleteAccount and the deleteUserAccount /
@@ -219,23 +220,30 @@ describe("account deletion on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TES
     assert.deepEqual(Object.entries(await referencesTo(f.target)).filter(([, n]) => n > 0), []);
     assert.equal(await count(sql`select count(*)::int as n from users where id = ${f.target}`), 0);
 
-    // Exactly one tombstone, with no personal data.
-    const [{ author_id: tombstone }] = await sql<{ author_id: string }[]>`select author_id from messages where id = ${f.published}`;
-    const [stone] = await sql<{ email: string; name: string | null; image: string | null; public_id: string | null; deleted: boolean; role: string }[]>`
-      select email, name, image, public_id, deleted_at is not null as deleted, role::text as role from users where id = ${tombstone}`;
-    assert.ok(tombstone.startsWith("deleted_"));
-    assert.deepEqual(
-      { ...stone, email: stone.email.endsWith("@deleted.invalid") },
-      { email: true, name: null, image: null, public_id: null, deleted: true, role: "user" }
-    );
+    // Two tombstones, with no personal data: one for what the person wrote, one for what they bought.
+    const [{ author_id: contentT }] = await sql<{ author_id: string }[]>`select author_id from messages where id = ${f.published}`;
+    const [{ created_by: recordsT }] = await sql<{ created_by: string }[]>`select created_by from physical_orders where id = ${f.orderId}`;
+    assert.notEqual(contentT, recordsT, "two different tombstone ids");
+    const stoneRows = await sql<{ id: string; email: string; name: string | null; image: string | null; public_id: string | null; deleted: boolean; role: string }[]>`
+      select id, email, name, image, public_id, deleted_at is not null as deleted, role::text as role from users where id in (${contentT}, ${recordsT})`;
+    assert.equal(stoneRows.length, 2);
+    for (const stone of stoneRows) {
+      assert.ok(stone.id.startsWith("deleted_"));
+      assert.deepEqual(
+        { ...stone, id: undefined, email: stone.email.endsWith("@deleted.invalid") },
+        { id: undefined, email: true, name: null, image: null, public_id: null, deleted: true, role: "user" }
+      );
+    }
+    assert.equal(await count(sql`select count(*)::int as n from users where deleted_at is not null`), 2, "exactly these two tombstones");
+    const stones = [contentT, recordsT];
 
     // Deleted: Apple tokens (both clients), mobile sessions, own notifications, blocks, own like,
     // the unreferenced unpublished message, the bare draft project.
-    assert.equal(await count(sql`select count(*)::int as n from apple_sign_in_tokens where user_id in (${f.target}, ${tombstone})`), 0);
-    assert.equal(await count(sql`select count(*)::int as n from mobile_sessions where user_id in (${f.target}, ${tombstone})`), 0);
-    assert.equal(await count(sql`select count(*)::int as n from notifications where recipient_user_id = ${tombstone}`), 0);
-    assert.equal(await count(sql`select count(*)::int as n from user_blocks where ${tombstone} in (blocker_user_id, blocked_user_id)`), 0);
-    assert.equal(await count(sql`select count(*)::int as n from message_likes where user_id = ${tombstone}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from apple_sign_in_tokens where user_id in ${sql([f.target, ...stones])}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from mobile_sessions where user_id in ${sql([f.target, ...stones])}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from notifications where recipient_user_id in ${sql(stones)}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from user_blocks where blocker_user_id in ${sql(stones)} or blocked_user_id in ${sql(stones)}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from message_likes where user_id in ${sql(stones)}`), 0);
     assert.equal(await count(sql`select count(*)::int as n from messages where id = ${f.unpublished}`), 0);
     assert.equal(await count(sql`select count(*)::int as n from memory_projects where id = ${f.draftProject}`), 0);
 
@@ -243,7 +251,7 @@ describe("account deletion on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TES
     const [liked] = await sql<{ like_count: number }[]>`select like_count from messages where id = ${f.othersMessage}`;
     assert.equal(liked.like_count, 0);
 
-    // Anonymized onto the tombstone: published, reported and notified messages; pending edits dropped.
+    // Content tombstone: published, reported and notified messages (pending edits dropped).
     const kept = await sql<{ id: string; author_id: string; author_name: string; is_anonymous: boolean; show_on_personal_wall: boolean;
       pending_content: string | null; revision_submitted_at: Date | null; revision_rejection_reason: string | null; like_count: number }[]>`
       select id, author_id, author_name, is_anonymous, show_on_personal_wall, pending_content, revision_submitted_at,
@@ -254,35 +262,67 @@ describe("account deletion on PostgreSQL", { skip: TEST_URL ? false : "TOKEN_TES
       assert.deepEqual(
         { author: m.author_id, name: m.author_name, anon: m.is_anonymous, wall: m.show_on_personal_wall, edit: m.pending_content,
           submitted: m.revision_submitted_at, reason: m.revision_rejection_reason },
-        { author: tombstone, name: "anonymous", anon: true, wall: false, edit: null, submitted: null, reason: null },
+        { author: contentT, name: "anonymous", anon: true, wall: false, edit: null, submitted: null, reason: null },
         m.id
       );
     }
     assert.equal(kept.find((m) => m.id === f.published)!.like_count, 1, "someone else's like on it stays counted");
+    assert.equal(await count(sql`select count(*)::int as n from message_reports where id = ${f.filedReport} and reporter_id = ${contentT}`), 1);
+    assert.equal(await count(sql`select count(*)::int as n from message_reports where id = ${f.reviewedReport} and reviewed_by = ${contentT}`), 1);
+    assert.equal(await count(sql`select count(*)::int as n from messages
+      where id = ${f.othersMessage} and moderated_by = ${contentT} and revision_reviewed_by = ${contentT}`), 1);
+    assert.equal(await count(sql`select count(*)::int as n from invitations where created_by = ${contentT}`), 1);
+    assert.equal(await count(sql`select count(*)::int as n from users where id = ${f.other} and status_changed_by = ${contentT}`), 1);
 
-    // Re-pointed: projects with an order/unlock/code, the order, the code, the unlock, wallet, ledger, reports, audit columns.
+    // Records tombstone: projects with an order/unlock/code, the order, the code, the unlock, wallet, ledger, lots, refunds.
     const projects = await sql<{ id: string; created_by: string }[]>`
       select id, created_by from memory_projects where id in (${f.orderedProject}, ${f.unlockedProject}, ${f.codedProject})`;
-    assert.deepEqual(projects.map((p) => p.created_by), [tombstone, tombstone, tombstone]);
-    assert.equal(await count(sql`select count(*)::int as n from physical_orders where id = ${f.orderId} and created_by = ${tombstone}`), 1);
-    assert.equal(await count(sql`select count(*)::int as n from digital_access_codes where id = ${f.codeId} and redeemed_by = ${tombstone}`), 1);
-    assert.equal(await count(sql`select count(*)::int as n from memory_pdf_unlocks where memory_project_id = ${f.unlockedProject} and user_id = ${tombstone}`), 1);
+    assert.deepEqual(projects.map((p) => p.created_by), [recordsT, recordsT, recordsT]);
+    assert.equal(await count(sql`select count(*)::int as n from physical_orders where id = ${f.orderId} and created_by = ${recordsT}`), 1);
+    assert.equal(await count(sql`select count(*)::int as n from digital_access_codes where id = ${f.codeId} and redeemed_by = ${recordsT}`), 1);
+    assert.equal(await count(sql`select count(*)::int as n from memory_pdf_unlocks where memory_project_id = ${f.unlockedProject} and user_id = ${recordsT}`), 1);
     const [tokens] = await sql<{ balance: number; total: number; entries: number; created: number }[]>`
-      select (select balance from token_wallets where user_id = ${tombstone}) as balance,
-        (select coalesce(sum(amount), 0)::int from token_ledger where user_id = ${tombstone}) as total,
-        (select count(*)::int from token_ledger where user_id = ${tombstone}) as entries,
-        (select count(*)::int from token_ledger where created_by = ${tombstone}) as created`;
+      select (select balance from token_wallets where user_id = ${recordsT}) as balance,
+        (select coalesce(sum(amount), 0)::int from token_ledger where user_id = ${recordsT}) as total,
+        (select count(*)::int from token_ledger where user_id = ${recordsT}) as entries,
+        (select count(*)::int from token_ledger where created_by = ${recordsT}) as created`;
     // Grant 3 − unlock 1 + Shopier tokens-10 purchase 10; only the grant was created by the target.
-    assert.deepEqual(tokens, { balance: 12, total: 12, entries: 3, created: 1 }, "balance == SUM(ledger) stays with the tombstone");
-    assert.equal(await count(sql`select count(*)::int as n from token_purchase_lots where id = ${f.lotId} and user_id = ${tombstone}`), 1);
+    assert.deepEqual(tokens, { balance: 12, total: 12, entries: 3, created: 1 }, "balance == SUM(ledger) stays with the records tombstone");
+    assert.equal(await count(sql`select count(*)::int as n from token_purchase_lots where id = ${f.lotId} and user_id = ${recordsT}`), 1);
     assert.equal(await count(sql`select count(*)::int as n from token_refunds
-      where id = ${f.refundId} and user_id = ${tombstone} and created_by = ${tombstone}`), 1);
-    assert.equal(await count(sql`select count(*)::int as n from message_reports where id = ${f.filedReport} and reporter_id = ${tombstone}`), 1);
-    assert.equal(await count(sql`select count(*)::int as n from message_reports where id = ${f.reviewedReport} and reviewed_by = ${tombstone}`), 1);
-    assert.equal(await count(sql`select count(*)::int as n from messages
-      where id = ${f.othersMessage} and moderated_by = ${tombstone} and revision_reviewed_by = ${tombstone}`), 1);
-    assert.equal(await count(sql`select count(*)::int as n from invitations where created_by = ${tombstone}`), 1);
-    assert.equal(await count(sql`select count(*)::int as n from users where id = ${f.other} and status_changed_by = ${tombstone}`), 1);
+      where id = ${f.refundId} and user_id = ${recordsT} and created_by = ${recordsT}`), 1);
+
+    // The split itself: nothing of the content tombstone sits in a purchase/accounting table, and nothing
+    // of the records tombstone sits in a card/report/invitation table.
+    assert.equal(await count(sql`select count(*)::int as n from token_ledger where user_id = ${contentT} or created_by = ${contentT}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from token_wallets where user_id = ${contentT}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from token_purchase_lots where user_id = ${contentT}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from token_purchase_allocations where user_id = ${contentT}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from token_refunds where user_id = ${contentT} or created_by = ${contentT}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from memory_pdf_unlocks where user_id = ${contentT}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from physical_orders where created_by = ${contentT}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from digital_access_codes where redeemed_by = ${contentT}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from memory_projects where created_by = ${contentT}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from messages where author_id = ${recordsT} or moderated_by = ${recordsT} or revision_reviewed_by = ${recordsT}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from message_reports where reporter_id = ${recordsT} or reviewed_by = ${recordsT}`), 0);
+    assert.equal(await count(sql`select count(*)::int as n from invitations where created_by = ${recordsT}`), 0);
+
+    // The one remaining bridge, memory_projects.message_id, is cut for the project made for the account's OWN
+    // card; projects made for someone else's card keep that (other person's) link.
+    const links = await sql<{ id: string; message_id: string | null }[]>`
+      select id, message_id from memory_projects where id in (${f.orderedProject}, ${f.unlockedProject}, ${f.codedProject})`;
+    const linkOf = (id: string) => links.find((l) => l.id === id)!.message_id;
+    assert.equal(linkOf(f.unlockedProject), null, "own-card project: link cleared, project/unlock/ledger kept");
+    assert.equal(linkOf(f.orderedProject), f.othersMessage);
+    assert.equal(linkOf(f.codedProject), f.othersMessage);
+    // The project keeps working on its own: readable without a card, and the schema allows it.
+    const own = (await memoryRepository.getById(f.unlockedProject))!;
+    assert.equal(own.messageId, null);
+    assert.equal(own.createdBy, recordsT);
+    assert.equal(own.outputType, "personal_pdf");
+    assert.equal(await count(sql`
+      select count(*)::int as n from memory_projects p join messages m on m.id = p.message_id
+      where p.created_by = ${recordsT} and m.author_id = ${contentT}`), 0, "no project of the records tombstone points at a card of the content tombstone");
 
     // Other people's rows are untouched.
     assert.equal(await count(sql`select count(*)::int as n from mobile_sessions where id = ${f.othersSession}`), 1);

@@ -11,7 +11,8 @@ export type MemoryProjectStatus = "draft" | "ready" | "fulfilled";
  */
 export interface MemoryProject {
   id: string;
-  messageId: string;
+  /** null only for a deleted account's retained project (migration 0031). */
+  messageId: string | null;
   createdBy: string;
   captureMode: MemoryCaptureMode;
   outputType: MemoryOutputType;
@@ -23,8 +24,8 @@ export interface MemoryProject {
 
 export type NewMemoryProjectInput = Pick<
   MemoryProject,
-  "messageId" | "createdBy" | "captureMode" | "outputType" | "frameTemplateId"
->;
+  "createdBy" | "captureMode" | "outputType" | "frameTemplateId"
+> & { messageId: string };
 
 export type MemoryPdfUnlockSource = "token" | "legacy_access_code" | "admin" | "legacy_grandfathered";
 
