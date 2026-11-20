@@ -2,6 +2,7 @@
 import { auth } from "@/features/auth/auth";
 import { authenticateMobileRequest } from "@/features/auth/mobileService";
 import { getTile } from "@/features/board/repository";
+import { getPublicTileCached } from "@/features/board/lib/tileCache";
 import { resolveBoardViewer } from "./lib/boardHandler";
 
 const PRIVATE_HEADERS = {
@@ -61,7 +62,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(tile, { headers: PRIVATE_HEADERS });
   }
 
-  const tile = await getTile(tileX, tileY, { from, to });
+  // No time range: the same tile for everyone, served from the KV cache.
+  const tile = from || to ? await getTile(tileX, tileY, { from, to }) : await getPublicTileCached(tileX, tileY);
   return NextResponse.json(tile, {
     headers: {
       "Cache-Control": "public, max-age=15, stale-while-revalidate=60",

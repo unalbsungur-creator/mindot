@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/features/auth/requireAdmin";
 import { notifyMessageApproved, notifyMessageRejected } from "@/features/notifications/events";
 import { resolveQuoteAttribution, type QuoteAttributionError } from "./lib/quoteAttribution";
+import { HOME_CACHE_KEY, invalidateKvCache, tileCacheKey } from "@/lib/kvCache";
 import { messageRepository } from "./repository";
 import type { Message } from "./types";
 
@@ -19,6 +20,18 @@ export interface ModerationResult {
 }
 
 const MAX_MODERATION_REASON_LENGTH = 1000;
+
+/**
+ * Public pages read the homepage data and tiles from a short KV cache
+ * (src/lib/kvCache.ts). After any decision that can change what the public
+ * sees, drop the homepage entry and the message's own tile so it shows at once
+ * (the TTL is only the backstop). Best effort — never fails the action.
+ */
+async function invalidatePublicCaches(message: Pick<Message, "tileX" | "tileY"> | undefined): Promise<void> {
+  const keys = [HOME_CACHE_KEY];
+  if (message && message.tileX != null && message.tileY != null) keys.push(tileCacheKey(message.tileX, message.tileY));
+  await invalidateKvCache(keys);
+}
 
 /**
  * EPIC 014: trims and caps the admin-authored reason, collapsing
@@ -46,6 +59,7 @@ export async function approveMessage(id: string, reason?: string): Promise<Moder
   await notifyMessageApproved(updated);
 
   revalidatePath("/admin/moderation");
+  await invalidatePublicCaches(updated);
   return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
 }
 
@@ -63,6 +77,7 @@ export async function rejectMessage(id: string, reason?: string): Promise<Modera
   await notifyMessageRejected(updated);
 
   revalidatePath("/admin/moderation");
+  await invalidatePublicCaches(updated);
   return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
 }
 
@@ -85,6 +100,7 @@ export async function archiveMessage(id: string, reason?: string): Promise<Moder
   if (!updated) return { ok: false, error: "already-moderated" };
 
   revalidatePath("/admin/moderation");
+  await invalidatePublicCaches(updated);
   revalidatePath("/board");
   return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
 }
@@ -106,6 +122,7 @@ export async function restoreMessage(id: string): Promise<ModerationResult> {
   if (!updated) return { ok: false, error: "already-moderated" };
 
   revalidatePath("/admin/moderation");
+  await invalidatePublicCaches(updated);
   revalidatePath("/board");
   return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
 }
@@ -140,6 +157,7 @@ export async function approveMessageRevision(id: string): Promise<ModerationResu
   await notifyMessageApproved(updated);
 
   revalidatePath("/admin/moderation");
+  await invalidatePublicCaches(updated);
   revalidatePath("/board");
   revalidatePath("/me/archive");
   return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
@@ -165,6 +183,7 @@ export async function rejectMessageRevision(id: string, reason?: string): Promis
   await notifyMessageRejected(updated);
 
   revalidatePath("/admin/moderation");
+  await invalidatePublicCaches(updated);
   revalidatePath("/me/archive");
   return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
 }
@@ -198,6 +217,7 @@ export async function correctQuoteAuthor(
   if (!updated) return { ok: false, error: "not-a-quote" };
 
   revalidatePath("/admin/moderation");
+  await invalidatePublicCaches(updated);
   if (updated.status === "approved") {
     revalidatePath("/board");
     revalidatePath("/");
@@ -217,5 +237,6 @@ export async function reconsiderMessage(id: string): Promise<ModerationResult> {
   if (!updated) return { ok: false, error: "already-moderated" };
 
   revalidatePath("/admin/moderation");
+  await invalidatePublicCaches(updated);
   return { ok: true, message: updated, moderatorName: admin.name ?? admin.email ?? undefined };
 }

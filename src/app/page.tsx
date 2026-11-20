@@ -1,8 +1,5 @@
-import { messageRepository } from "@/features/messages/repository";
-import type { Message } from "@/features/messages/types";
-import type { NoteData } from "@/features/notes/types";
 import { isDatabaseConfigured } from "@/lib/env";
-import { selectHomeHeroMessages, type HomeHeroMode } from "./_home/heroSelection";
+import { getHomeData, type HomeData } from "./_home/homeData";
 import { HomeHero } from "./_home/HomeHero";
 import { MeaningStrip } from "./_home/MeaningStrip";
 
@@ -10,38 +7,10 @@ import { MeaningStrip } from "./_home/MeaningStrip";
 // data, refreshed periodically rather than on every single request (the
 // homepage doesn't need millisecond freshness, and this keeps the page
 // effectively static/cached the rest of the time — see the Performans
-// section of that EPIC).
+// section of that EPIC). NOTE: this Worker has no ISR cache, so `revalidate`
+// alone does not stop a database read per visit — the reads go through
+// getHomeData's 5-minute KV cache instead (see src/lib/kvCache.ts).
 export const revalidate = 60;
-
-function toHeroNoteData(message: Message): NoteData {
-  return {
-    id: message.id,
-    content: message.content,
-    authorName: message.authorName,
-    templateId: message.templateId,
-    fontFamily: message.fontFamily,
-    textAlign: message.textAlign,
-    isQuote: message.isQuote,
-    quoteAuthor: message.quoteAuthor,
-    size: "sm",
-    rotation: message.rotation ?? 0,
-    // Inert for variant="static" — see HeroBrandComposition/Note.
-    position: { top: "0%", left: "0%" },
-    language: message.language,
-  };
-}
-
-/**
- * MB-01: the 4 most liked published cards from the Wall, filled up with
- * the newest ones when fewer than 4 have likes (see heroSelection.ts —
- * this replaced the two pinned message ids of "Ana Sayfadaki 4 Mesajın
- * Yeni Yapısı"). The caller only invokes this when the database is
- * configured.
- */
-async function getHomeHeroNotes(): Promise<{ mode: HomeHeroMode; notes: NoteData[]; pinnedIds: string[] }> {
-  const { mode, messages, pinnedIds } = await selectHomeHeroMessages(messageRepository);
-  return { mode, notes: messages.map(toHeroNoteData), pinnedIds };
-}
 
 /**
  * EPIC: MINDOT Ana Sayfa — Tek Sayfalık Final Landing Page. Exactly two
@@ -64,9 +33,9 @@ async function getHomeHeroNotes(): Promise<{ mode: HomeHeroMode; notes: NoteData
  * still surfaces normally, not swallowed.
  */
 export default async function Home() {
-  const [hero, activeCount] = isDatabaseConfigured()
-    ? await Promise.all([getHomeHeroNotes(), messageRepository.countApproved()])
-    : [{ mode: "latest" as const, notes: [] as NoteData[], pinnedIds: [] as string[] }, 0];
+  const { hero, activeCount }: HomeData = isDatabaseConfigured()
+    ? await getHomeData()
+    : { hero: { mode: "latest", notes: [], pinnedIds: [] }, activeCount: 0 };
 
   // MB-01: <main> is flex-1 and fills the viewport; without this wrapper the
   // two sections kept their own height and the canvas showed as an empty
