@@ -1,0 +1,126 @@
+name: Weekly encrypted database backup
+
+# Security pack 2b, item 6. Once a week: a read-only pg_dump of the production
+# database, encrypted on the runner with age to the PUBLIC key in
+# ops/backup/age-recipient.txt (the private key exists only offline, with the
+# owner), uploaded to the private R2 bucket below; the newest 12 are kept.
+# The plaintext dump is streamed straight into age and never written to disk.
+# On failure, a short alert (no data) goes to destek@mind-ot.com.
+#
+# Secrets (repository → Settings → Secrets and variables → Actions):
+#   BACKUP_DATABASE_URL            read-only role (mindot_backup), direct host
+#   R2_BACKUP_ACCESS_KEY_ID        R2 API token limited to this one bucket
+#   R2_BACKUP_SECRET_ACCESS_KEY      (Object Read & Write)
+#   BACKUP_ALERT_RESEND_API_KEY    Resend key with sending access only
+# Restore: ops/backup/restore-test.ps1 and ops/backup/README.md.
+
+on:
+  schedule:
+    - cron: "17 2 * * 0" # Sundays 02:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      BUCKET: mindot-db-backups
+      PREFIX: weekly/
+      KEEP: "12"
+      R2_ENDPOINT: https://bb303704a623a93e115e16d422eff6a7.r2.cloudflarestorage.com
+      # aws-cli ≥ 2.23 adds integrity checksums R2 doesn't need; only when required.
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      AWS_DEFAULT_REGION: auto
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL 18 client and age
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18 age
+          /usr/lib/postgresql/18/bin/pg_dump --version
+          age --version
+
+      - name: Dump and encrypt (plaintext never touches the disk)
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$BACKUP_DATABASE_URL" || { echo "::error::BACKUP_DATABASE_URL is not set"; exit 1; }
+          recipient="$(grep -E '^age1[0-9a-z]{58}$' ops/backup/age-recipient.txt || true)"
+          test -n "$recipient" || { echo "::error::ops/backup/age-recipient.txt has no age public key yet"; exit 1; }
+          stamp="$(date -u +%Y-%m-%dT%H%MZ)"
+          object="${PREFIX}mindot-prod-${stamp}.dump.age"
+          out="$RUNNER_TEMP/backup.dump.age"
+          /usr/lib/postgresql/18/bin/pg_dump \
+            --format=custom --compress=6 --no-owner --no-privileges \
+            --exclude-table=public.playing_with_neon \
+            --dbname="$BACKUP_DATABASE_URL" \
+            | age --encrypt --recipient "$recipient" --output "$out"
+          size="$(stat -c %s "$out")"
+          test "$size" -gt 1024 || { echo "::error::encrypted backup is suspiciously small ($size bytes)"; exit 1; }
+          sha="$(sha256sum "$out" | cut -d' ' -f1)"
+          echo "OBJECT=$object" >> "$GITHUB_ENV"
+          echo "SHA256=$sha" >> "$GITHUB_ENV"
+          echo "Encrypted backup: $object ($size bytes, sha256 $sha)"
+
+      - name: Upload to R2 and keep the newest ${{ env.KEEP }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_BACKUP_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_BACKUP_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          s3() { aws --endpoint-url "$R2_ENDPOINT" "$@"; }
+          s3 s3 cp "$RUNNER_TEMP/backup.dump.age" "s3://$BUCKET/$OBJECT" \
+            --content-type application/octet-stream --metadata "sha256=$SHA256" --no-progress
+          rm -f "$RUNNER_TEMP/backup.dump.age"
+          # Object names sort by date; everything older than the newest $KEEP goes.
+          mapfile -t keys < <(s3 s3api list-objects-v2 --bucket "$BUCKET" --prefix "$PREFIX" \
+            --query 'Contents[].Key' --output text | tr '\t' '\n' | grep -E '\.dump\.age$' | sort)
+          echo "Backups in the bucket: ${#keys[@]}"
+          if [ "${#keys[@]}" -gt "$KEEP" ]; then
+            for key in "${keys[@]:0:${#keys[@]}-KEEP}"; do
+              echo "Removing old backup: $key"
+              s3 s3 rm "s3://$BUCKET/$key"
+            done
+          fi
+          {
+            echo "### Weekly backup"
+            echo "- object: \`$OBJECT\`"
+            echo "- sha256: \`$SHA256\`"
+            echo "- kept: $(( ${#keys[@]} > KEEP ? KEEP : ${#keys[@]} )) backups"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Alert destek@ on failure
+        if: failure()
+        env:
+          RESEND_API_KEY: ${{ secrets.BACKUP_ALERT_RESEND_API_KEY }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          test -n "$RESEND_API_KEY" || { echo "::warning::BACKUP_ALERT_RESEND_API_KEY is not set; no alert sent"; exit 0; }
+          body="$(jq -n --arg run "$RUN_URL" '{
+            from: "MINDOT Bildirim <bildirim@mind-ot.com>",
+            to: ["destek@mind-ot.com"],
+            subject: "MINDOT haftalık veritabanı yedeği başarısız",
+            text: ("Haftalık şifreli yedek bu hafta alınamadı.\n\nAyrıntılar: " + $run + "\n\nBu e-posta veri içermez."),
+            html: ("<p>Haftalık şifreli yedek bu hafta alınamadı.</p><p><a href=\"" + $run + "\">Çalıştırmanın ayrıntıları</a></p><p>Bu e-posta veri içermez.</p>")
+          }')"
+          curl -fsS -X POST https://api.resend.com/emails \
+            -H "Authorization: Bearer $RESEND_API_KEY" -H "Content-Type: application/json" \
+            --data "$body" > /dev/null
+          echo "Failure alert sent to destek@mind-ot.com"
