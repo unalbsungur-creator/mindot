@@ -687,6 +687,7 @@ export const es: Dictionary = {
     detailTitle: "Detalle del pedido",
     backToList: "Volver a los pedidos",
     memoryHeading: "Recuerdo",
+    cardLinkRemoved: "El enlace a la tarjeta se eliminó al borrar la cuenta.",
     customerHeading: "Cliente",
     productionHeading: "Producción",
     customerNameLabel: "Nombre",

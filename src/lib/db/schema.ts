@@ -492,9 +492,10 @@ export const physicalOrderStatusEnum = pgEnum("physical_order_status", [
 
 export const memoryProjects = pgTable("memory_projects", {
   id: text("id").primaryKey(),
-  messageId: text("message_id")
-    .notNull()
-    .references(() => messages.id),
+  // NULL only for a deleted account's retained project: deleteAccount clears
+  // the link to the account's own card so the card's tombstone and the
+  // purchase records' tombstone can't be joined through it (migration 0031).
+  messageId: text("message_id").references(() => messages.id),
   // The memory creator / purchaser — never assumed to be messages.authorId.
   createdBy: text("created_by")
     .notNull()

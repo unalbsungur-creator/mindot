@@ -125,7 +125,8 @@ export type DigitalStatus = "not_applicable" | "waiting" | "granted";
  */
 export interface MemoryLibraryItem {
   projectId: string;
-  messageId: string;
+  /** null only for a deleted account's retained project (migration 0031). */
+  messageId: string | null;
   noteContent: string | null;
   noteTemplateId: string | null;
   /** EPIC — Kart Yazı Tipi Seçenekleri: the writer's own text typeface — rendering metadata, same privacy tier as `noteTemplateId`. */

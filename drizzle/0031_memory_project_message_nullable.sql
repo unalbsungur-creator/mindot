@@ -1,0 +1,14 @@
+-- Tombstone split (security pack, approved 2026-11-19). Hand-written (not
+-- drizzle-kit generate). The only change: memory_projects.message_id may be
+-- NULL. Nothing is dropped, renamed or rewritten and no row is touched.
+--
+-- Why: a deleted account's retained purchase records (memory projects with an
+-- order, unlock or access code) used to point at the account's own card
+-- through message_id, which tied the card's tombstone to the purchase
+-- records' tombstone. deleteAccount now clears message_id on those projects
+-- (only for the deleted account's own cards). The foreign key to messages(id)
+-- stays; a NULL simply references nothing.
+--
+-- Backward compatible: code written before this migration only ever inserts
+-- a non-NULL message_id, so it keeps working on a database where this ran.
+ALTER TABLE "memory_projects" ALTER COLUMN "message_id" DROP NOT NULL;

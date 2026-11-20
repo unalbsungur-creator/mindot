@@ -1,31 +1,34 @@
 /**
- * Guarded production migration — current release: MN-01 (0030_moderation_alerts).
+ * Guarded production migration — current release: tombstone split
+ * (0031_memory_project_message_nullable: memory_projects.message_id may be NULL).
  * Take and verify a Neon restore point first. Uses only an explicit direct
  * production URL; never reads .env.local, and never performs a Shopier refund.
  *
- * Release order (MN-01): staging 0030 → staging verification → Neon backup
- * branch → production 0030 (this script) → PR merge (code deploy) → alerts
- * start disabled (MODERATION_ALERTS_ENABLED unset) → enabled on the product
- * owner's decision.
- * Only a known journal state (0024–0029) is accepted as the starting point;
- * an already-applied 0030 is accepted too, so a re-run is a no-op.
+ * Release order: staging 0031 → staging verification → Neon backup branch →
+ * production 0031 (this script) → PR merge (code deploy). The migration only
+ * drops a NOT NULL, so the previous code keeps working on the migrated
+ * database: migrate first, deploy after.
+ * Only a known journal state (0024–0030) is accepted as the starting point;
+ * an already-applied 0031 is accepted too, so a re-run is a no-op.
  */
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 
 async function main(): Promise<void> {
-const CONFIRMATION = "MINDOT-PRODUCTION-ALERTS-0030";
+const CONFIRMATION = "MINDOT-PRODUCTION-TOMBSTONE-0031";
 const PRODUCTION_HOST_PREFIX = "ep-cool-art-b2nhe8o2";
 const ALLOWED_LATEST = new Set([
   "1791809597974", "1791975595810", "1791989814430",
   "1792032000000", "1792032300000", "1792166400000",
   // 0029_quote_attribution (MB-01, applied 2026-11-08).
   "1794096000000",
-  // 0030_moderation_alerts — already applied: the migrator skips it.
+  // 0030_moderation_alerts (applied 2026-11-09).
   "1794268800000",
+  // 0031_memory_project_message_nullable — already applied: the migrator skips it.
+  "1794873600000",
 ]);
-const EXPECTED_LATEST = "1794268800000";
+const EXPECTED_LATEST = "1794873600000";
 function fail(message: string): never { throw new Error(message); }
 const urlText = process.env.PRODUCTION_DATABASE_URL?.trim();
 if (!urlText) fail("Set PRODUCTION_DATABASE_URL in the shell; .env.local is never read.");
@@ -78,23 +81,37 @@ try {
   if (before !== 0) fail(`Wallet/ledger invariant failed for ${before} account(s); no migration was run.`);
   const [counts] = await db`
     SELECT (SELECT count(*)::int FROM public.token_ledger) AS ledger_entries,
-           (SELECT count(*)::int FROM public.token_wallets) AS wallets
+           (SELECT count(*)::int FROM public.token_wallets) AS wallets,
+           (SELECT count(*)::int FROM public.memory_projects) AS memory_projects,
+           (SELECT count(*)::int FROM public.messages) AS messages,
+           (SELECT count(*)::int FROM public.users WHERE deleted_at IS NOT NULL) AS tombstones
   `;
   console.log(`Verified direct production target ${url.hostname}/${databaseName} (PostgreSQL ${identity.server_version}); ${counts.ledger_entries} ledger entries, ${counts.wallets} wallets reconcile.`);
+  console.log(`Before: ${counts.memory_projects} memory projects, ${counts.messages} messages, ${counts.tombstones} deleted accounts.`);
   await migrate(drizzle(db), { migrationsFolder: "drizzle" });
   const after = await walletLedgerViolations(db);
   if (after !== 0) fail(`After migration, wallet/ledger invariant failed for ${after} account(s).`);
   const [verified] = await db.unsafe(`SELECT max(created_at)::text AS latest FROM "${safeSchema}"."__drizzle_migrations"`);
-  if (String(verified?.latest ?? "") !== EXPECTED_LATEST) fail("Migrations returned without expected 0030 journal marker.");
-  const tables = await db`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name IN ('moderation_alert_state', 'moderation_alert_recipients')
+  if (String(verified?.latest ?? "") !== EXPECTED_LATEST) fail("Migrations returned without expected 0031 journal marker.");
+  const [column] = await db`
+    SELECT is_nullable FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'memory_projects' AND column_name = 'message_id'
   `;
-  if (tables.length !== 2) fail(`Expected the 2 moderation alert tables, found ${tables.length}.`);
-  const [state] = await db`SELECT count(*)::int AS rows, count(*) FILTER (WHERE id = 1 AND phase = 'idle')::int AS idle FROM public.moderation_alert_state`;
-  if (state.rows !== 1) fail(`Expected exactly one moderation_alert_state row, found ${state.rows}.`);
-  const [messageCount] = await db`SELECT count(*)::int AS messages FROM public.messages`;
-  console.log(`Production migration complete: 0030 applied; alert state row present (${state.idle === 1 ? "idle" : "not idle"}); ${messageCount.messages} messages untouched; balances reconcile.`);
+  if (column?.is_nullable !== "YES") fail("memory_projects.message_id is still NOT NULL after the migration.");
+  const [fk] = await db`
+    SELECT count(*)::int AS n FROM information_schema.table_constraints
+    WHERE table_schema = 'public' AND table_name = 'memory_projects' AND constraint_type = 'FOREIGN KEY'
+  `;
+  const [after_] = await db`
+    SELECT (SELECT count(*)::int FROM public.memory_projects) AS memory_projects,
+           (SELECT count(*)::int FROM public.messages) AS messages,
+           (SELECT count(*)::int FROM public.memory_projects WHERE message_id IS NULL) AS unlinked
+  `;
+  if (after_.memory_projects !== counts.memory_projects || after_.messages !== counts.messages) {
+    fail("Row counts changed during the migration.");
+  }
+  if (after_.unlinked !== 0) fail(`Expected no memory project without a card link right after the migration, found ${after_.unlinked}.`);
+  console.log(`Production migration complete: 0031 applied; memory_projects.message_id is nullable (${fk.n} foreign keys kept); ${after_.memory_projects} memory projects and ${after_.messages} messages untouched; balances reconcile.`);
 } catch (error) {
   const safeMessage = error instanceof Error ? error.message.replaceAll(urlText, "[redacted connection string]") : "Unknown error";
   console.error(`Production migration failed: ${safeMessage}`);

@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
     return NextResponse.json({ error: access.reason }, { status: 403 });
   }
 
-  const message = await getPublicMessageById(project.messageId);
+  const message = project.messageId ? await getPublicMessageById(project.messageId) : null;
   if (!message) {
     return NextResponse.json({ error: "source-unavailable" }, { status: 410 });
   }

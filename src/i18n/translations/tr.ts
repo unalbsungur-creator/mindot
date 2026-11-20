@@ -689,6 +689,7 @@ export const tr: Dictionary = {
     detailTitle: "Sipariş detayı",
     backToList: "Siparişlere dön",
     memoryHeading: "Anı",
+    cardLinkRemoved: "Kart bağlantısı hesap silinince kaldırıldı.",
     customerHeading: "Müşteri",
     productionHeading: "Üretim",
     customerNameLabel: "İsim",

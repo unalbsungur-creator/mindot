@@ -453,9 +453,16 @@ class DrizzleUserRepository implements UserRepository {
    * Google `sub`, itself a stable personal identifier, and keeping it would
    * let the same Google account "revive" the old row on its next sign-in
    * (upsertFromGoogleProfile upserts on id). Records that must outlive the
-   * account are re-pointed to a fresh, random-id *tombstone* row carrying
+   * account are re-pointed to fresh, random-id *tombstone* rows carrying
    * no personal data (`deletedAt` set, no email/name/image/publicId), so
-   * every foreign key stays valid without keeping anything identifying:
+   * every foreign key stays valid without keeping anything identifying.
+   * There are TWO tombstones, never one (tombstone split, migration 0031):
+   * the CONTENT tombstone (cards, reports filed or reviewed, other audit
+   * columns) and the RECORDS tombstone (everything purchased or accounted:
+   * ledger, wallet, lots, allocations, refunds, orders, unlocks, access
+   * codes, retained memory projects). No row of one kind points at the
+   * other, and a retained project made for the account's own card has its
+   * message_id cleared — otherwise project → card would join them:
    *
    *   DELETED
    *     - users row (email, name, image, publicId, wall settings)
@@ -470,7 +477,7 @@ class DrizzleUserRepository implements UserRepository {
    *     - their likes (like counts decremented to stay consistent)
    *     - never-published messages (pending/rejected) nobody else references
    *     - memory projects with no order, unlock, or access code
-   *   ANONYMIZED (re-pointed to the tombstone)
+   *   ANONYMIZED (re-pointed to the content or records tombstone, as above)
    *     - published/archived messages, and any message something else still
    *       references: author name → "anonymous", isAnonymous, off the
    *       personal wall, pending edits dropped. Approved placement is
@@ -508,16 +515,29 @@ class DrizzleUserRepository implements UserRepository {
       if (account.role === "admin") return { status: "admin-account" as const };
 
       const now = new Date();
-      const tombstoneId = `deleted_${crypto.randomUUID()}`;
-      await tx.insert(users).values({
-        id: tombstoneId,
-        // email is NOT NULL UNIQUE; `.invalid` is a reserved, never-routable TLD.
-        email: `${tombstoneId}@deleted.invalid`,
-        role: "user",
-        deletedAt: now,
-        createdAt: now,
-        updatedAt: now,
-      });
+      // Two unrelated tombstones, never one: what the person wrote (cards,
+      // reports they filed) and what they bought (purchase/ledger/order
+      // records, which must be kept) must not share an id, or "these
+      // anonymous cards" and "this Shopier order" could be joined. Random,
+      // independent ids; the timestamps are cut to the UTC day so the two
+      // rows don't carry the same instant either. Both are inserted here, in
+      // this top-level transaction, which is what token_ledger's guard
+      // triggers (migration 0022) look for. No column on either row, and no
+      // column on any row pointing at one, refers to the other.
+      const contentTombstoneId = `deleted_${crypto.randomUUID()}`;
+      const recordsTombstoneId = `deleted_${crypto.randomUUID()}`;
+      const tombstoneDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      for (const id of [contentTombstoneId, recordsTombstoneId]) {
+        await tx.insert(users).values({
+          id,
+          // email is NOT NULL UNIQUE; `.invalid` is a reserved, never-routable TLD.
+          email: `${id}@deleted.invalid`,
+          role: "user",
+          deletedAt: tombstoneDay,
+          createdAt: tombstoneDay,
+          updatedAt: tombstoneDay,
+        });
+      }
 
       // Security pack 2b: cut the invitation trail before anything is
       // anonymized or deleted. An invitation's recipient_email is who it was
@@ -572,7 +592,7 @@ class DrizzleUserRepository implements UserRepository {
       await tx
         .update(messages)
         .set({
-          authorId: tombstoneId,
+          authorId: contentTombstoneId,
           authorName: "anonymous",
           isAnonymous: true,
           showOnPersonalWall: false,
@@ -596,30 +616,46 @@ class DrizzleUserRepository implements UserRepository {
             )
           )
         );
-      await tx.update(memoryProjects).set({ createdBy: tombstoneId, updatedAt: now }).where(eq(memoryProjects.createdBy, userId));
-      await tx.update(physicalOrders).set({ createdBy: tombstoneId }).where(eq(physicalOrders.createdBy, userId));
-      await tx.update(digitalAccessCodes).set({ redeemedBy: tombstoneId }).where(eq(digitalAccessCodes.redeemedBy, userId));
-      await tx.update(memoryPdfUnlocks).set({ userId: tombstoneId }).where(eq(memoryPdfUnlocks.userId, userId));
+      // Cut the card link of the retained projects that were made for the
+      // account's OWN cards (migration 0031 allows NULL): otherwise
+      // project.created_by (records tombstone) → project.message_id →
+      // message.author_id (content tombstone) joins the two. Projects made
+      // for someone else's card keep their link — that card isn't this
+      // person's. The cards were re-pointed to the (brand new, so only this
+      // account's) content tombstone above, hence the lookup through it.
+      await tx
+        .update(memoryProjects)
+        .set({ messageId: null })
+        .where(
+          and(
+            eq(memoryProjects.createdBy, userId),
+            inArray(memoryProjects.messageId, tx.select({ id: messages.id }).from(messages).where(eq(messages.authorId, contentTombstoneId)))
+          )
+        );
+      await tx.update(memoryProjects).set({ createdBy: recordsTombstoneId, updatedAt: now }).where(eq(memoryProjects.createdBy, userId));
+      await tx.update(physicalOrders).set({ createdBy: recordsTombstoneId }).where(eq(physicalOrders.createdBy, userId));
+      await tx.update(digitalAccessCodes).set({ redeemedBy: recordsTombstoneId }).where(eq(digitalAccessCodes.redeemedBy, userId));
+      await tx.update(memoryPdfUnlocks).set({ userId: recordsTombstoneId }).where(eq(memoryPdfUnlocks.userId, userId));
       // Refund accounting rows retain their audit trail but must not block account deletion.
-      await tx.update(tokenPurchaseLots).set({ userId: tombstoneId }).where(eq(tokenPurchaseLots.userId, userId));
-      await tx.update(tokenPurchaseAllocations).set({ userId: tombstoneId }).where(eq(tokenPurchaseAllocations.userId, userId));
-      await tx.update(tokenRefunds).set({ userId: tombstoneId }).where(eq(tokenRefunds.userId, userId));
-      await tx.update(tokenRefunds).set({ createdBy: tombstoneId }).where(eq(tokenRefunds.createdBy, userId));
-      await tx.update(tokenWallets).set({ userId: tombstoneId, updatedAt: now }).where(eq(tokenWallets.userId, userId));
+      await tx.update(tokenPurchaseLots).set({ userId: recordsTombstoneId }).where(eq(tokenPurchaseLots.userId, userId));
+      await tx.update(tokenPurchaseAllocations).set({ userId: recordsTombstoneId }).where(eq(tokenPurchaseAllocations.userId, userId));
+      await tx.update(tokenRefunds).set({ userId: recordsTombstoneId }).where(eq(tokenRefunds.userId, userId));
+      await tx.update(tokenRefunds).set({ createdBy: recordsTombstoneId }).where(eq(tokenRefunds.createdBy, userId));
+      await tx.update(tokenWallets).set({ userId: recordsTombstoneId, updatedAt: now }).where(eq(tokenWallets.userId, userId));
       // token_ledger's guard triggers (migration 0022) accept only this re-pointing, only to a
       // tombstone inserted by this same top-level transaction (above, never in a savepoint), and —
       // checked at COMMIT — only if the user row is gone by then (the DELETE at the end).
-      await tx.update(tokenLedger).set({ userId: tombstoneId }).where(eq(tokenLedger.userId, userId));
-      await tx.update(messageReports).set({ reporterId: tombstoneId }).where(eq(messageReports.reporterId, userId));
+      await tx.update(tokenLedger).set({ userId: recordsTombstoneId }).where(eq(tokenLedger.userId, userId));
+      await tx.update(messageReports).set({ reporterId: contentTombstoneId }).where(eq(messageReports.reporterId, userId));
 
       // Admin-only audit columns — a non-admin is never referenced here
       // today, but re-pointing (not skipping) keeps the final DELETE valid.
-      await tx.update(tokenLedger).set({ createdBy: tombstoneId }).where(eq(tokenLedger.createdBy, userId));
-      await tx.update(messageReports).set({ reviewedBy: tombstoneId }).where(eq(messageReports.reviewedBy, userId));
-      await tx.update(messages).set({ moderatedBy: tombstoneId }).where(eq(messages.moderatedBy, userId));
-      await tx.update(messages).set({ revisionReviewedBy: tombstoneId }).where(eq(messages.revisionReviewedBy, userId));
-      await tx.update(invitations).set({ createdBy: tombstoneId }).where(eq(invitations.createdBy, userId));
-      await tx.update(users).set({ statusChangedBy: tombstoneId }).where(eq(users.statusChangedBy, userId));
+      await tx.update(tokenLedger).set({ createdBy: recordsTombstoneId }).where(eq(tokenLedger.createdBy, userId));
+      await tx.update(messageReports).set({ reviewedBy: contentTombstoneId }).where(eq(messageReports.reviewedBy, userId));
+      await tx.update(messages).set({ moderatedBy: contentTombstoneId }).where(eq(messages.moderatedBy, userId));
+      await tx.update(messages).set({ revisionReviewedBy: contentTombstoneId }).where(eq(messages.revisionReviewedBy, userId));
+      await tx.update(invitations).set({ createdBy: contentTombstoneId }).where(eq(invitations.createdBy, userId));
+      await tx.update(users).set({ statusChangedBy: contentTombstoneId }).where(eq(users.statusChangedBy, userId));
 
       await tx.delete(users).where(eq(users.id, userId));
       return { status: "deleted" as const };
